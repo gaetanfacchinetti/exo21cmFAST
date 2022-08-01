@@ -28,7 +28,7 @@ from ._cfg import config
 from ._utils import OutputStruct as _BaseOutputStruct
 from ._utils import _check_compatible_inputs
 from .c_21cmfast import ffi, lib
-from .inputs import AstroParams, CosmoParams, FlagOptions, UserParams, global_params
+from .inputs import AstroParams, CosmoParams, FlagOptions, UserParams, global_params, ExoticEnergyInjected
 
 
 class _OutputStruct(_BaseOutputStruct):
@@ -395,11 +395,21 @@ class TsBox(_AllParamsBox):
         *,
         prev_spin_redshift: Optional[float] = None,
         perturbed_field_redshift: Optional[float] = None,
+        exotic_energy_injected: Optional[ExoticEnergyInjected] = None, # New in exo21cmFAST
         **kwargs,
     ):
         self.prev_spin_redshift = prev_spin_redshift
         self.perturbed_field_redshift = perturbed_field_redshift
+
+        # If we do not have exotic_energy_injected parameters then we initialise it to the default value
+        # The default value must be as if there were no exotic energy injection
+        if exotic_energy_injected is None:
+            self.exotic_energy_injected = ExoticEnergyInjected()
+        else:
+            self.exotic_energy_injected = exotic_energy_injected # New in exo21cmFAST
+        
         super().__init__(**kwargs)
+        
 
     def _get_box_structures(self) -> Dict[str, Union[Dict, Tuple[int]]]:
         shape = (self.user_params.HII_DIM,) * 3
@@ -422,6 +432,7 @@ class TsBox(_AllParamsBox):
 
     @cached_property
     def global_Tk(self):
+        #print("We enter this function")
         """Global (mean) Tk."""
         if "Tk_box" not in self._computed_arrays:
             raise AttributeError(
@@ -440,6 +451,8 @@ class TsBox(_AllParamsBox):
         else:
             return np.mean(self.x_e_box)
 
+    #print("We are here") 
+        
     def get_required_input_arrays(self, input_box: _BaseOutputStruct) -> List[str]:
         """Return all input arrays required to compute this object."""
         required = []
@@ -487,6 +500,7 @@ class TsBox(_AllParamsBox):
             perturbed_field,
             prev_spin_temp,
             ics,
+            self.exotic_energy_injected, # New in exo21cmFAST
             hooks=hooks,
         )
 

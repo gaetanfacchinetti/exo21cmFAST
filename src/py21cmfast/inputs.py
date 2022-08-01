@@ -29,8 +29,8 @@ logger = logging.getLogger("21cmFAST")
 # Cosmology is from https://arxiv.org/pdf/1807.06209.pdf
 # Table 2, last column. [TT,TE,EE+lowE+lensing+BAO]
 Planck18 = Planck15.clone(
-    Om0=(0.02242 + 0.11933) / 0.6766**2,
-    Ob0=0.02242 / 0.6766**2,
+    Om0=(0.02242 + 0.11933) / 0.6766 ** 2,
+    Ob0=0.02242 / 0.6766 ** 2,
     H0=67.66,
 )
 
@@ -454,6 +454,47 @@ class UserParams(StructWithDefaults):
     MINIMIZE_MEMORY: bool, optional
         If set, the code will run in a mode that minimizes memory usage, at the expense
         of some CPU/disk-IO. Good for large boxes / small computers.
+    
+    -- Properties of DM energy injection with DarkHistory
+    DM_MASS: float, optional
+        Mass of the dark matter particle in eV
+        By default it is set to 1e+10 eV
+    DM_PROCESS: str, optional
+        Whether we consider decaying or annihilating DM
+        'swave': swave annihilation
+        'decay': decaying dark matter
+        'none' : no DM energy injection
+    DM_SIGMAV: float, optional
+        Annihilation cross section in cm^3 s^{-1}
+        If -2 it is evaluated as (pann=3.5e-28)*(M_DM/1GeV)/f_eff with f_eff = 0.5
+        If -1 it is tabulated on Planck18 curves
+        By default it is set to -2
+    DM_LIFETIME: float, optional
+        Lifetime of decaying dark matter in s
+        By default it is set to 1 s
+    DM_PRIMARY: str, optional
+        Primary particles produced
+        'elec_delta': two electrons per event with the same energy
+        'phot_delta': two photons per event with the same energy
+        'e', 'gamma', ...
+        Be default it is set on 'elec_delta'
+    DM_BOOST: str, optional
+        Boost factor for DM annihilation due to clumping
+        Choice amongst: 'erfc', 'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs'
+        By default it is set on 'erfc'
+    DM_FS_METHOD: str, optional
+        Method to compute the fraction of energy injected
+        Choice amongst: 'He', 'no_He', 'He_recomb'
+        By default it is set to no_He
+    DM_BACKREACTION: bool, optional
+        Include the backreaction of the ionization history on the injected energy
+        By default it is set to True
+    
+    -- Properties of DM energy injection with effective relations
+    DM_PARAMETER_FHEAT_A: float, optional
+    DM_PARAMETER_FHEAT_B: float, optional
+    DM_PARAMETER_FHEAT_C: float, optional
+
     """
 
     _ffi = ffi
@@ -473,6 +514,21 @@ class UserParams(StructWithDefaults):
         "FAST_FCOLL_TABLES": False,
         "USE_2LPT": True,
         "MINIMIZE_MEMORY": False,
+
+        ## Gaetan
+        "DM_MASS": 1e+10,
+        "DM_PROCESS": 'swave',
+        "DM_SIGMAV": -2,
+        "DM_LIFETIME": 1,
+        "DM_PRIMARY": 'elec_delta',
+        "DM_BOOST": 'erfc',
+        "DM_FS_METHOD": 'no_He',
+        "DM_BACKREACTION": True,
+
+        # input parameters 
+        "DM_PARAMETER_FHEAT_A": 1.,
+        "DM_PARAMETER_FHEAT_B": 1.,
+        "DM_PARAMETER_FHEAT_C": 1.
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -501,12 +557,12 @@ class UserParams(StructWithDefaults):
     @property
     def tot_fft_num_pixels(self):
         """Total number of pixels in the high-res box."""
-        return self.DIM**3
+        return self.DIM ** 3
 
     @property
     def HII_tot_num_pixels(self):
         """Total number of pixels in the low-res box."""
-        return self.HII_DIM**3
+        return self.HII_DIM ** 3
 
     @property
     def POWER_SPECTRUM(self):
@@ -584,6 +640,108 @@ class UserParams(StructWithDefaults):
         else:
             return self._FAST_FCOLL_TABLES
 
+    
+    
+    ################################################################################################
+    ## New in Exo21cmFAST
+
+    _allowed_process        = ['none','swave', 'decay']
+    _allowed_boost          = ['none', 'erfc', 'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs']
+    _allowed_primary        = ['elec_delta', 'phot_delta', 
+                                'e_L', 'e_R', 'e', 'mu_L', 'mu_R', 'mu', 'tau_L', 'tau_R', 'tau',
+                                'q', 'c', 'b', 't', 'gamma', 'g', 
+                                'W_L', 'W_T', 'W', 'Z_L', 'Z_T', 'Z', 'h', 'none']
+    _allowed_fs_method      = ['He', 'no_He', 'He_recomb', 'none']
+    _allowed_sigv_special   = [-2, -1]
+
+    @property
+    def DM_MASS(self):
+        """ Mass of the dark matter particle in eV """
+        if isinstance(self._DM_MASS, float):
+            return self._DM_MASS
+        else :
+            raise ValueError("DM_MASS must be a float")   
+    
+    @property
+    def DM_PROCESS(self): 
+        """ Whether we consider decaying or annihilating DM """
+        if isinstance(self._DM_PROCESS, str) and self._DM_PROCESS in self._allowed_process:
+            return self._DM_PROCESS
+        else : 
+            raise ValueError("DM_PROCESS must be a string in the allowed options")
+    
+    @property
+    def DM_SIGMAV(self): 
+        """ Annihilation cross section in cm^3 s^{-1} """
+        if isinstance(self._DM_SIGMAV, float) or (isinstance(self._DM_SIGMAV, int) and self._DM_SIGMAV in self._allowed_sigv_special):
+            return self._DM_SIGMAV
+        else:
+            raise ValueError("DM_SIGMAV must be a float or a special value")
+
+    @property
+    def DM_LIFETIME(self): 
+        """ Lifetime of decaying dark matter in s """
+        if isinstance(self._DM_LIFETIME, float) or isinstance(self._DM_LIFETIME, int) :
+            return self._DM_LIFETIME
+        else:
+            raise ValueError("DM_LIFETIME must be a float or a special value")
+
+    @property
+    def DM_PRIMARY(self): 
+        """ Primary particles produced """
+        if isinstance(self._DM_PRIMARY, str) and self._DM_PRIMARY in self._allowed_primary:
+            return self._DM_PRIMARY
+        else : 
+            raise ValueError("DM_PRIMARY must be a string in the allowed options")
+
+    @property
+    def DM_BOOST(self): 
+        """ Primary particles produced """
+        if isinstance(self._DM_BOOST, str) and self._DM_BOOST in self._allowed_boost:
+            return self._DM_BOOST
+        else : 
+            raise ValueError("DM_BOOST must be a string in the allowed options")
+
+    @property
+    def DM_FS_METHOD(self): 
+        """ Method to compute the fraction of energy injected """
+        if isinstance(self._DM_FS_METHOD, str) and self._DM_FS_METHOD in self._allowed_fs_method:
+            return self._DM_FS_METHOD
+        else : 
+            raise ValueError("DM_FS_METHOD must be a string in the allowed options")
+
+    @property
+    def DM_BACKREACTION(self):
+        """ Include the backreaction of the ionization history on the injected energy """
+        if isinstance(self._DM_BACKREACTION, bool):
+            return self._DM_BACKREACTION
+        else : 
+            raise ValueError("DM_BACKREACTION must be a boolean")
+
+    @property
+    def DM_PARAMETER_FHEAT_A(self):
+        if isinstance(self._DM_PARAMETER_FHEAT_A , float): 
+            return self._DM_PARAMETER_FHEAT_A
+        else : 
+            raise ValueError("DM_PARAMETER_FHEAT_A must be a float")
+        
+    @property
+    def DM_PARAMETER_FHEAT_B(self):
+        if isinstance(self._DM_PARAMETER_FHEAT_B , float): 
+            return self._DM_PARAMETER_FHEAT_B
+        else : 
+            raise ValueError("DM_PARAMETER_FHEAT_B must be a float")
+    
+    @property
+    def DM_PARAMETER_FHEAT_C(self):
+        if isinstance(self._DM_PARAMETER_FHEAT_C , float): 
+            return self._DM_PARAMETER_FHEAT_C
+        else : 
+            raise ValueError("DM_PARAMETER_FHEAT_C must be a float")
+    ################################################################################################
+
+
+
 
 class FlagOptions(StructWithDefaults):
     """
@@ -627,6 +785,15 @@ class FlagOptions(StructWithDefaults):
         Determines whether to use a fixed vcb=VAVG (*regardless* of USE_RELATIVE_VELOCITIES). It includes the average effect of velocities but not its fluctuations. See Muñoz+21 (2110.13919).
     USE_VELS_AUX: bool, optional
         Auxiliary variable (not input) to check if minihaloes are being used without relative velocities and complain
+    
+    USE_DM_ENERGY_INJECTION: bool, optional
+        Whether to introude exotic energy injection due to DM annihilation or decay
+        Be default the code will be using DarkHistory to evaluate the injected energy
+    USE_EFFECTIVE_DEP_FUNCS: bool, optional
+        If set to True, then the code will not use DarkHistory but rather an effective, approximated energy deposition functions (tabulated on DarkHistory)
+        Note that, for now, impossible to have USE_DM_ENERGY_INJECTION = True and USE_EFF = False if DM_PROCESS is different from 'decay'
+    FORCE_INIT_COND: bool, optional
+        If set to True then the initial conditions are set as if there had not been injection of energy due to DM before Z_HEAT_MAX
     """
 
     _ffi = ffi
@@ -641,6 +808,9 @@ class FlagOptions(StructWithDefaults):
         "M_MIN_in_Mass": False,
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
+        "USE_DM_ENERGY_INJECTION": False,
+        "USE_EFFECTIVE_DEP_FUNCS": False,
+        "FORCE_INIT_COND": False
     }
 
     # This checks if relative velocities are off to complain if minihaloes are on
@@ -726,6 +896,37 @@ class FlagOptions(StructWithDefaults):
             return False
         else:
             return self._PHOTON_CONS
+
+
+    ######################################################################################
+    ## New in Exo21cmFAST
+    @property
+    def USE_DM_ENERGY_INJECTION(self):
+        """ Specify if we account for DM energy injection """
+        if isinstance(self._USE_DM_ENERGY_INJECTION, bool): 
+            return self._USE_DM_ENERGY_INJECTION
+        else:
+            raise ValueError("USE_DM_ENERGY_INJECTION must be a bool")
+
+    @property
+    def USE_EFFECTIVE_DEP_FUNCS(self):
+        """ Specify if we treat DM energy injection at the effective level or with DarkHistory """
+        if isinstance(self._USE_EFFECTIVE_DEP_FUNCS, bool):
+            if self._USE_DM_ENERGY_INJECTION is False and self._USE_EFFECTIVE_DEP_FUNCS is True :  
+                raise ValueError("USE_DM_ENERGY_INJECTION must be True to set USE_EFFECTIVE_DEP_FUNCS to True")
+            else:
+                return self._USE_EFFECTIVE_DEP_FUNCS
+        else:
+            raise ValueError("EFFECTIVE_DEP_FUNCS must be a bool")
+
+    @property
+    def FORCE_INIT_COND(self):
+        """ Force init condition to that obtained without DM (whether we included DM energy injection of not) """
+        if isinstance(self._FORCE_INIT_COND, bool):
+            return self._FORCE_INIT_COND
+        else:
+            raise ValueError("FORCE_INIT_COND must be a bool")
+
 
 
 class AstroParams(StructWithDefaults):
@@ -872,7 +1073,7 @@ class AstroParams(StructWithDefaults):
             "L_X_MINI",
             "X_RAY_Tvir_MIN",
         ]:
-            return 10**val
+            return 10 ** val
         else:
             return val
 
@@ -931,3 +1132,49 @@ class AstroParams(StructWithDefaults):
             raise ValueError("t_STAR must be above zero and less than or equal to one")
         else:
             return self._t_STAR
+
+
+
+
+
+#####################################################################################
+## New in Exo21cmFAST
+## Not really an input but do not know were to put this class otherwise
+## Structure to give to the C code
+
+class ExoticEnergyInjected(StructWithDefaults) : 
+
+    _ffi = ffi
+
+    _defaults_ = {
+        "f_H_ION": 0.,
+        "f_He_ION": 0.,
+        "f_HEAT": 0.,
+        "f_EXC": 0.,
+        "f_CONT":0.,
+        "Inj_ENERGY_SMOOTH":0.,
+        }
+
+    @property
+    def f_H_ION(self):
+        return self._f_H_ION
+
+    @property
+    def f_He_ION(self):
+        return self._f_He_ION
+    
+    @property
+    def f_HEAT(self):
+        return self._f_HEAT
+    
+    @property
+    def f_EXC(self):
+        return self._f_EXC
+    
+    @property
+    def f_CONT(self):
+        return self._f_CONT
+
+    @property
+    def Inj_ENERGY_SMOOTH(self):
+        return self._Inj_ENERGY_SMOOTH

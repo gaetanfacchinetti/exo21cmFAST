@@ -32,6 +32,17 @@ struct UserParams{
     bool FAST_FCOLL_TABLES; //Whether to use the fast Fcoll table approximation in EPS
     bool USE_2LPT;
     bool MINIMIZE_MEMORY;
+
+    // DM related quantities
+    // Be careful we cannot pass char* 
+    float DM_MASS;
+    //char* DM_PROCESS;
+    float DM_SIGMAV;
+    float DM_LIFETIME;
+    //char* DM_PRIMARY;
+    //char* DM_BOOST;
+    //char* DM_FS_METHOD;
+    bool DM_BACKREACTION;
 };
 
 struct AstroParams{
@@ -78,6 +89,7 @@ struct FlagOptions{
     bool M_MIN_in_Mass;
     bool PHOTON_CONS;
     bool FIX_VCB_AVG;
+    bool USE_DM_ENERGY_INJECTION;
 };
 
 
@@ -142,6 +154,16 @@ struct BrightnessTemp{
     float *brightness_temp;
 };
 
+
+struct ExoticEnergyInjected{
+    float f_H_ION;
+    float f_He_ION;
+    float f_HEAT;
+    float f_EXC;
+    float f_CONT;
+    float Inj_ENERGY_SMOOTH;
+};
+
 int ComputeInitialConditions(unsigned long long random_seed, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes);
 
 int ComputePerturbField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes, struct PerturbedField *perturbed_field);
@@ -157,7 +179,8 @@ int ComputePerturbHaloField(float redshift, struct UserParams *user_params, stru
 int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
                   struct AstroParams *astro_params, struct FlagOptions *flag_options, float perturbed_field_redshift,
                   short cleanup,
-                  struct PerturbedField *perturbed_field, struct TsBox *previous_spin_temp, struct InitialConditions *ini_boxes,
+                  struct PerturbedField *perturbed_field, struct TsBox *previous_spin_temp, struct InitialConditions *ini_boxes, 
+                  struct ExoticEnergyInjected *exotic_energy_injected,
                   struct TsBox *this_spin_temp);
 
 int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
