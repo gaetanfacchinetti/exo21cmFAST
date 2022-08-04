@@ -491,10 +491,26 @@ class UserParams(StructWithDefaults):
         By default it is set to True
     
     -- Properties of DM energy injection with effective relations
-    DM_PARAMETER_FHEAT_A: float, optional
-    DM_PARAMETER_FHEAT_B: float, optional
-    DM_PARAMETER_FHEAT_C: float, optional
-
+    DM_FHEAT_APPROX_SHAPE: int or str, optional
+        Functional form for the deposition fraction into heat: f_heat(z) 
+        If str, should correspond to one of the following
+        0: 'constant'
+        1: 'exponential'
+        2: 'schechter'
+    DM_FHEAT_APPROX_PARAMS: list of floats, optional
+        Parameters to feed to the functional form for f_heat (see above)
+    DM_FION_H_OVER_FHEAT: float, optional
+        Ratio of the deposition fraction into ionisation of hydrogen over heat
+        (This assumes that this ratio is a constant for all z)
+        By default the values tabulated from DarkHistory are used
+    DM_FION_HE_OVER_FHEAT: float, optional
+        Ratio of the deposition fraction into ionisation of helium over heat
+        (This assumes that this ratio is a constant for all z)
+        By default the values tabulated from DarkHistory are used
+    DM_FEXC_OVER_FHEAT: float, optional
+        Ratio of the deposition fraction into excitation over heat
+        (This assumes that this ratio is a constant for all z)
+        By default the values tabulated from DarkHistory are used
     """
 
     _ffi = ffi
@@ -517,18 +533,20 @@ class UserParams(StructWithDefaults):
 
         ## Gaetan
         "DM_MASS": 1e+10,
-        "DM_PROCESS": 'swave',
-        "DM_SIGMAV": -2,
-        "DM_LIFETIME": 1,
+        "DM_PROCESS": 'SWAVE',
+        "DM_SIGMAV": 3e+26,
+        "DM_LIFETIME": 0,
         "DM_PRIMARY": 'elec_delta',
         "DM_BOOST": 'erfc',
         "DM_FS_METHOD": 'no_He',
         "DM_BACKREACTION": True,
 
-        # input parameters 
-        "DM_PARAMETER_FHEAT_A": 1.,
-        "DM_PARAMETER_FHEAT_B": 1.,
-        "DM_PARAMETER_FHEAT_C": 1.
+        # approximate energy injection values
+        'DM_FHEAT_APPROX_SHAPE':  'constant',
+        'DM_FHEAT_APPROX_PARAMS': [0.],
+        'DM_FION_H_OVER_FHEAT': -1,
+        'DM_FION_HE_OVER_FHEAT': -1,
+        'DM_FEXC_OVER_FHEAT': -1,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -643,48 +661,55 @@ class UserParams(StructWithDefaults):
     
     
     ################################################################################################
-    ## New in Exo21cmFAST
+    ## New in exo21cmFAST
 
-    _allowed_process        = ['none','swave', 'decay']
+    _allowed_process        = ['none', 'swave', 'decay']
     _allowed_boost          = ['none', 'erfc', 'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs']
-    _allowed_primary        = ['elec_delta', 'phot_delta', 
+    _allowed_primary        = ['none', 'elec_delta', 'phot_delta', 
                                 'e_L', 'e_R', 'e', 'mu_L', 'mu_R', 'mu', 'tau_L', 'tau_R', 'tau',
                                 'q', 'c', 'b', 't', 'gamma', 'g', 
-                                'W_L', 'W_T', 'W', 'Z_L', 'Z_T', 'Z', 'h', 'none']
+                                'W_L', 'W_T', 'W', 'Z_L', 'Z_T', 'Z', 'h']
     _allowed_fs_method      = ['He', 'no_He', 'He_recomb', 'none']
-    _allowed_sigv_special   = [-2, -1]
+    _fheat_shapes           = ['constant', 'exponential', 'schechter']
+    _n_params_shapes        = [1, 2, 3] # Number of parameters corresponding to each shape
 
     @property
     def DM_MASS(self):
         """ Mass of the dark matter particle in eV """
-        if isinstance(self._DM_MASS, float):
-            return self._DM_MASS
+        if isinstance(self._DM_MASS, (int, float)) and self._DM_MASS >= 0:
+            return float(self._DM_MASS)
         else :
-            raise ValueError("DM_MASS must be a float")   
+            raise ValueError("DM_MASS must be a positive float")   
     
     @property
     def DM_PROCESS(self): 
         """ Whether we consider decaying or annihilating DM """
-        if isinstance(self._DM_PROCESS, str) and self._DM_PROCESS in self._allowed_process:
-            return self._DM_PROCESS
+        if isinstance(self._DM_PROCESS, str) and self._DM_PROCESS.lower() in self._allowed_process:
+            return self._DM_PROCESS.lower()
         else : 
             raise ValueError("DM_PROCESS must be a string in the allowed options")
     
     @property
     def DM_SIGMAV(self): 
         """ Annihilation cross section in cm^3 s^{-1} """
-        if isinstance(self._DM_SIGMAV, float) or (isinstance(self._DM_SIGMAV, int) and self._DM_SIGMAV in self._allowed_sigv_special):
-            return self._DM_SIGMAV
+        if isinstance(self._DM_SIGMAV, (int, float)) :
+            if self._DM_SIGMAV <= 0 and self._DM_PROCESS.lower() == 'swave':
+                raise ValueError("DM_SIGMAV must be a positive float if DM_PROCESS is set to swave")
+            else:
+                return float(self._DM_SIGMAV)
         else:
-            raise ValueError("DM_SIGMAV must be a float or a special value")
+            raise ValueError("DM_SIGMAV must be a float")
 
     @property
     def DM_LIFETIME(self): 
         """ Lifetime of decaying dark matter in s """
-        if isinstance(self._DM_LIFETIME, float) or isinstance(self._DM_LIFETIME, int) :
-            return self._DM_LIFETIME
+        if isinstance(self._DM_LIFETIME, (int, float)) :
+            if self._DM_LIFETIME <= 0 and self._DM_PROCESS.lower() == 'decay':
+                raise ValueError("DM_LIFETIME must be a positive float if DM_PROCESS is set to decay")
+            else:
+                return float(self._DM_LIFETIME)
         else:
-            raise ValueError("DM_LIFETIME must be a float or a special value")
+            raise ValueError("DM_LIFETIME must be a float")
 
     @property
     def DM_PRIMARY(self): 
@@ -719,25 +744,76 @@ class UserParams(StructWithDefaults):
             raise ValueError("DM_BACKREACTION must be a boolean")
 
     @property
-    def DM_PARAMETER_FHEAT_A(self):
-        if isinstance(self._DM_PARAMETER_FHEAT_A , float): 
-            return self._DM_PARAMETER_FHEAT_A
-        else : 
-            raise ValueError("DM_PARAMETER_FHEAT_A must be a float")
+    def DM_FHEAT_APPROX_SHAPE(self):
+        """ Sets the approximate shape for the deposition fraction into heat"""
+       
+        if self._DM_FHEAT_APPROX_SHAPE == None:
+            return self._DM_FHEAT_APPROX_SHAPE 
+
+        if isinstance(self._DM_FHEAT_APPROX_SHAPE, int): 
+            if self._DM_FHEAT_APPROX_SHAPE < len(self._fheat_shapes):
+                return self._DM_FHEAT_APPROX_SHAPE
+            else:
+                return ValueError("If DM_FHEAT_APPROX_SHAPE is of type int it should be below", len(self._fheat_shapes))
         
-    @property
-    def DM_PARAMETER_FHEAT_B(self):
-        if isinstance(self._DM_PARAMETER_FHEAT_B , float): 
-            return self._DM_PARAMETER_FHEAT_B
+        elif isinstance(self._DM_FHEAT_APPROX_SHAPE, str):
+            if self._DM_FHEAT_APPROX_SHAPE in  self._fheat_shapes:
+                return self._fheat_shapes.index(self._DM_FHEAT_APPROX_SHAPE)
+            else:
+                return ValueError("If DM_FHEAT_APPROX_SHAPE is of type str should be in:", self._fheat_shapes)
+       
         else : 
-            raise ValueError("DM_PARAMETER_FHEAT_B must be a float")
-    
+            raise ValueError("DM_FHEAT_APPROX_SHAPE must be a int or a str")
+
+
     @property
-    def DM_PARAMETER_FHEAT_C(self):
-        if isinstance(self._DM_PARAMETER_FHEAT_C , float): 
-            return self._DM_PARAMETER_FHEAT_C
+    def DM_FHEAT_APPROX_PARAMS(self):
+        """ Sets the parameters of the DM_FHEAT_APPROX_SHAPE function """
+
+        if isinstance(self._DM_FHEAT_APPROX_PARAMS, list):
+            if len(self._DM_FHEAT_APPROX_PARAMS) == self._n_params_shapes[self.DM_FHEAT_APPROX_SHAPE] \
+                and all(isinstance(x, float) for x in self._DM_FHEAT_APPROX_PARAMS):
+                return self._DM_FHEAT_APPROX_PARAMS
+            else:
+                raise ValueError("DM_FHEAT_APPROX_PARAMS must be a list of floats of length", 
+                                self._n_params_shapes[self.DM_FHEAT_APPROX_SHAPE], 
+                                "for DM_FHEAT_APPROX_SHAPE:", self._DM_FHEAT_APPROX_SHAPE)
+        else:
+            raise ValueError("DM_FHEAT_APPROX_PARAMS must be a list of floats")
+
+    @property
+    def DM_FION_H_OVER_FHEAT(self):
+        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
+        if self._DM_FION_H_OVER_FHEAT is None :
+            return None
+        
+        if isinstance(self._DM_FION_H_OVER_FHEAT, (int, float)):
+            return float(self._DM_FION_H_OVER_FHEAT)
         else : 
-            raise ValueError("DM_PARAMETER_FHEAT_C must be a float")
+            raise ValueError("DM_FION_H_OVER_FHEAT must be a float")
+
+    @property
+    def DM_FION_HE_OVER_FHEAT(self):
+        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
+        if self._DM_FION_HE_OVER_FHEAT is None :
+            return None
+        
+        if isinstance(self._DM_FION_HE_OVER_FHEAT, (int, float)):
+            return float(self._DM_FION_HE_OVER_FHEAT)
+        else : 
+            raise ValueError("DM_FION_HE_OVER_FHEAT must be a float")
+
+    @property
+    def DM_FEXC_OVER_FHEAT(self):
+        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
+        if self._DM_FEXC_OVER_FHEAT is None :
+            return None
+        
+        if isinstance(self._DM_FEXC_OVER_FHEAT, (int, float)):
+            return float(self._DM_FEXC_OVER_FHEAT)
+        else : 
+            raise ValueError("DM_FEXC_OVER_FHEAT must be a float")
+ 
     ################################################################################################
 
 
@@ -926,7 +1002,7 @@ class FlagOptions(StructWithDefaults):
             return self._FORCE_INIT_COND
         else:
             raise ValueError("FORCE_INIT_COND must be a bool")
-
+    ######################################################################################
 
 
 class AstroParams(StructWithDefaults):

@@ -122,16 +122,14 @@ logger = logging.getLogger(__name__)
 ## New in Exo21cmFAST
 ## Import what is necessary to use DarkHistory
 import sys
-from . import dh_tools as dep_21 # Tools to use DH inside 21cmFAST
 
 DARKHISTORY_NOT_FOUND = False
 
 try:
+    from . import dh_tools as dep_21 # Tools to use DH inside 21cmFAST
     import DarkHistory.darkhistory.physics as phys
-
 except:
     DARKHISTORY_NOT_FOUND = True
-
 
 from .c_21cmfast import ffi
 #####################################################################################
@@ -2482,6 +2480,7 @@ def _get_redshifts(flag_options, redshift):
 
 
 
+"""
 
 def run_lightcone(
     *,
@@ -2508,7 +2507,7 @@ def run_lightcone(
     always_purge: bool = False,
     **global_kwargs,
 ):
-    r"""
+    r""""""
     Evaluate a full lightcone ending at a given redshift.
 
     This is generally the easiest and most efficient way to generate a lightcone, though it can
@@ -2594,12 +2593,12 @@ def run_lightcone(
     ----------------
     regenerate, write, direc, random_seed
         See docs of :func:`initial_conditions` for more information.
-    """
+    """"""
     
     ## Gaetan 
     ## Here we just init flag options to see if USE_DM_ENERGY_INJECTION is set to True
-    init_flag_options = FlagOptions(flag_options)
-    if init_flag_options.USE_DM_ENERGY_INJECTION == True:
+    flag_options = FlagOptions(flag_options)
+    if flag_options.USE_DM_ENERGY_INJECTION == True:
         return  run_lightcone_with_DM(redshift=redshift,
                                         coarsen_factor=coarsen_factor,
                                         user_params=user_params,
@@ -2670,13 +2669,13 @@ def run_lightcone(
 
         if (flag_options.PHOTON_CONS and np.amin(scrollz) < global_params.PhotonConsEndCalibz):
             raise ValueError(
-                f"""
+                f""" """
                 You have passed a redshift (z = {np.amin(scrollz)}) that is lower than the endpoint
                 of the photon non-conservation correction
                 (global_params.PhotonConsEndCalibz = {global_params.PhotonConsEndCalibz}).
                 If this behaviour is desired then set global_params.PhotonConsEndCalibz to a value lower than
                 z = {np.amin(scrollz)}.
-                """
+                """ """
             )
 
         coeval_callback_output = []
@@ -2946,16 +2945,13 @@ def run_lightcone(
             return out
 
 
+"""
 
 
-
-################################################################################################
-## Gaetan
-
-## Modified version to use with DarkHistory
-def run_lightcone_with_DM(
+def run_lightcone(
     *,
     redshift=None,
+    max_redshift=None,
     coarsen_factor=None,
     user_params=None,
     cosmo_params=None,
@@ -2990,6 +2986,10 @@ def run_lightcone_with_DM(
     max_redshift : float, optional
         The maximum redshift at which to keep lightcone information. By default, this is equal to
         `z_heat_max`. Note that this is not *exact*, but will be typically slightly exceeded.
+    coarsen_factor: int, optional
+        Parameter that defines the redshift steps and is used if dark matter energy injection
+        is computed from DarkHistory (for compatibility). By default coarsen_factor = 16
+        We have: Z_PRIME_STEP_FACTOR = exp(coarsen_factor*1e-3)
     user_params : `~UserParams`, optional
         Defines the overall options and parameters of the run.
     astro_params : :class:`~AstroParams`, optional
@@ -3069,84 +3069,103 @@ def run_lightcone_with_DM(
     #####################################################################################
     ## New in Exo21cmFAST
     ## First we run DarkHistory to initialise energy deposition and ionisation history with or without backreaction
-     
+
     # We first instantiate a user_params class from the input user_params
     # This first instantiation only helps to get the properties of the DM
-    init_user_params  = UserParams(user_params)
-    init_flag_options = FlagOptions(flag_options, USE_VELS_AUX=init_user_params.USE_RELATIVE_VELOCITIES)
+    user_params  = UserParams(user_params)
+    flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
 
     # Some useful conversion factors
     eV_to_K = 11604.5250061657
     eV_to_erg = 1.602176487e-12
 
-    # We first define the redshift steps
-    if coarsen_factor is None:
-        coarsen_factor = 16 
-    # Deviation from this value of coarsen_factor can make the code much longer or inacurate
-    # dlnz step used in DarkHistory
-    dlnz = 1e-3 
-    # We force max_redshift at Z_HEAT_MAX
-    _max_redshift = global_params.Z_HEAT_MAX 
-
-
-    def redshift_bounds(min_redshift: float, max_redshift: float) -> tuple[float, float]:
-        zz = max_redshift
-        while zz > min_redshift:
-            zz = np.exp(np.log(1+zz) - coarsen_factor*dlnz)-1
-        z_min = zz
-        zz = max_redshift
-        while zz < 2999: # Limited by the interpolation table in DarkHistory (should be 2999)
-            zz = np.exp(np.log(1+zz) + coarsen_factor*dlnz)-1
-        z_max = np.exp(np.log(1+zz) - coarsen_factor*dlnz)-1 # take the value just before 2999
-        return z_min, z_max
-
-    # Get the value of the minimal and maximal redshift in our study
-    # We redefine the value of redshift with this procedure
-    redshift, z_max = redshift_bounds(min_redshift=redshift, max_redshift=_max_redshift)
-
-    # Initialise the dictionnary of deposited fractions and energy injection
+     # Initialise the dictionnary of deposited fractions and energy injection
     f_dict = []
 
-    if init_user_params.DM_PROCESS == 'decay' : 
-        def f_heat_approx(z:float) -> float:
-            return user_params.DM_PARAMETER_FHEAT_A*z + user_params.DM_PARAMETER_FHEAT_B + user_params.DM_PARAMETER_FHEAT_C*np.log(z) 
-    else:
-        def f_heat_approx(z:float) -> float:
-            return None
-
+    # We define the maximum redshift FOR 21cmFAST
+    max_redshift = global_params.Z_HEAT_MAX if (flag_options.INHOMO_RECO or flag_options.USE_TS_FLUCT or max_redshift is None ) else max_redshift
+    
+    # We define the default redshift step
+    # And the initial conditions
+    z_prime_step = global_params.ZPRIME_STEP_FACTOR
+    xe_init = global_params.XION_at_Z_HEAT_MAX  # A negative value means that the initial condition will be set to the RECFAST value in the C-code
+    Tm_init = global_params.TK_at_Z_HEAT_MAX    # A negative means that the initial condition will be set to the RECFAST value in the C-code
+    
+    # Set the function for the energy injection rate
+    # These functions are taken from DarkHistory
+    rhoDM0 = 1.05371e4*0.1200 # eV cm^{-3}
+    nb0 = 2.5122236052124415e-07 # Value used in DarkHistory for the number of baryons today in cm^{-3}
+   
+    def injection_rate(process, redshift, mDM, sigmav, lifetime):
+        """ Injection rates in erg/s/(number of baryons) """ 
+        if process == 'swave':
+            return rhoDM0**2*(redshift+1)**3*sigmav/mDM/nb0*eV_to_erg
+        elif process == 'decay':
+            return rhoDM0/lifetime/nb0*eV_to_erg
+        
     # If we use the full DarkHistory parameterisation we run the initialisation loop
-    if init_flag_options.USE_EFFECTIVE_DEP_FUNCS is False : 
+    if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is False) : 
+
+          # We first define the redshift steps
+        if coarsen_factor is None:
+            coarsen_factor = 16 
+        # Deviation from this value of coarsen_factor can make the code much longer or inacurate
+        
+        # dlnz step used in DarkHistory
+        dlnz = 1e-3 
+
+
+        def _redshift_bounds(min_redshift: float, max_redshift: float) :
+            
+            """ 
+            Function that defines the maximum redshift and maiximal redshift that will be treated by dark history
+            we have too intervals [redshift, max_redshit] (where 21cmFAST is used) and [max_redshift, z_max] where only DarkHistory is used 
+            """
+
+            zz = deepcopy(max_redshift)
+            while zz > min_redshift:
+                zz = np.exp(np.log(1+zz) - coarsen_factor*dlnz)-1
+            z_min = zz
+            zz = deepcopy(max_redshift)
+            while zz < 2999: # Limited by the interpolation table in DarkHistory (should be 2999)
+                zz = np.exp(np.log(1+zz) + coarsen_factor*dlnz)-1
+            z_max = np.exp(np.log(1+zz) - coarsen_factor*dlnz)-1 # take the value just before 2999
+            return z_min, z_max
+
+        # Get the value of the minimal and maximal redshift in our study
+        # We redefine the value of redshift with this procedure
+        redshift, z_max = _redshift_bounds(min_redshift=redshift, max_redshift=max_redshift)
 
         # Print the input parameters of the DM model we treat here
-        print("The input parameters for the DM model are the following ones:")
-        print(init_user_params.DM_MASS, init_user_params.DM_PROCESS, 
-            init_user_params.DM_SIGMAV, init_user_params.DM_PRIMARY, 
-            init_user_params.DM_BOOST, init_user_params.DM_FS_METHOD, 
-            init_user_params.DM_BACKREACTION)
-        
-        print("--------------------------------------")
-        print("Start initialisation using DarkHistory")
+        logger.info("The input parameters for the DM model are the following ones:")
+        logger.info(user_params.DM_MASS, user_params.DM_PROCESS, 
+            user_params.DM_SIGMAV, user_params.DM_PRIMARY, 
+            user_params.DM_BOOST, user_params.DM_FS_METHOD, 
+            user_params.DM_BACKREACTION)
+
+        logger.info("--------------------------------------")
+        logger.info("Start initialisation using DarkHistory")
+
         
         # Define the boost function, either something already defined in the code or a customed value
-         
         func_boost = None
-        if init_user_params.DM_BOOST != 'none':     
-            func_boost = phys.struct_boost_func(init_user_params.DM_BOOST) if (not init_user_params.DM_BOOST.split('_')[0] == 'custom') else io.boost_from_file(init_user_params.DM_BOOST) 
+        if user_params.DM_BOOST != 'none':     
+            func_boost = phys.struct_boost_func(user_params.DM_BOOST) # if (not user_params.DM_BOOST.split('_')[0] == 'custom') else io.boost_from_file(user_params.DM_BOOST) 
 
         # Here we use a slightly modified version of the function evolve
-        br_data = dep_21.evolve(DM_process=init_user_params.DM_PROCESS,
-                                mDM=init_user_params.DM_MASS,
-                                sigmav=init_user_params.DM_SIGMAV,
-                                lifetime=init_user_params.DM_LIFETIME,
-                                primary=init_user_params.DM_PRIMARY,
+        br_data = dep_21.evolve(DM_process=user_params.DM_PROCESS,
+                                mDM=user_params.DM_MASS,
+                                sigmav=user_params.DM_SIGMAV,
+                                lifetime=user_params.DM_LIFETIME,
+                                primary=user_params.DM_PRIMARY,
                                 struct_boost=func_boost,
                                 start_rs = z_max+1,
-                                end_rs = 0.999*np.exp(np.log(1+_max_redshift) + coarsen_factor*dlnz),
+                                end_rs = 0.999*np.exp(np.log(1+max_redshift) + coarsen_factor*dlnz),
                                 helium_TLA=False,
                                 init_cond=None,
                                 coarsen_factor=coarsen_factor,
-                                backreaction=init_user_params.DM_BACKREACTION,
-                                compute_fs_method=init_user_params.DM_FS_METHOD,
+                                backreaction=user_params.DM_BACKREACTION,
+                                compute_fs_method=user_params.DM_FS_METHOD,
                                 use_tqdm=False)
 
         # Fetch the deposited fraction in the dictionnary
@@ -3162,7 +3181,7 @@ def run_lightcone_with_DM(
         f_cont_high   = br_data['f']['high']['cont']
 
         # Fetch the redshift in the dictionary
-        # The last redshift should be the step before max_redshift + 1 (rs = z+1)
+        # The last redshift should be the step before _max_redshift + 1 (rs = z+1)
         rs = br_data['rs']
 
         for _irs, _ in enumerate(rs):
@@ -3171,9 +3190,7 @@ def run_lightcone_with_DM(
             _next_rs = rs[_irs+1] if (_irs < len(rs)-1) else max_redshift+1
 
             # Evaluate the smooth injected function at the next time step
-            energy_injected_smooth =  phys.inj_rate(init_user_params.DM_PROCESS, _next_rs, 
-                                                    mDM=init_user_params.DM_MASS, sigmav=init_user_params.DM_SIGMAV, 
-                                                    lifetime=init_user_params.DM_LIFETIME)/(phys.nB*(_next_rs**3))*eV_to_erg # in erg/s/(number of baryons)
+            energy_injected_smooth = injection_rate(user_params.DM_PROCESS, _next_rs, mDM=user_params.DM_MASS, sigmav=user_params.DM_SIGMAV, lifetime=user_params.DM_LIFETIME)
 
             f_dict.append({
                 "f_H_ION" : f_H_ion_low[_irs] + f_H_ion_high[_irs], 
@@ -3189,50 +3206,99 @@ def run_lightcone_with_DM(
         Tm_arr   = br_data['Tm']
         z_arr    = np.array([_rs - 1 for _rs in br_data['rs']])
 
+        #### Initial conditions:
+
+        ## We account for the new value of TK and XION at max_redshift
+        ## We take xe = xHII given by DarkHistory -- in the arrays we take the value 
+        ## before the last one as the last value is for the next redshift step in DarkHistory
+
+        if flag_options.FORCE_INIT_COND is False: #(here it is always false for now) 
+            xe_init = br_data['x'][-2][0]
+            Tm_init = br_data['Tm'][-2]*eV_to_K
+        
+        ## Moreover we also enforce the redshift step in 21cmFAST to match that of DarkHistory
+        ## Be default we have ZPRIME_STEP_FACTOR = 1.02 -> it becomes exp(coarsen_factor*1e-3) ~ 1 + coarsen_factor * 1e-3 + ...
+        z_prime_step = np.exp(coarsen_factor*dlnz)
+
+    if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is True) : 
+        
+        # Evaluate the smooth injected function at the next time step
+        energy_injected_smooth =  injection_rate(user_params.DM_PROCESS, max_redshift+1, 
+                                                mDM=user_params.DM_MASS, sigmav=user_params.DM_SIGMAV, 
+                                                lifetime=user_params.DM_LIFETIME) # in erg/s/(number of baryons)
+
+         ## Define the approximate f_heat_function
+        def f_heat_approx(z: float, params: list, model_shape: list = 0) -> float:
+            if model_shape == 0: # Constant function
+                return params[0]
+            if model_shape == 1: # Exponential
+                return params[0] * np.exp( params[1]*(z-15.) )
+            if model_shape == 2: # Schechter function
+                return params[0]*np.exp( params[1]*(z-15.) + params[2]*np.log(z/15.) )
+
+        # Tabulated values on DarkHistory runs
+        if user_params.DM_PROCESS == 'decay':
+            f_H_ION_over_f_HEAT  = 2.2  if (user_params.DM_FION_H_OVER_FHEAT < 0)  else user_params.DM_FION_H_OVER_FHEAT
+            f_EXC_over_f_HEAT    = 1.7  if (user_params.DM_FEXC_OVER_FHEAT < 0)    else user_params.DM_FEXC_OVER_FHEAT
+            f_He_ION_over_f_HEAT = 0.07 if (user_params.DM_FION_HE_OVER_FHEAT < 0) else user_params.DM_FION_HE_OVER_FHEAT
+
+        # Tabulated values for swave to be inserted here at some point
+        if user_params.DM_PROCESS == 'swave': 
+            if user_params.FION_H_OVER_FHEAT < 0 or user_params.FION_HE_OVER_FHEAT < 0 or user_params.FEXC_OVER_FHEAT < 0:
+                raise ValueError("No tabulated values have been implemented yet for FION_H_OVER_FHEAT, FION_HE_OVER_FHEAT and FEXCOVER_FHEAT in the swave case")
+            else: 
+                f_H_ION_over_f_HEAT  = user_params.DM_FION_H_OVER_FHEAT
+                f_EXC_over_f_HEAT    = user_params.DM_FEXC_OVER_FHEAT
+                f_He_ION_over_f_HEAT = user_params.DM_FION_HE_OVER_FHEAT
+
+
+        f_HEAT_init = f_heat_approx(global_params.Z_HEAT_MAX, params = user_params.DM_FHEAT_APPROX_PARAMS, model_shape = user_params.DM_FHEAT_APPROX_SHAPE)
+
+        f_dict.append({
+            "f_H_ION" : f_H_ION_over_f_HEAT * f_HEAT_init, 
+            "f_He_ION": f_He_ION_over_f_HEAT * f_HEAT_init, 
+            "f_EXC"   : f_EXC_over_f_HEAT * f_HEAT_init, 
+            "f_HEAT"  : f_HEAT_init, 
+            "f_CONT"  : 0., # Not really 0 but does not impact the results
+            "Inj_ENERGY_SMOOTH" : energy_injected_smooth})
+
+        #### Initial conditions:
+        
+        if flag_options.FORCE_INIT_COND is False: 
+            ## Maybe put something different here ... but what? (work in progress)
+            xe_init = global_params.XION_at_Z_HEAT_MAX 
+            Tm_init = global_params.TK_at_Z_HEAT_MAX
+
+        # Tables to save the ionisation fraction, the temperature and the redshift steps
+        xHII_arr = np.array([])
+        Tm_arr   = np.array([])
+        z_arr    = np.array([])
+
+
+    if (flag_options.USE_DM_ENERGY_INJECTION is True): 
         # Initialise the CStructWrapper object ExoticEnergyInjected with our dictionnary
         exotic_energy_injected = ExoticEnergyInjected(f_dict[-1]) 
         
-        print(exotic_energy_injected.__str__())
+        logger.info(exotic_energy_injected)
 
-        print("Initialisation completed -- performed with DarkHistory")
-        print("--------------------------------------")
+        logger.info("Initialisation completed")
+        logger.info("--------------------------------------")
 
-    else : # JUST CHANGED THAT! TO BE CHECKED 
-        
-
-        f_dict.append({
-            "f_H_ION" : f_heat_approx(user_params.Z_HEAT_MAX), 
-            "f_He_ION": 0., 
-            "f_HEAT"  : f_heat_approx(user_params.Z_HEAT_MAX),
-            "f_EXC"   : f_heat_approx(user_params.Z_HEAT_MAX),
-            "f_CONT"  : 0., # Not really 0 but does not impact the results
-            "Inj_ENERGY_SMOOTH" : energy_injected_smooth})
-        ## De
-
+    ## Initialisation over
     #####################################################################################
 
+
     ## In the following we use the global_params by default except for 
-    ## TK_at_Z_HEAT_MAX, XION_at_Z_HEAT_MAX, ZPRIME_STEP_FACTOR
-    ## Therefore we account for the new value of TK and XION at max_redshift
-    ## We take xe = xHII given by DarkHistory (we should take the value before the last one as the last value is for the next redshift step in DarkHistory
-    ## however when initialising 21cmFAST TK_at_Z_HEAT_MAX and XION_AT_Z_HEAT_MAX are smaller then)
-    ## Moreover we also enforce the redshift step in 21cmFAST to match that of DarkHistory
-    ## Be default we have ZPRIME_STEP_FACTOR = 1.02 -> it becomes exp(coarsen_factor*1e-3) ~ 1 + coarsen_factor * 1e-3 + ...
-    with global_params.use(**global_kwargs, ZPRIME_STEP_FACTOR = np.exp(coarsen_factor*dlnz), TK_at_Z_HEAT_MAX = br_data['Tm'][-2]*eV_to_K, XION_at_Z_HEAT_MAX =  br_data['x'][-2][0],):
+    with global_params.use(**global_kwargs, ZPRIME_STEP_FACTOR = z_prime_step, XION_at_Z_HEAT_MAX = xe_init, TK_at_Z_HEAT_MAX = Tm_init):
+         
         
         print("Test:", global_params.TK_at_Z_HEAT_MAX, global_params.XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
-        print("rs-1:", br_data['rs'][-1]-1)
+        #print("rs-1:", br_data['rs'][-1]-1)
 
-        random_seed, user_params, cosmo_params = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-            ],
-            init_box,
-            perturb,
-        )
+        random_seed, user_params, cosmo_params = _configure_inputs([("random_seed", random_seed),("user_params", user_params),("cosmo_params", cosmo_params),], init_box, perturb,)
 
+        ## exo21cmFAST : user_params and flag_options already defined earlier, may be a problem 
+        ## as they are originally defined here
         user_params  = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
         flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
@@ -3245,16 +3311,6 @@ def run_lightcone_with_DM(
         _fld_names = _get_interpolation_outputs(list(lightcone_quantities), list(global_quantities), flag_options)
 
         redshift = configure_redshift(redshift, perturb)
-
-        max_redshift = (
-            global_params.Z_HEAT_MAX
-            if (
-                flag_options.INHOMO_RECO
-                or flag_options.USE_TS_FLUCT
-                or max_redshift is None
-            )
-            else max_redshift
-        )
 
         # Get the redshift through which we scroll and evaluate the ionization field.
         scrollz = _logscroll_redshifts(redshift, global_params.ZPRIME_STEP_FACTOR, max_redshift)
@@ -3365,15 +3421,10 @@ def run_lightcone_with_DM(
         pf = None
 
 
-
-      
         ###################################
         ## START OF THE LOOP ON REDSHIFT ##
         ###################################
 
-        ## Boost function (Gaetan)
-        func_boost = phys.struct_boost_func(user_params.DM_BOOST) if (not user_params.DM_BOOST.split('_')[0] == 'custom') else io.boost_from_file(user_params.DM_BOOST) 
-        
         perturb_files = []
         spin_temp_files = []
         ionize_files = []
@@ -3381,6 +3432,8 @@ def run_lightcone_with_DM(
 
         for iz, z in enumerate(scrollz[:-1]):
 
+            print("redshift:", z)
+            
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb[iz]
 
@@ -3416,7 +3469,7 @@ def run_lightcone_with_DM(
                     previous_spin_temp=st,
                     astro_params=astro_params,
                     flag_options=flag_options,
-                    exotic_energy_injected=exotic_energy_injected, # New in Exo21cmFAST
+                    exotic_energy_injected = exotic_energy_injected if (flag_options.USE_DM_ENERGY_INJECTION is True) else None , # New in exo21cmFAST
                     perturbed_field=perturb_min if use_interp_perturb_field else pf2,
                     regenerate=regenerate,
                     init_boxes=init_box,
@@ -3541,94 +3594,108 @@ def run_lightcone_with_DM(
             ## At the bottom of the redshift loop we evaluate the energy deposited
             ## Here we assume that xHII = xHeII = xe
             ## Do not forget to put the temperature in eV
+
+            
             xHII  = np.mean(st.x_e_box)
             xHeII = np.mean(st.x_e_box)
             Tm    = np.mean(st.Tk_box)/eV_to_K
 
-            #print("Before one extra step:", br_data['rs'][-1]-1)
-            br_data = dep_21.evolve_for_21cmFAST_one_step(
-                                DM_process=user_params.DM_PROCESS,
-                                mDM=user_params.DM_MASS,
-                                sigmav=user_params.DM_SIGMAV,
-                                primary=user_params.DM_PRIMARY,
-                                lifetime=user_params.DM_LIFETIME,
-                                struct_boost=func_boost,
-                                init_cond=(xHII, xHeII, Tm), 
-                                coarsen_factor=coarsen_factor,
-                                compute_fs_method=user_params.DM_FS_METHOD,
-                                in_highengphot_specs = br_data['highengphot'],
-                                in_lowengphot_specs = br_data['lowengphot'],
-                                in_lowengelec_specs = br_data['lowengelec'],
-                                in_highengdep = br_data['highengdep'], 
-                                xHII_vs_rs = None if user_params.DM_BACKREACTION else phys.xHII_std,
-                                xHeII_vs_rs = None if user_params.DM_BACKREACTION else phys.xHeII_std,
-                                Tm_vs_rs = None if user_params.DM_BACKREACTION else phys.Tm_std)
 
-            # Fetch the deposited fraction at this redshift step
-            # Update the dictionnary
-            # Update the CStructWrapper object
-            
-            f_H_ion_low_temp   = br_data['f']['low']['H ion'][-1]
-            f_H_ion_high_temp  = br_data['f']['high']['H ion'][-1]
-            f_He_ion_low_temp  = br_data['f']['low']['He ion'][-1]
-            f_He_ion_high_temp = br_data['f']['high']['He ion'][-1]
-            f_exc_low_temp     = br_data['f']['low']['exc'][-1]
-            f_exc_high_temp    = br_data['f']['high']['exc'][-1]
-            f_heat_low_temp    = br_data['f']['low']['heat'][-1]
-            f_heat_high_temp   = br_data['f']['high']['heat'][-1]
-            f_cont_low_temp    = br_data['f']['low']['cont'][-1]
-            f_cont_high_temp   = br_data['f']['high']['cont'][-1]
+            if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is False) : 
 
-            rs_temp = br_data['rs'][-1]
-            #print("z eval energy injected:", rs_temp-1)
-            energy_injected_smooth =  phys.inj_rate(init_user_params.DM_PROCESS, rs_temp, 
-                                            mDM=init_user_params.DM_MASS, sigmav=init_user_params.DM_SIGMAV, 
-                                            lifetime=init_user_params.DM_LIFETIME)/(phys.nB*(rs_temp**3))*eV_to_erg # in erg/s/(number of baryons)
-            
-            #TO BE SET BACK TO THIS VALUE
-            f_dict.append({
-                "f_H_ION" : f_H_ion_low_temp + f_H_ion_high_temp, 
-                "f_He_ION": f_He_ion_low_temp + f_He_ion_high_temp, 
-                 "f_HEAT"  : f_heat_low_temp + f_heat_high_temp,
-                "f_EXC"   : f_exc_low_temp + f_exc_high_temp,
-                "f_CONT"  : f_cont_low_temp + f_cont_high_temp,
-                "Inj_ENERGY_SMOOTH" : energy_injected_smooth,
-                })
-            
-            '''
-            f_dict.append({
-                "f_H_ION" : 2.3*(f_heat_low_temp + f_heat_high_temp), 
-                "f_He_ION": 0, 
-                 "f_HEAT"  : f_heat_low_temp + f_heat_high_temp,
-                "f_EXC"   : 1.7*(f_heat_low_temp + f_heat_high_temp),
-                "f_CONT"  : 0,
-                "Inj_ENERGY_SMOOTH" : energy_injected_smooth,
-                })
-            '''
-            
-            exotic_energy_injected.update(**(f_dict[-1]))
+                ## Boost function 
+                func_boost = phys.struct_boost_func(user_params.DM_BOOST) if (user_params.DM_BOOST != 'none') else lambda x: 1
+                # if (not user_params.DM_BOOST.split('_')[0] == 'custom') else io.boost_from_file(user_params.DM_BOOST) 
 
-            xHII_arr = np.append(xHII_arr, xHII)
-            Tm_arr   = np.append(Tm_arr, Tm)
-            z_arr    = np.append(z_arr, scrollz[iz+1])
+                ## Here we use full 
+                br_data = dep_21.evolve_one_step(
+                                    DM_process=user_params.DM_PROCESS,
+                                    mDM=user_params.DM_MASS,
+                                    sigmav=user_params.DM_SIGMAV,
+                                    primary=user_params.DM_PRIMARY,
+                                    lifetime=user_params.DM_LIFETIME,
+                                    struct_boost=func_boost,
+                                    init_cond=(xHII, xHeII, Tm), 
+                                    coarsen_factor=coarsen_factor,
+                                    compute_fs_method=user_params.DM_FS_METHOD,
+                                    in_highengphot_specs = br_data['highengphot'],
+                                    in_lowengphot_specs = br_data['lowengphot'],
+                                    in_lowengelec_specs = br_data['lowengelec'],
+                                    in_highengdep = br_data['highengdep'], 
+                                    xHII_vs_rs = None if user_params.DM_BACKREACTION else phys.xHII_std,
+                                    xHeII_vs_rs = None if user_params.DM_BACKREACTION else phys.xHeII_std,
+                                    Tm_vs_rs = None if user_params.DM_BACKREACTION else phys.Tm_std)
 
-            # Print the evolution here
-            print("| z (next): {:2.2f}".format(scrollz[iz+1]), "| x_HII: {:1.3e}".format(xHII), "| Tm: {:1.3e}".format(Tm*eV_to_K), "K | f_heat: {:1.3e}".format(f_heat_low_temp + f_heat_high_temp))
+                # Fetch the deposited fraction at this redshift step
+                # Update the dictionnary
+                # Update the CStructWrapper object
+                
+                f_H_ion_low_temp   = br_data['f']['low']['H ion'][-1]
+                f_H_ion_high_temp  = br_data['f']['high']['H ion'][-1]
+                f_He_ion_low_temp  = br_data['f']['low']['He ion'][-1]
+                f_He_ion_high_temp = br_data['f']['high']['He ion'][-1]
+                f_exc_low_temp     = br_data['f']['low']['exc'][-1]
+                f_exc_high_temp    = br_data['f']['high']['exc'][-1]
+                f_heat_low_temp    = br_data['f']['low']['heat'][-1]
+                f_heat_high_temp   = br_data['f']['high']['heat'][-1]
+                f_cont_low_temp    = br_data['f']['low']['cont'][-1]
+                f_cont_high_temp   = br_data['f']['high']['cont'][-1]
+
+                rs_temp = br_data['rs'][-1]
+
+                energy_injected_smooth =  injection_rate(user_params.DM_PROCESS, rs_temp, 
+                                                mDM=user_params.DM_MASS, sigmav=user_params.DM_SIGMAV, 
+                                                lifetime=user_params.DM_LIFETIME) # in erg/s/(number of baryons)
+                
+                #TO BE SET BACK TO THIS VALUE
+                f_dict.append({
+                    "f_H_ION" : f_H_ion_low_temp + f_H_ion_high_temp, 
+                    "f_He_ION": f_He_ion_low_temp + f_He_ion_high_temp, 
+                    "f_HEAT"  : f_heat_low_temp + f_heat_high_temp,
+                    "f_EXC"   : f_exc_low_temp + f_exc_high_temp,
+                    "f_CONT"  : f_cont_low_temp + f_cont_high_temp,
+                    "Inj_ENERGY_SMOOTH" : energy_injected_smooth,
+                    })
+           
+            if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is True) : 
+
+                # The value of f_heat at z is used to compute the result at z+dz
+                # (Similarly to the case where we use the DarkHistory code)
+                f_HEAT = f_heat_approx(scrollz[iz+1], params= user_params.DM_FHEAT_APPROX_PARAMS, model_shape = user_params.DM_FHEAT_APPROX_SHAPE)
+
+                f_dict.append({
+                    "f_H_ION" : f_H_ION_over_f_HEAT * f_HEAT, 
+                    "f_He_ION": f_He_ION_over_f_HEAT * f_HEAT, 
+                    "f_EXC"   : f_EXC_over_f_HEAT * f_HEAT, 
+                    "f_HEAT"  : f_HEAT, 
+                    "f_CONT"  : 0., # Not really 0 but does not impact the results
+                    "Inj_ENERGY_SMOOTH" : energy_injected_smooth})
+
+
+            if (flag_options.USE_DM_ENERGY_INJECTION is True) : 
+                exotic_energy_injected.update(**(f_dict[-1]))
+                print("| z (next): {:2.2f}".format(scrollz[iz+1]), "| x_HII: {:1.3e}".format(xHII), "| Tm: {:1.3e}".format(Tm*eV_to_K), "K | f_heat: {:1.3e}".format(f_dict[-1]['f_HEAT']))
+
+                xHII_arr = np.append(xHII_arr, xHII)
+                Tm_arr   = np.append(Tm_arr, Tm)
+                z_arr    = np.append(z_arr, scrollz[iz+1])
+            
             #####################################################################################
-
-    
 
         #################################
         ## END OF THE LOOP ON REDSHIFT ##
         #################################
         
+        #####################################################################################
         # New in Exo 21cmFAST
-        out_DH = {
-            'f'  : f_dict,
-            'x'  : xHII_arr,
-            'Tm' : Tm_arr,
-            'z'  : z_arr
-        }
+        out_DH = {}
+        if (flag_options.USE_DM_ENERGY_INJECTION is True) : 
+            out_DH = {
+                'f'  : f_dict,
+                'x'  : xHII_arr,
+                'Tm' : Tm_arr,
+                'z'  : z_arr
+            }
     
         #####################################################################################
 
@@ -3667,7 +3734,7 @@ def run_lightcone_with_DM(
                     "spin_temp": spin_temp_files,
                 },
             ),
-            out_DH, # New in Exo 21cmFAST
+            out_DH, # New in exo21cmFAST
             coeval_callback_output,
         )
         if coeval_callback is None:
@@ -3675,7 +3742,6 @@ def run_lightcone_with_DM(
         else:
             return out
 
-################################################################################################ 
 
         
 

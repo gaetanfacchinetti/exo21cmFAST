@@ -628,14 +628,13 @@ def evolve_for_21cmFAST(
 
 
 
-def evolve_for_21cmFAST_one_step(
+def evolve_one_step(
     in_spec_elec=None, in_spec_phot=None,
     rate_func_N=None, rate_func_eng=None,
     DM_process=None, mDM=None, sigmav=None, lifetime=None, primary=None, struct_boost=None, init_cond=None, coarsen_factor=1,
     compute_fs_method='no_He', cross_check=False,
     in_highengphot_specs=None, in_lowengphot_specs=None, in_lowengelec_specs=None, in_highengdep=None, 
-    xHII_vs_rs=None, xHeII_vs_rs=None, Tm_vs_rs=None
-):
+    xHII_vs_rs=None, xHeII_vs_rs=None, Tm_vs_rs=None):
     """
     Main function computing histories and spectra.
     This function is a little bit different than main.evolve() because here we can save the output and start again the function from the output.
@@ -1156,7 +1155,7 @@ def evolve_for_21cmFAST_one_step(
     xHeII_to_interp = x_arr[-1, 1] if (xHeII_vs_rs is None) else xHeII_vs_rs(rs)
 
     # Get the correct transfer function
-    highengphot_tf, lowengphot_tf, lowengelec_tf, highengdep_arr = main.get_tf(rs, xHII_to_interp, xHeII_to_interp,dlnz, coarsen_factor=coarsen_factor)
+    highengphot_tf, lowengphot_tf, lowengelec_tf, highengdep_arr, _ = main.get_tf(rs, xHII_to_interp, xHeII_to_interp,dlnz, coarsen_factor=coarsen_factor)
 
     # Get the spectra for the next step by applying the
     # transfer functions.
@@ -1245,8 +1244,7 @@ def evolve(
     photoion_rate_func=None, photoheat_rate_func=None, xe_reion_func=None,
     init_cond=None, coarsen_factor=1, backreaction=True, 
     compute_fs_method='no_He', mxstep=1000, rtol=1e-4,
-    use_tqdm=True, cross_check=False
-):
+    use_tqdm=True, cross_check=False, tf_mode='table', verbose= 0):
     """
     Main function computing histories and spectra. 
 
@@ -1304,6 +1302,11 @@ def evolve(
         Uses tqdm if *True*. Default is *True*. 
     cross_check : bool, optional
         If *True*, compare against 1604.02457 by using original MEDEA files, turning off partial binning, etc. Default is *False*.
+
+    tf_mode : {'table', 'nn'}
+        Specifies transfer function mode being used. Options: 'table': generate transfer functions from interpolating data tables; 'nn': use neural network to generate transfer functions with preset coarsen factor 12.
+    verbose : {0, 1}
+        Set verbosity. Tqdm not affected.
 
     Examples
     --------
@@ -1469,9 +1472,13 @@ def evolve(
 
     # Initialize redshift/timestep related quantities. 
 
-    # Default step in the transfer function. Note highengphot_tf_interp.dlnz 
-    # contains 3 different regimes, and we start with the first. 
-    dlnz = highengphot_tf_interp.dlnz[-1]
+    if tf_mode == 'table':
+        # Default step in the transfer function. Note highengphot_tf_interp.dlnz 
+        # contains 3 different regimes, and we start with the first.
+        dlnz = highengphot_tf_interp.dlnz[-1]
+    else:
+        # Default step for NN transfer functions.
+        dlnz = 0.001
 
     # The current redshift. 
     rs   = start_rs
@@ -1775,6 +1782,7 @@ def evolve(
             xHII_to_interp  = x_arr[-1,0]
             xHeII_to_interp = x_arr[-1,1]
 
+        
         highengphot_tf, lowengphot_tf, lowengelec_tf, highengdep_arr, _ = (
             main.get_tf(
                 rs, xHII_to_interp, xHeII_to_interp, 
@@ -1804,9 +1812,9 @@ def evolve(
         # Get the spectra for the next step by applying the
         # transfer functions.
         highengdep_at_rs = np.dot(np.swapaxes(highengdep_arr, 0, 1), highengphot_spec_at_rs.N)
-        lowengphot_spec_at_rs  = lowengphot_tf.sum_specs(highengphot_spec_at_rs.N)
-        lowengelec_spec_at_rs  = lowengelec_tf.sum_specs(highengphot_spec_at_rs.N)
-        highengphot_spec_at_rs = highengphot_tf.sum_specs(highengphot_spec_at_rs.N) # Need to be modified at the end
+        lowengphot_spec_at_rs  = lowengphot_tf.sum_specs(highengphot_spec_at_rs)
+        lowengelec_spec_at_rs  = lowengelec_tf.sum_specs(highengphot_spec_at_rs)
+        highengphot_spec_at_rs = highengphot_tf.sum_specs(highengphot_spec_at_rs) # Need to be modified at the end
 
         highengphot_spec_at_rs.rs = next_rs
         lowengphot_spec_at_rs.rs  = next_rs

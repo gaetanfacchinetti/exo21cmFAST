@@ -5,16 +5,19 @@ except ImportError:
     from importlib_metadata import PackageNotFoundError, version
 
 try:
-    __version__ = version("21cmFAST")
-except PackageNotFoundError:
-    # package is not installed
-    __version__ = "unknown"
+    from ._version import version as __version__
+except ModuleNotFoundError:  # pragma: no cover
+    try:
+        __version__ = version("21cmFAST")
+    except PackageNotFoundError:
+        # package is not installed
+        __version__ = "unknown"
 
 # This just ensures that the default directory for boxes is created.
 from os import mkdir as _mkdir
 from os import path
 
-from . import cache_tools, inputs, outputs, plotting, wrapper, dh_tools, database_tools
+from . import cache_tools, inputs, outputs, plotting, wrapper, dh_tools, dm_dtb_tools
 from ._cfg import config
 from ._logging import configure_logging
 from .cache_tools import query_cache
@@ -47,7 +50,6 @@ from .wrapper import (
     perturb_halo_list,
     run_coeval,
     run_lightcone,
-    run_lightcone_with_DM,
     spin_temperature,
 )
 
