@@ -1,6 +1,6 @@
 
 #######################
-Original 21cmFAST Code 
+Original 21cmFAST Code https://github.com/21cmfast/21cmFAST and the modifications not mentioned below: 
 
 MIT License
 
@@ -25,7 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ################
-Original DarkHistory code
+Original DarkHistory code https://github.com/hongwanliu/DarkHistory: 
 
 MIT License
 
@@ -50,7 +50,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ################
-Modifications (files src/py21cmfast/dh_tools.py and src/py21cmfast/dm_dtb_tools.py)
+Modifications (in files src/py21cmfast/wrapper.py src/py21cmfast/dh_tools.py and src/py21cmfast/dm_dtb_tools.py): 
 
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
