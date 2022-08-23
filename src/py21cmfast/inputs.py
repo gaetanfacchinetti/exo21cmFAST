@@ -670,8 +670,8 @@ class UserParams(StructWithDefaults):
                                 'q', 'c', 'b', 't', 'gamma', 'g', 
                                 'W_L', 'W_T', 'W', 'Z_L', 'Z_T', 'Z', 'h']
     _allowed_fs_method      = ['He', 'no_He', 'He_recomb', 'none']
-    _fheat_shapes           = ['constant', 'exponential', 'schechter']
-    _n_params_shapes        = [1, 2, 3] # Number of parameters corresponding to each shape
+    _fheat_shapes           = ['none', 'constant', 'exponential', 'schechter']
+    _n_params_shapes        = [1, 1, 2, 3] # Number of parameters corresponding to each shape
 
     @property
     def DM_MASS(self):

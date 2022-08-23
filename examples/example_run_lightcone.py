@@ -1,3 +1,22 @@
+############################################################################
+#    Code to organise a database for the different parts
+#    Copyright (C) 2022  Gaetan Facchinetti
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>
+############################################################################
+
+
 import py21cmfast as p21c
 import py21cmfast.dm_dtb_tools as db_tools
 import example_lightcone_analysis as lightcone_analysis
@@ -56,9 +75,9 @@ for current_model in input_models :
             #max_redshift = max_redshift, # Maximal value of redshift -- By default Z_HEAT_MAX for None of when USE_TS_FLUCT = True
             ## User parameters
             user_params = {
-                "BOX_LEN":                  20,    # Default value: 300  (Box length Mpc) 1000
+                "BOX_LEN":                  50,    # Default value: 300  (Box length Mpc) 1000
                 "DIM":                      None,  # Default value: None / gives DIM=3*HII_DIM (High resolution) None
-                "HII_DIM":                  10,    # Default value: 200  (HII cell resolution) 350
+                "HII_DIM":                  20,    # Default value: 200  (HII cell resolution) 350
                 "USE_FFTW_WISDOM":          False, # Default value: False (Speed up FFT)
                 "HMF":                      1,     # Default value: 1 (Halo mass function)
                 "USE_RELATIVE_VELOCITIES":  False, # Default value: False (Turn on relative velocites)  -> Attention if USE_RELATIVE_VELOCITIES: True, POWER_SPECTRUM: 5 (CLASS) necessarily
@@ -84,7 +103,7 @@ for current_model in input_models :
                 "DM_BACKREACTION": current_model.bkr        if (not approx) else False,   # Turns on backreaction
 
                 # Specific to an approximative energy deposition
-                "DM_FHEAT_APPROX_SHAPE":  current_model.approx_shape       if approx else 'constant', # Shape of the template for f_heat
+                "DM_FHEAT_APPROX_SHAPE":  current_model.approx_shape       if approx else 'none',     # Shape of the template for f_heat
                 "DM_FHEAT_APPROX_PARAMS": current_model.approx_params      if approx else [0.],       # Parameters (list) to feed to the template of fheat 
                 'DM_FION_H_OVER_FHEAT':   current_model.fion_H_over_fheat  if approx else -1,         # Ratio of f_ion_H over fheat  (if < 0 use values tabulated with DarkHistory)
                 'DM_FION_HE_OVER_FHEAT':  current_model.fion_He_over_fheat if approx else -1,         # Ratio of f_ion_He over fheat (if < 0 use values tabulated with DarkHistory)
@@ -104,9 +123,9 @@ for current_model in input_models :
                 "FIX_VCB_AVG":              False, # I don't understand this one
                 
                 ## -- Parameters of the DM model : specific to exo21cmFAST
-                "USE_DM_ENERGY_INJECTION":  dm_energy_inj,                                      # Turn on DM energy injection
-                "USE_EFFECTIVE_DEP_FUNCS":  approx,                                             # Treat the energy injection with approximate templates (instead of DarkHistory)
-                "FORCE_INIT_COND":          current_model.force_init_cond if approx else False  # Force initial conditions to that without DM energy injection (always)
+                "USE_DM_ENERGY_INJECTION":  dm_energy_inj,                                                         # Turn on DM energy injection
+                "USE_EFFECTIVE_DEP_FUNCS":  True if (approx and current_model.approx_shape != 'none') else False,  # Treat the energy injection with approximate templates (instead of DarkHistory)
+                "FORCE_INIT_COND":          current_model.force_init_cond if approx else False                     # Force initial conditions to that without DM energy injection (always)
             },
             coarsen_factor=16,  # Input factor that determine the redshift steps (put 16 to roughly have the default 21cmFAST value)
             lightcone_quantities=('brightness_temp', 'xH_box',),

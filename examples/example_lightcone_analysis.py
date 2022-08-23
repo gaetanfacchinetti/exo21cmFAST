@@ -9,12 +9,8 @@ import os
 from tkinter import E
 import numpy as np
 import csv
-import random 
-import string
-import re
 import matplotlib.pyplot as plt
 from powerbox.tools import get_power
-from py21cmfast import cache_tools
 import shutil
 from os import listdir
 from os.path import isfile, join

@@ -144,7 +144,7 @@ class model_approx :
 
     _process_dflt = 'decay'
     _mDM_dflt = 1e+10
-    _approx_shape_dflt = 'schechter'
+    _approx_shape_dflt = 'none'
     _approx_params_dflt = [1., 1., 1.]
     _sigmav_dflt = 3e-26
     _lifetime_dflt = 0
@@ -156,7 +156,7 @@ class model_approx :
     _Tm_init_dflt            = -1
     _comment_dflt = ''
 
-    _allowed_shapes = ['constant', 'exponential', 'schechter']
+    _allowed_shapes = ['none', 'constant', 'exponential', 'schechter']
     _allowed_processes   = ['none', 'swave', 'decay']
 
     
@@ -187,7 +187,7 @@ class model_approx :
     def __str__(self):
         string_params = "("
         for ip, param in enumerate(self.approx_params):
-            string_params += str("{:.2e}".format(param)) 
+            string_params += str("{:.4e}".format(param)) 
             if ip != len(self.approx_params)-1:
                 string_params += ","
         string_params += ")"
@@ -232,7 +232,7 @@ class model_approx :
 
         string_params = "["
         for ip, param in enumerate(self.approx_params):
-            string_params += str("{:.2e}".format(param)) 
+            string_params += str("{:.4e}".format(param)) 
             if ip != len(self.approx_params)-1:
                 string_params += ":"
         string_params += "]"
@@ -259,7 +259,7 @@ class model_approx :
         if with_index:
             return "# index process mDM [eV] approx_shape approx_params sigmav lifetime fiH/fh fiHe/fh fexc/fh xe_init Tm_init [K] comment"
         else: 
-            "# process mDM [eV] approx_shape approx_params sigmav lifetime fiH/fh fiHe/fh fexc/fh xe_init Tm_init [K] comment"
+            return "# process mDM [eV] approx_shape approx_params sigmav lifetime fiH/fh fiHe/fh fexc/fh xe_init Tm_init [K] comment"
 
 def parse_args(parser) :  
 
@@ -618,7 +618,7 @@ class DatabaseManager:
         with open(filename, 'w') as f:
 
             print(input.file_header(with_index=False), file = f)
-            print(input.write_in_file(with_index=False), file=f)
+            print("# " + input.write_in_file(with_index=False), file=f)
             print("# redshift (1+z) | f_H_ion, f_He_ion, f_exc, f_heat, f_cont, inj_energy_smooth [eV/s(/nb_baryons)] | x_HII | x_HeII | Tm [eV]", file=f)
             
             for i in range(0, len(rs)) :
@@ -644,7 +644,7 @@ class DatabaseManager:
         with open(filename, 'w') as ff:
             
             print(input.file_header(with_index=False), file = ff)
-            print(input.write_in_file(with_index=False), file=ff)
+            print("# " + input.write_in_file(with_index=False), file=ff)
             print("# redshift z | f_H_ion, f_He_ion, f_exc, f_heat, f_cont, inj_energy_smooth [erg/s(/nb_baryons)] | x_HII | Tm [eV]", file=ff)
             
             for iz, zval in enumerate(z) :
@@ -1004,6 +1004,11 @@ class ApproxDepDatabase(DatabaseManager) :
             if value_arr[3] != 0: 
                 print("WARNING: with decay setting sigmav to 0")
                 value_arr[3] = 0
+
+
+        if decay == False and swave == False :
+            process = 'none'
+            value_arr = [0., 'none', [0.], 0, 0, 0, 0, 0, False, 0, 0, value_arr[-1]]
 
         all_input = [process, *value_arr]
 

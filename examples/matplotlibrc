@@ -1,0 +1,45 @@
+figure.figsize : 5, 4
+
+#text.usetex : True
+font.family : serif
+
+
+# Need this for proper alignment in legends with LaTeX.
+#text.latex.preview : False
+
+axes.titlepad : 15
+axes.titlesize : 16
+axes.labelsize : 14
+axes.linewidth : 2
+axes.formatter.min_exponent : 2
+
+xtick.top : True
+xtick.bottom : True
+xtick.major.size : 5
+xtick.major.width : 1
+xtick.major.pad : 8
+xtick.minor.size : 3
+xtick.minor.width : 1
+xtick.labelsize : 14
+xtick.direction : in
+
+ytick.left : True
+ytick.right : True
+ytick.major.size : 5
+ytick.major.width : 1
+ytick.minor.size : 3
+ytick.minor.width : 1
+ytick.labelsize : 14
+ytick.direction : in
+
+lines.linewidth : 1
+
+legend.fontsize : 12
+legend.borderaxespad : 0.4
+legend.borderpad : 0.4
+legend.handlelength : 1
+legend.framealpha : 1
+legend.fancybox : True
+legend.title_fontsize : 12
+
+savefig.bbox : tight

@@ -3273,12 +3273,12 @@ def run_lightcone(
 
          ## Define the approximate f_heat_function
         def f_heat_approx(z: float, params: list, model_shape: list = 0) -> float:
-            if model_shape == 0: # Constant function
+            if model_shape == 1: # Constant function
                 return params[0]
-            if model_shape == 1: # Exponential
+            if model_shape == 2: # Exponential
                 return params[0] * np.exp( params[1]*(z-15.) )
-            if model_shape == 2: # Schechter function
-                return params[0]*np.exp( params[1]*(z-15.) + params[2]*np.log(z/15.) )
+            if model_shape == 3: # Schechter function
+                return params[0] * np.exp( params[1]*(z-15.) + params[2]*np.log(z/15.) )
 
         # Tabulated values on DarkHistory runs
         if user_params.DM_PROCESS == 'decay':
