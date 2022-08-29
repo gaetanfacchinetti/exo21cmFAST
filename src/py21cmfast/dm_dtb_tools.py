@@ -1,6 +1,8 @@
 ############################################################################
 #    Code to organise a database for the different parts
+#
 #    Copyright (C) 2022  Gaetan Facchinetti
+#    gaetan.facchinetti@ulb.be
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -23,6 +25,9 @@ from collections.abc import Callable
 import shutil
 import copy
 from abc import abstractmethod
+
+import logging
+logger = logging.getLogger(__name__)
 
 ''' 
 Ready for a new version:
@@ -265,33 +270,33 @@ def parse_args(parser) :
 
     ## Define all the arguments that can be parsed
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-r", "--remove", nargs='*', type=int, help="Remove the following entries in the database (integers)")
+    group.add_argument("-r", "--remove", nargs='*', type=int, help="remove the following entries in the database (integers)")
     group.add_argument("-sh", "--show", help="show the database", action="store_true")
     group.add_argument("-swave", "--DM_process_swave", help="set the DM process to swave", action="store_true")
     group.add_argument("-decay", "--DM_process_decay", help="set the DM process to decay", action="store_true")
-    group.add_argument("-infile", "--input_file", help="Inpute file of the models to treat")
+    group.add_argument("-infile", "--input_file", help="used to perform several runs in a row with parameters written in a file (this option specifies the name of the corresponding file)")
 
     parser.add_argument("-nobkr", "--no_backreaction", help="turn off backreaction", action="store_false")
     parser.add_argument("-m", "--DM_mass", nargs='*', type=float, help="DM mass in eV")
-    parser.add_argument("-p", "--primary", nargs='*', help="primary particles")
-    parser.add_argument("-b", "--boost", nargs='*', help="type of boost")
+    parser.add_argument("-p", "--primary", nargs='*', help="primary particles (must be in a selected list and be consistent with the DM mass). Possibilities are: ['elec_delta', 'phot_delta', 'e_L', 'e_R', 'e', 'mu_L', 'mu_R', 'mu', 'tau_L', 'tau_R', 'tau', 'q', 'c', 'b', 't', 'gamma', 'g', 'W_L', 'W_T', 'W', 'Z_L', 'Z_T', 'Z', 'h']")
+    parser.add_argument("-b", "--boost", nargs='*', help="type of boost (not relevant for decauy) ")
     parser.add_argument("-fs", "--fs_method", nargs='*', help="value of compute_fs_method")
     parser.add_argument("-c", "--comment", nargs='*', help="comment describing this particular run. By default there is no comment")
     parser.add_argument("-f", "--force_overwrite", help="force overwrite any existing entry in the database", action="store_true")
-    parser.add_argument("-sigv", "--sigmav", nargs='*', type=float, help="cross-section in cm^3 s^{-1}. If none set to maximal value allowed by Planck18.")
-    parser.add_argument("-lftm", "--lifetime", nargs='*', type=float, help="decay rate s^{-1}. If none set to maximal value allowed by Planck18.")
-    parser.add_argument("-nomp", "--nthreads_omp", type=int, help="Number of threads used by the code")
+    parser.add_argument("-sigv", "--sigmav", nargs='*', type=float, help="cross-section in cm^3 s^{-1}")
+    parser.add_argument("-lftm", "--lifetime", nargs='*', type=float, help="decay rate in s^{-1}")
+    parser.add_argument("-nomp", "--nthreads_omp", type=int, help="number of threads used by the code")
     
     ## Special arguments when we use approximations
-    parser.add_argument("-approx", "--approximate", help="Run an approximate energy injection", action="store_true")
-    parser.add_argument("-shape", "--approximate_shape", nargs='*', help="Shape of fheat")
-    parser.add_argument("-params", "--approximate_params", nargs='*', type=float, help="Parameters to feed the approximate shape of fheat")
-    parser.add_argument("-fionH_fh", '--fion_H_over_fheat', nargs=1, type=float, help="Constant ratio of fion_H over f_heat")
-    parser.add_argument("-fionHe_fh", '--fion_He_over_fheat', nargs=1, type=float, help="Constant ratio of fion_He over f_heat")
-    parser.add_argument("-fexc_fh", '--fexc_over_fheat', nargs=1, type=float, help="Constant ratio of fexc over f_heat")
-    parser.add_argument("-xe_init", '--xe_init', nargs=1, type=float, help="Initial value for the ionised fraction")
-    parser.add_argument("-Tm_init", '--Tm_init', nargs=1, type=float, help="Initial value for the IGM temperature fraction [K]")
-    parser.add_argument("-force_init", '--force_init_cond', help="Impose these new initial conditions", action="store_true")
+    parser.add_argument("-approx", "--approximate", help="run an approximate energy injection using templates", action="store_true")
+    parser.add_argument("-shape", "--approximate_shape", nargs='*', help="template shape of fheat")
+    parser.add_argument("-params", "--approximate_params", nargs='*', type=float, help="parameters to feed the template approximating fheat")
+    parser.add_argument("-fionH_fh", '--fion_H_over_fheat', nargs=1, type=float, help="constant ratio of fion_H over f_heat")
+    parser.add_argument("-fionHe_fh", '--fion_He_over_fheat', nargs=1, type=float, help="constant ratio of fion_He over f_heat")
+    parser.add_argument("-fexc_fh", '--fexc_over_fheat', nargs=1, type=float, help="constant ratio of fexc over f_heat")
+    parser.add_argument("-xe_init", '--xe_init', nargs=1, type=float, help="initial value for the ionised fraction")
+    parser.add_argument("-Tm_init", '--Tm_init', nargs=1, type=float, help="initial value for the IGM temperature fraction [K]")
+    parser.add_argument("-force_init", '--force_init_cond', help="impose the fixed initial conditions", action="store_true")
     
     return parser.parse_args()
 
@@ -390,8 +395,8 @@ class DatabaseManager:
                 if os.path.exists(self.path_result_run + str(models_arr[i].index) + ".txt") : 
                     os.remove(self.path_result_run + str(models_arr[i].index) + ".txt")
                 else : 
-                    print("The file:", self.path_result_run + str(models_arr[i].index) + ".txt", "does not exist in the first place.")
-                    print("The database has missed a deletion ... entry only removed from the database file.")
+                    logger.warning("The file:", self.path_result_run + str(models_arr[i].index) + ".txt", "does not exist in the first place.")
+                    logger.warning("The database has missed a deletion ... entry only removed from the database file.")
                 
                 if os.path.exists(self.path_brightness_temp + str(models_arr[i].index)) : 
                     shutil.rmtree(self.path_brightness_temp + str(models_arr[i].index))
@@ -427,7 +432,7 @@ class DatabaseManager:
             indices = [indices]
 
         if max(indices) >= len(models_arr)  :
-            print("Error: cannot remove some of these items, they do not exits")
+            logger.error("ERROR: Cannot remove some of these items, they do not exits")
             exit(0)
 
         # This is to get the king of model we are dealing with before removing the models from models_arr
@@ -436,13 +441,13 @@ class DatabaseManager:
         model_type = copy.deepcopy(models_arr[0])
 
         if not force_deletion :
-            print("Are you sure you want to remove these entries from the database (y/n):")
+            logger.warning("Are you sure you want to remove these entries from the database (y/n):")
             for ind in indices: 
                 if ind < len(models_arr)  :
-                    print(models_arr[ind])
+                    logger.warning(models_arr[ind])
             
             if input() not in ['y', 'yes', 'Y', 'YES', 'Yes'] :
-                print("Not removing anything")
+                logger.warning("Not removing anything")
                 exit(0)
 
         j = 0
@@ -487,14 +492,14 @@ class DatabaseManager:
         # Loop on all the indices / models 
         for i in range(0, len(indices)) : 
             if indices[i] > -1 : 
-                print("The model", new_models[i], "already exists (registered at index: " +  str(indices[i]) + ")")
+                logger.warning("The model " + new_models[i].__str__() +  " already exists (registered at index: " +  str(indices[i]) + ")")
                 existing_models.append(i)
 
         if len(existing_models) > 0 :
 
             if force_overwrite == False : 
-                print(" --------------------- ")
-                print("Do you want to overwrite these models (y/n)")
+                logger.warning(" --------------------- ")
+                logger.warning("Do you want to overwrite these models (y/n)")
 
                 answer_str = input()
 
@@ -502,12 +507,12 @@ class DatabaseManager:
                     for ex_mod in existing_models :
                         output_indices[ex_mod] =  indices[ex_mod]
                 else :
-                    print("If you do not want to overwrite you need to differentiate the runs/models by adding/changing a comment with the -c option")
+                    logger.warning("If you do not want to overwrite you need to differentiate the runs/models by adding/changing a comment with the -c option")
                     exit(0)
 
             else : 
-                print(" --------------------- ")
-                print("These models are overwritten by force")
+                logger.warning(" --------------------- ")
+                logger.warning("These models are overwritten by force")
                 for ex_mod in existing_models :
                     output_indices[ex_mod] = indices[ex_mod]
         
@@ -662,13 +667,13 @@ class DatabaseManager:
         if args.show is not None and args.show == True :
             models_arr, file_existed = self.read_database()
             if file_existed and len(models_arr) > 0:
-                print("The database currently contains the following models:")
+                logger.warning("The database currently contains the following models:")
             elif file_existed and len(models_arr) == 0:
-                print("The database currently contains no models.")
+                logger.warning("The database currently contains no models.")
             elif not file_existed:
-                print("No database file found.")
+                logger.warning("No database file found.")
             for mod in models_arr:
-                print(mod)
+                logger.warning(mod.__str__())
             exit(0)
         
 
@@ -699,7 +704,7 @@ class DatabaseManager:
                 first = False
             if len(value_arr[i]) > 1 and not first :
                 if len(value_arr[i]) != n :
-                    print("Error in the input argument")
+                    logger.error("Error in the input argument")
                     exit(0)
 
         # If we have the value of n we change everything to the same size
@@ -753,23 +758,23 @@ class DHDatabase(DatabaseManager) :
             process = ["swave" for i in range(0, n)]
             
             if any([val != 0 for val in value_arr[5]]): 
-                print("WARNING: with swave setting the lifetime to 0")
+                logger.warning("With swave setting the lifetime to 0")
             value_arr[5] = [0  for i in range(0, n)]
         
         if decay == True :
             process = ["decay" for i in range(0, n)]
 
             if any([val != 0 for val in value_arr[4]]): 
-                print("WARNING: with decay setting sigmav to 0")
+                logger.warning("With decay setting sigmav to 0")
             value_arr[4] = [0 for i in range(0, n)]
 
             if any([val != 'none' for val in value_arr[2]]): 
-                print("WARNING: with decay setting the boosts to 'none'")
+                logger.warning(">ith decay setting the boosts to 'none'")
             value_arr[2] = ['none'  for i in range(0, n)]  
 
         if decay == False and swave == False :
             if n > 1 :
-                print("No reason to run the code more than one time with no DM injection")
+                logger.warning("No reason to run the code more than one time with no DM injection")
                 exit(0)
             process = ['none']
             bkr = False
@@ -789,12 +794,12 @@ class DHDatabase(DatabaseManager) :
             if mod.is_valid():
                 input.append(mod)
             else:
-                print("Error: trying to run an invalid model")
+                logger.error("ERROR: Trying to run an invalid model")
                 exit(0)
 
-        print("The following models have been passed in input: ")
+        logger.warning("The following models have been passed in input: ")
         for mod in input : 
-            print(mod)
+            logger.warning(mod)
 
         return input, *output_val
 
@@ -915,7 +920,7 @@ class DHDatabase(DatabaseManager) :
             with open(filename, 'r') as f:
                 input_data = f.readlines()
         else:
-            print("Error input file does not exist")
+            logger.error("ERROR: Input file does not exist")
             exit(0)
         
         models = []
@@ -996,13 +1001,13 @@ class ApproxDepDatabase(DatabaseManager) :
         if swave == True :
             process = "swave"
             if value_arr[4] != 0: 
-                print("WARNING: with swave setting the lifetime to 0")
+                logger.warning("With swave setting the lifetime to 0")
                 value_arr[4] = 0
         
         if decay == True :
             process = "decay"
             if value_arr[3] != 0: 
-                print("WARNING: with decay setting sigmav to 0")
+                logger.warning("With decay setting sigmav to 0")
                 value_arr[3] = 0
 
 
@@ -1023,11 +1028,11 @@ class ApproxDepDatabase(DatabaseManager) :
         if mod.is_valid():
             input.append(mod)
         else:
-            print("Error: trying to run an invalid model")
+            logger.error("ERROR: Trying to run an invalid model")
             exit(0)
 
-        print("The following model have been passed in input: ") 
-        print(mod)
+        logger.warning("The following model have been passed in input: ") 
+        logger.warning(mod)
 
         return input, *output_val
 

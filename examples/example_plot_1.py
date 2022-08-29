@@ -1,6 +1,9 @@
 ############################################################################
-#    Code to organise a database for the different parts
+#    Code to plot comparison between the energy injection templates and
+#    the full DarkHistory code
+#    
 #    Copyright (C) 2022  Gaetan Facchinetti
+#    gaetan.facchinetti@ulb.be
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -21,18 +24,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
-from pylab import *
+from pylab import matplotlib
 from matplotlib.gridspec import GridSpec
-
-import py21cmfast as p21c
+from matplotlib.lines import Line2D 
 from scipy import interpolate
-import py21cmfast.dm_dtb_tools as db_tools
-import example_lightcone_analysis as lightcone_analysis
-
-
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 matplotlib.rc_file('matplotlibrc')
 
+# Load custom packages
+import py21cmfast.dm_dtb_tools as db_tools
+import example_lightcone_analysis as lightcone_analysis
 
 
 # -------------------------------------------------------------------------------------
@@ -54,12 +55,12 @@ bkr        = [False, False, True]
 primary    = ['none', 'elec_delta', 'elec_delta']
 boost      = ['none', 'none', 'none']
 fs_method  = ['none', 'no_He', 'no_He']
-comm       = ['small_box', 'small_box', 'small_box']
+comm       = ['large_box', 'large_box', 'large_box']
 
 # Parameters for the solution using the templates
 approx_shape       = ['none', 'schechter', 'schechter']
 approx_params      = [[0], [1.5310e-01, -3.2090e-03, 1.2950e-01], [1.5310e-01, -3.2090e-03, 1.2950e-01]]
-approx_comm        = ['small_box', 'small_box', 'small_box']
+approx_comm        = ['large_box', 'large_box', 'large_box']
 fion_H_over_fheat  = [0, -1., -1.]
 fion_He_over_fheat = [0, -1., -1.]
 fexc_over_fheat    = [0, -1., -1.]
@@ -242,7 +243,7 @@ for i, z in enumerate(z_PS):
     z_comp = np.logspace(np.log10(5.), np.log10(z_max), 65)
     delta_z_interp_exact  = interpolate.interp1d(z[0], delta_z[i][0])(z_comp)
     delta_z_interp_approx = interpolate.interp1d(z[1], delta_z[i][1])(z_comp)
-    res_delta_z = [  100*(delta_z_interp_approx[j] - dz)/dz for j, dz in enumerate(delta_z_interp_exact) ]
+    res_delta_z = [ 100*(delta_z_interp_approx[j] - dz)/dz for j, dz in enumerate(delta_z_interp_exact) ]
     ax1.plot(z_comp, res_delta_z, color=colors[i])
 
 
@@ -251,7 +252,7 @@ for i, z in enumerate(z_GQ):
     z_comp = np.logspace(np.log10(8.), np.log10(z_max), 65)
     dTb_interp_exact  = interpolate.interp1d(z[0], dTb[i][0])(z_comp)
     dTb_interp_approx = interpolate.interp1d(z[1], dTb[i][1])(z_comp)
-    res_dTb = [  100*(dTb_interp_approx[j] - dTb)/dTb for j, dTb in enumerate(dTb_interp_exact) ]  
+    res_dTb = [ 100*(dTb_interp_approx[j] - dTb)/dTb for j, dTb in enumerate(dTb_interp_exact) ]  
     ax2.plot(z_comp, res_dTb ,color=colors[i])
 
 
@@ -263,7 +264,7 @@ for i, z in enumerate(z_f):
     fheat_approx = f_heat[i][1]
     fheat_interp_exact  = interpolate.interp1d(z[0], fheat_exact )(z_comp)
     fheat_interp_approx = interpolate.interp1d(z[1], fheat_approx)(z_comp)
-    res_fheat = [  100*(fheat_interp_approx[j] - inj)/inj for j, inj in enumerate(fheat_interp_exact) ]  
+    res_fheat = [ 100*(fheat_interp_approx[j] - inj)/inj for j, inj in enumerate(fheat_interp_exact) ]  
     index_color = i if i < position_noDM else i+1
     ax3.plot(z_comp, res_fheat, color=colors[index_color])
 
@@ -273,7 +274,7 @@ for i, z in enumerate(z_GQ):
     z_comp = np.logspace(np.log10(5.), np.log10(z_max), 65)
     xHII_interp_exact  = interpolate.interp1d(z[0], 1-xH_box[i][0])(z_comp)
     xHII_interp_approx = interpolate.interp1d(z[1], 1-xH_box[i][1])(z_comp)
-    res_xHII = [  100*(xHII_interp_approx[j] - xHII)/xHII for j, xHII in enumerate(xHII_interp_exact) ] 
+    res_xHII = [ 100*(xHII_interp_approx[j] - xHII)/xHII for j, xHII in enumerate(xHII_interp_exact) ] 
     #ax4.plot(z, x_e_box[i],"-", color=colors[i])
     ax4.plot(z_comp, res_xHII, "-", color=colors[i])
 
@@ -282,14 +283,14 @@ for i, z in enumerate(z_GQ):
     z_comp = np.logspace(np.log10(5.), np.log10(z_max), 65)
     Tk_interp_exact  = interpolate.interp1d(z[0], Tk_box[i][0])(z_comp)
     Tk_interp_approx = interpolate.interp1d(z[1], Tk_box[i][1])(z_comp)
-    res_Tk = [  100*(Tk_interp_approx[j] - Tk)/Tk for j, Tk in enumerate(Tk_interp_exact) ]   
+    res_Tk = [ 100*(Tk_interp_approx[j] - Tk)/Tk for j, Tk in enumerate(Tk_interp_exact) ]   
     ax5.plot(z_comp, res_Tk ,"-", color=colors[i])
     
 for i, z in enumerate(z_GQ):   
     z_comp = np.logspace(np.log10(5.), np.log10(z_max), 65)
     Ts_interp_exact  = interpolate.interp1d(z[0], Ts_box[i][0])(z_comp)
     Ts_interp_approx = interpolate.interp1d(z[1], Ts_box[i][1])(z_comp)
-    res_Ts = [  100*(Ts_interp_approx[j] - Ts)/Ts for j, Ts in enumerate(Ts_interp_exact) ]   
+    res_Ts = [ 100*(Ts_interp_approx[j] - Ts)/Ts for j, Ts in enumerate(Ts_interp_exact) ]   
     ax6.plot(z_comp, res_Ts ,"-", color=colors[i])
 
 
@@ -299,7 +300,10 @@ for i, z in enumerate(z_GQ):
 # Legends
 line1 = Line2D([],[],color='k',linestyle='-',label='longitude=0',linewidth=1)
 line2 = Line2D([],[],color='k',linestyle='--',label='longitude=0',linewidth=1)
-line3 = Line2D([],[],color='k',linestyle=':',label='longitude=0',linewidth=1)
+line3 = Line2D([],[],color=colors[0],linestyle='-',label='longitude=0',linewidth=1)
+line4 = Line2D([],[],color=colors[1],linestyle='-',label='longitude=0',linewidth=1)
+line5 = Line2D([],[],color=colors[2],linestyle='-',label='longitude=0',linewidth=1)
+
 no_line = Line2D([],[],color='k',linestyle='-',linewidth=0, alpha = 0) # When we don't really want a handle in legend
 
 
@@ -307,22 +311,23 @@ def remove_handles_legend(legend) :
     for item in legend.legendHandles :
         item.set_visible(False)
 
-legend_text = [r"$\rm w.o.~DM$", r"$\rm 126~MeV,~e^+e^-,~\tau = 10^{26}~s,~no~bkr$", r"$\rm 126~MeV,~e^+e^-,~\tau = 10^{26}~s,~with~bkr$"]
-legend11 = ax1.legend(solid_lines[0:len(legend_text)+1], legend_text, loc='upper left', bbox_to_anchor=(0.01,1.35), ncol=2)
-legend12 = ax1.legend([no_line], [r"$k = {:2.2f}~\rm Mpc^{{-1}}$".format(k_approx[0][0])], handlelength=0, handletextpad=0, loc='upper right', bbox_to_anchor=(0.99,0.99))
-legend41 = ax4.legend([line1, line2], [r"$\overline{x_e}$", r"$\overline{x_{\rm HII}}$"], loc='upper right', bbox_to_anchor=(0.99,0.99))
-legend51 = ax5.legend([line1, line2, line3], [r"$\overline{T_{\rm S}}$", r"$\overline{T_{\rm K}}$", r"$T_{\rm CMB}$"], loc='upper right', bbox_to_anchor=(0.99,0.99))
+fig.suptitle(r"${\rm Residuals:}~\chi \to e^+ e^-,~m_\chi = 126~{\rm MeV},~\tau = 10^{26}~{\rm s} $", fontsize=18, y=1.01)
+legend_text_1 = [r"$\rm DarkHistory$", r"$\rm Templates$"]
+legend_text_2 = [r"$\rm without~DM~inj.$", r"$\rm no~backreaction$", r"$\rm with~backreaction$"]
+legend11 = ax1.legend([line1, line2], legend_text_1, loc='upper left', bbox_to_anchor=(0.01,1.35), ncol=2)
+legend12 = ax1.legend([line3, line4, line5], legend_text_2, loc='upper left', bbox_to_anchor=(0.01,1.20), ncol=3)
+legend13 = ax1.legend([no_line], [r"$k = {:2.2f}~\rm Mpc^{{-1}}$".format(k_approx[0][0])], handlelength=0, handletextpad=0, loc='lower left', bbox_to_anchor=(0.01,0.01))
 
-
-remove_handles_legend(legend12)
+remove_handles_legend(legend13)
 ax1.add_artist(legend11)
 ax1.add_artist(legend12)
-ax4.add_artist(legend41)
+
+
 
 # -------------------------------------------------------------------------------------
 
 # Saving the figure
-fig.suptitle(r"$\rm Residuals$", fontsize=18, y=1.01)
+
 fig.savefig('./example_plot_1.pdf', bbox_inches='tight')
 
 ## END OF SCRIPT

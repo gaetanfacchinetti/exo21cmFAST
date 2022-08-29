@@ -1,6 +1,8 @@
 ############################################################################
-#    Modified versions of DarkHistory for 21cmFAST
+#    Modified versions of some DarkHistory functions for 21cmFAST
+#
 #    Copyright (C) 2022  Gaetan Facchinetti
+#    gaetan.facchinetti@ulb.be
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -57,6 +59,8 @@ from darkhistory.history import tla
 
 import DarkHistory.main as main
 
+import logging
+logger = logging.getLogger(__name__)
 
 def evolve_for_21cmFAST(
     in_spec_elec=None, in_spec_phot=None,
@@ -178,19 +182,20 @@ def evolve_for_21cmFAST(
     photeng = binning['phot']
     eleceng = binning['elec']
 
-    dep_tf_data = load_data('dep_tf')
+    dep_tf_data = load_data('dep_tf', verbose=0)
 
     highengphot_tf_interp = dep_tf_data['highengphot']
     lowengphot_tf_interp  = dep_tf_data['lowengphot']
     lowengelec_tf_interp  = dep_tf_data['lowengelec']
     highengdep_interp     = dep_tf_data['highengdep'] 
 
-    ics_tf_data = load_data('ics_tf')
+    ics_tf_data = load_data('ics_tf', verbose=0)
 
     ics_thomson_ref_tf  = ics_tf_data['thomson']
     ics_rel_ref_tf      = ics_tf_data['rel']
     engloss_ref_tf      = ics_tf_data['engloss']
 
+    logger.info("DarkHistory data loaded.")
 
     # Handle the case where a DM process is specified.
     if DM_process == 'swave':
@@ -781,23 +786,24 @@ def evolve_one_step(
     #####################################
 
     # Load data.
-    binning = load_data('binning')
+    binning = load_data('binning', verbose=0)
     photeng = binning['phot']
     eleceng = binning['elec']
 
-    dep_tf_data = load_data('dep_tf')
+    dep_tf_data = load_data('dep_tf', verbose=0)
 
     highengphot_tf_interp = dep_tf_data['highengphot']
     lowengphot_tf_interp  = dep_tf_data['lowengphot']
     lowengelec_tf_interp  = dep_tf_data['lowengelec']
     highengdep_interp     = dep_tf_data['highengdep'] 
 
-    ics_tf_data = load_data('ics_tf')
+    ics_tf_data = load_data('ics_tf', verbose=0)
 
     ics_thomson_ref_tf  = ics_tf_data['thomson']
     ics_rel_ref_tf      = ics_tf_data['rel']
     engloss_ref_tf      = ics_tf_data['engloss']
 
+    logger.info("DarkHistory data loaded.")
 
     start_rs = in_highengphot_specs[-1].rs
 
@@ -1394,23 +1400,24 @@ def evolve(
     #####################################
 
     # Load data.
-    binning = load_data('binning')
+    binning = load_data('binning', verbose=0)
     photeng = binning['phot']
     eleceng = binning['elec']
 
-    dep_tf_data = load_data('dep_tf')
+    dep_tf_data = load_data('dep_tf', verbose=0)
 
     highengphot_tf_interp = dep_tf_data['highengphot']
     lowengphot_tf_interp  = dep_tf_data['lowengphot']
     lowengelec_tf_interp  = dep_tf_data['lowengelec']
     highengdep_interp     = dep_tf_data['highengdep']
 
-    ics_tf_data = load_data('ics_tf')
+    ics_tf_data = load_data('ics_tf', verbose=0)
 
     ics_thomson_ref_tf  = ics_tf_data['thomson']
     ics_rel_ref_tf      = ics_tf_data['rel']
     engloss_ref_tf      = ics_tf_data['engloss']
 
+    logger.info("DarkHistory data loaded.")
 
     # Handle the case where a DM process is specified. 
     if DM_process == 'swave':
@@ -1884,7 +1891,7 @@ def evolve(
 
         # Here we print some value in order to check where we are in the process
         # At redshift z=rs-1 we have this f_heat (computed here)
-        print("| z (next): {:2.2f}".format(next_rs-1), "| x_HII: {:1.3e}".format(x_arr[-1, 0]), "| Tm: {:1.3e}".format(Tm_arr[-1]*eV_to_K), "K | f_heat: {:1.3e}".format(f_low[-1, 3] + f_high[-1, 3]))
+        logger.info("| z (next): {:2.2f}".format(next_rs-1), "| x_HII: {:1.3e}".format(x_arr[-1, 0]), "| Tm: {:1.3e}".format(Tm_arr[-1]*eV_to_K), "K | f_heat: {:1.3e}".format(f_low[-1, 3] + f_high[-1, 3]))
 
         # Re-define existing variables. 
         rs = next_rs

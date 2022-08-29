@@ -1,6 +1,8 @@
 ############################################################################
-#    Code to organise a database for the different parts
+#    Code to plot a synthetic figure of example_run_lightcone.py outputs
+#    
 #    Copyright (C) 2022  Gaetan Facchinetti
+#    gaetan.facchinetti@ulb.be
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -64,12 +66,12 @@ boost      = ['none', 'none']
 fs_method  = ['no_He', 'no_He']
 sigv       = [0, 0]
 lifetime   = [1e+26, 1e+26]
-comm       = ['small_box', 'small_box']
+comm       = ['large_box', 'large_box']
 
 index_exact = [-1, -1]
 
 approx_shape       = ['schechter']
-approx_params      = [[1.50e-01, -3.20e-03, 1.30e-01]]
+approx_params      = [[1.5310e-01, -3.2090e-03, 1.2950e-01]]
 approx_sigv        = [0.]
 approx_lifetime    = [1e+26]
 approx_mDM         = [1.26e+8]
@@ -80,17 +82,18 @@ fexc_over_fheat    = [-1.]
 force_init_cond    = [True]
 xe_init            = [0.0031]
 Tm_init            = [118.0]
-approx_comm        = ['small_box']
+approx_comm        = ['large_box']
 
 index_approx = [-1]
 
 
 # Get the reference plot witout exotic energy injection
-index_no_DM_0 = db_manager(approx = False).search(bkr=False, process='none', mDM=0., primary='none', boost='none', fs_method='none', sigmav=0., lifetime=0., comment='small_box')[0]
+index_no_DM_0 = db_manager(approx = False).search(bkr=False, process='none', mDM=0., primary='none', boost='none', fs_method='none', 
+                                                sigmav=0., lifetime=0., comment='large_box')[0]
 index_no_DM_1 = db_manager(approx = True ).search(process='none', mDM=0., approx_shape='none', approx_params=[0.], 
-                                                  sigmav=0., lifetime=0., fion_H_over_fheat=0., fion_He_over_fheat=0., fexc_over_feat=0.,
-                                                  force_init_cond=False, xe_init=0., Tm_init=0.,
-                                                  comment='small_box')[0]
+                                                sigmav=0., lifetime=0., fion_H_over_fheat=0., fion_He_over_fheat=0., fexc_over_feat=0.,
+                                                force_init_cond=False, xe_init=0., Tm_init=0.,
+                                                comment='large_box')[0]
 
 # Get the index of the corresponding files in the database
 for i in range(0, len(index_exact)) : 
@@ -104,7 +107,7 @@ for i in range(0, len(index_approx)) :
                                                   fion_He_over_fheat=fion_He_over_fheat[i], fexc_over_feat=fexc_over_fheat[i], force_init_cond=force_init_cond[i], 
                                                 xe_init=xe_init[i], Tm_init=Tm_init[i], comment=approx_comm[i])[0]
 
-print(index_exact, index_approx)
+#print(index_exact, index_approx)
 
 # Get the corresponding name of the files (according to the database)
 filename = [database_location + '/darkhistory/BrightnessTemp_' + str(index_no_DM_0),
@@ -170,21 +173,27 @@ fig.subplots_adjust(wspace=0, hspace=0)
 gs = GridSpec(6, 4, figure=fig)
 ax1 = fig.add_subplot(gs[0:2, 0:2])
 ax2 = fig.add_subplot(gs[2:4, 0:2])
-ax3 = fig.add_subplot(gs[0:2, 2:4])
-ax4 = fig.add_subplot(gs[2:4, 2:4])
-ax5 = fig.add_subplot(gs[4:6, 2:4])
-ax6 = fig.add_subplot(gs[4:5, 0:2])
-ax7 = fig.add_subplot(gs[5:6, 0:2])
+ax3 = fig.add_subplot(gs[4:5, 0:2])
+ax4 = fig.add_subplot(gs[5:6, 0:2])
+ax5 = fig.add_subplot(gs[0:2, 2:4])
+ax6 = fig.add_subplot(gs[2:3, 2:4])
+ax7 = fig.add_subplot(gs[3:4, 2:4])
+ax8 = fig.add_subplot(gs[4:5, 2:4])
+ax9 = fig.add_subplot(gs[5:6, 2:4])
 
 
 ax1.tick_params(labelbottom=False)
-#ax2.tick_params(labelbottom=False)
-ax3.tick_params(labelbottom=False, labelright=True, labelleft=False)
-ax4.tick_params(labelright=True, labelbottom=False, labelleft=False)
-ax5.tick_params(labelright=True, labelleft=False)
-ax3.yaxis.set_label_position("right")
-ax4.yaxis.set_label_position("right")
+ax2.tick_params(labelbottom=False)
+ax5.tick_params(labelbottom=False, labelright=True, labelleft=False)
+ax6.tick_params(labelbottom=False, labelright=True, labelleft=False)
+ax7.tick_params(labelbottom=False, labelright=True, labelleft=False)
+ax8.tick_params(labelbottom=False, labelright=True, labelleft=False)
+ax9.tick_params(labelright=True, labelleft=False)
 ax5.yaxis.set_label_position("right")
+ax6.yaxis.set_label_position("right")
+ax7.yaxis.set_label_position("right")
+ax8.yaxis.set_label_position("right")
+ax9.yaxis.set_label_position("right")
 
 ax1.minorticks_on()
 ax2.minorticks_on()
@@ -193,12 +202,16 @@ ax4.minorticks_on()
 ax5.minorticks_on()
 ax6.minorticks_on()
 ax7.minorticks_on()
+ax8.minorticks_on()
+ax8.minorticks_on()
 
 ax1.grid(True, alpha = 0.5, linewidth=0.5)
 ax2.grid(True, alpha = 0.5, linewidth=0.5)
-ax3.grid(True, alpha = 0.5, linewidth=0.5)
-ax4.grid(True, alpha = 0.5, linewidth=0.5)
 ax5.grid(True, alpha = 0.5, linewidth=0.5)
+ax6.grid(True, alpha = 0.5, linewidth=0.5)
+ax7.grid(True, alpha = 0.5, linewidth=0.5)
+ax8.grid(True, alpha = 0.5, linewidth=0.5)
+ax9.grid(True, alpha = 0.5, linewidth=0.5)
 
 #X and Y ranges
 z_max = 35
@@ -207,64 +220,100 @@ ax2.set_xlim(4, z_max)
 ax3.set_xlim(4, z_max)
 ax4.set_xlim(4, z_max)
 ax5.set_xlim(4, z_max)
+ax6.set_xlim(4, z_max)
+ax7.set_xlim(4, z_max)
+ax8.set_xlim(4, z_max)
+ax9.set_xlim(4, z_max)
 
 ax1.set_ylim(2e-2, 1e+3)
 ax2.set_ylim(-180, 50)
-ax3.set_ylim(8e-33, 2e-29)
-ax4.set_ylim(5e-5, 4)
+ax5.set_ylim(1e-28, 5e-30)
+ax6.set_ylim(5e-5, 4)
+ax7.set_ylim(5e-5, 4)
 
 #Axes' labels
-#ax2.set_xlabel(r'$z$')
 ax1.set_ylabel(r'$\overline{\delta T_b}^2 \Delta_{21}^2~{\rm [mK^2]}$')
 ax2.set_ylabel(r'$\overline{\delta T_b}~{\rm [mK]}$')
-ax3.set_ylabel(r'$\epsilon_{\rm heat}^{\rm DM}~[\rm erg/s]$', rotation=-90, labelpad=20)
-ax5.set_xlabel(r'$z$')
-ax4.set_ylabel(r'$\rm Ionized~frac.$', rotation=-90, labelpad=20)
-ax5.set_ylabel(r'${\rm Temperature}~{\rm [K]}$', rotation=-90, labelpad=20)
-ax6.set_ylabel(r'$d~{\rm [Mpc]}$')
-ax7.set_ylabel(r'$d~{\rm [Mpc]}$')
-ax7.set_xlabel(r'$z$')
+ax3.set_ylabel(r'$d~{\rm [Mpc]}$')
+ax4.set_ylabel(r'$d~{\rm [Mpc]}$')
+ax4.set_xlabel(r'$z$')
+ax5.set_ylabel(r'$\epsilon_{\rm heat}^{\rm DM}~[\rm erg/s]$', rotation=-90, labelpad=20)
+ax6.set_ylabel(r'$\overline{x_{\rm e}}$', rotation=-90, labelpad=20)
+ax7.set_ylabel(r'$\overline{x_{\rm HII}}$', rotation=-90, labelpad=20)
+ax8.set_ylabel(r'${\rm T_{\rm S}}~{\rm [K]}$', rotation=-90, labelpad=20)
+ax9.set_ylabel(r'${\rm T_{\rm K}}~{\rm [K]}$', rotation=-90, labelpad=20)
+ax9.set_xlabel(r'$z$')
 
 #Set logscale
 ax1.set_yscale('log')
-ax3.set_yscale('log')
-ax4.set_yscale('log')
 ax5.set_yscale('log')
+ax6.set_yscale('log')
+ax7.set_yscale('log')
+ax8.set_yscale('log')
+ax9.set_yscale('log')
 
 
-
-my_colors = ['#D90000','#2574d4','#20b356', '#f07000', '#8e006f', 'cyan', 'chartreuse']
+my_colors = ['#D90000','#2574d4','#20b356', '#f07000', '#8e006f']
 colors=['k', *my_colors]
 solid_lines=[ Line2D([],[],color=c,linestyle='-',linewidth=1) for c in colors ]
+
 # -------------------------------------------------------------------------------------
 
 
 
 # The power spectrum
-for i, z in enumerate(z_PS): 
-    ax1.plot(z, delta_z[i], color=colors[i])
+ax1.plot(z_PS[0], delta_z[0], '-',  color=colors[0])  # no DM energy injection
+ax1.plot(z_PS[1], delta_z[1], '--', color=colors[0]) # no DM energy injection
+ax1.plot(z_PS[2], delta_z[2], '-',  color=colors[1])  # DH no bkr
+ax1.plot(z_PS[3], delta_z[3], '-',  color=colors[2]) # DH bkr
+ax1.plot(z_PS[4], delta_z[4], '--', color=colors[1]) # approx no bkr
+
 
 # The global brighness temperature
-for i, z in enumerate(z_GQ):   
-    ax2.plot(z, dTb[i] ,color=colors[i])
-
+ax2.plot(z_GQ[0], dTb[0], '-',  color=colors[0])  # no DM energy injection
+ax2.plot(z_GQ[1], dTb[1], '--', color=colors[0]) # no DM energy injection
+ax2.plot(z_GQ[2], dTb[2], '-',  color=colors[1])  # DH no bkr
+ax2.plot(z_GQ[3], dTb[3], '-',  color=colors[2]) # DH bkr
+ax2.plot(z_GQ[4], dTb[4], '--', color=colors[1]) # approx no bkr
 
 # The energy injected into heat
 imax = np.where(z_f[0] == min(z_f[0], key=lambda x:abs(x-z_max)))[0].tolist()[0]
-for i, z in enumerate(z_f):
-    ax3.plot(z[imax:-1], f_heat[i][imax:-1]*inj_e_smooth[i][imax:-1], color=colors[i+1])
+ax5.plot(z_f[0][imax:-1], f_heat[0][imax:-1]*inj_e_smooth[0][imax:-1], '-',  color=colors[1]) # DH no bkr
+ax5.plot(z_f[1][imax:-1], f_heat[1][imax:-1]*inj_e_smooth[1][imax:-1], '-',  color=colors[2]) # DH bkr
+ax5.plot(z_f[2][imax:-1], f_heat[2][imax:-1]*inj_e_smooth[2][imax:-1], '--',  color=colors[1]) # approx no bkr
 
 # The ionized fractions
-for i, z in enumerate(z_GQ):  
-    ax4.plot(z, x_e_box[i],"-", color=colors[i])
-    ax4.plot(z, 1-xH_box[i],"--", color=colors[i])
+ax6.plot(z_GQ[0], x_e_box[0], '-',  color=colors[0]) # no DM energy injection
+ax6.plot(z_GQ[1], x_e_box[1], '--', color=colors[0]) # no DM energy injection
+ax6.plot(z_GQ[2], x_e_box[2], '-',  color=colors[1])  # DH no bkr
+ax6.plot(z_GQ[3], x_e_box[3], '-',  color=colors[2]) # DH bkr
+ax6.plot(z_GQ[4], x_e_box[4], '--', color=colors[1]) # approx no bkr
+
+ax7.plot(z_GQ[0], 1-xH_box[0], '-',  color=colors[0]) # no DM energy injection
+ax7.plot(z_GQ[1], 1-xH_box[1], '--', color=colors[0]) # no DM energy injection
+ax7.plot(z_GQ[2], 1-xH_box[2], '-',  color=colors[1])  # DH no bkr
+ax7.plot(z_GQ[3], 1-xH_box[3], '-',  color=colors[2]) # DH bkr
+ax7.plot(z_GQ[4], 1-xH_box[4], '--', color=colors[1]) # approx no bkr
+
 
 # The temperatures
 T_CMB = [2.73*(1+zz) for zz in z_GQ[0]]
-ax5.plot(z_GQ[0], T_CMB ,"k:")
-for i, z in enumerate(z_GQ):    
-    ax5.plot(z, Ts_box[i] ,"-", color=colors[i])
-    ax5.plot(z, Tk_box[i] ,"--", color=colors[i])
+ax8.plot(z_GQ[0], T_CMB ,":", color='grey', alpha=0.8)
+ax9.plot(z_GQ[0], T_CMB ,":", color='grey', alpha=0.8)
+
+ax8.plot(z_GQ[0], Ts_box[0] ,"-",  color=colors[0]) #no DM energy injection
+ax8.plot(z_GQ[1], Ts_box[1], '--', color=colors[0]) # no DM energy injection
+ax8.plot(z_GQ[2], Ts_box[2], '-',  color=colors[1])  # DH no bkr
+ax8.plot(z_GQ[3], Ts_box[3], '-',  color=colors[2]) # DH bkr
+ax8.plot(z_GQ[4], Ts_box[4], '--', color=colors[1]) # approx no bkr
+
+ax9.plot(z_GQ[0], Tk_box[0] ,"-",  color=colors[0]) # no DM energy injection
+ax9.plot(z_GQ[1], Tk_box[1], '--', color=colors[0]) # no DM energy injection
+ax9.plot(z_GQ[2], Tk_box[2], '-',  color=colors[1])  # DH no bkr
+ax9.plot(z_GQ[3], Tk_box[3], '-',  color=colors[2]) # DH bkr
+ax9.plot(z_GQ[4], Tk_box[4], '--', color=colors[1]) # approx no bkr
+
+# -------------------------------------------------------------------------------------
 
 ######
 ## Plotting the brightness temperature for the case without DM
@@ -278,11 +327,11 @@ slc_interp_Tb = []
 for slc_item in slc_Tb:
     slc_interp_Tb.append(interpolate.interp1d(y_Tb, slc_item)(z_interp_Tb).tolist())
 
-axins6 = inset_axes(ax6, width="30%", height="8%", loc="upper right")
-c1 = ax6.pcolormesh(z_interp_Tb, x_Tb, slc_interp_Tb, cmap="EoR", vmin = -150, vmax= 30, shading='gouraud')
-cbar1 = colorbar(c1, ax=ax6, cax=axins6, orientation='horizontal')
-axins6.tick_params(colors="white")
-axins6.set_xlabel(r"$\delta T_b~{\rm [mK]}$", color="white")
+axins3 = inset_axes(ax3, width="30%", height="8%", loc="upper right")
+c1 = ax3.pcolormesh(z_interp_Tb, x_Tb, slc_interp_Tb, cmap="EoR", vmin = -150, vmax= 30, shading='gouraud')
+cbar1 = colorbar(c1, ax=ax3, cax=axins3, orientation='horizontal')
+axins3.tick_params(colors="white")
+axins3.set_xlabel(r"$\delta T_b~{\rm [mK]}$", color="white")
 
 
 slc_xH = np.take(lightcone_noDM.xH_box, 0, axis=0)
@@ -293,25 +342,23 @@ slc_interp_xH = []
 for slc_item in slc_xH:
     slc_interp_xH.append(interpolate.interp1d(y_xH, slc_item)(z_interp_xH).tolist())
 
-axins7 = inset_axes(ax7, width="30%", height="8%", loc="upper right")
-c1 = ax7.pcolormesh(z_interp_xH, x_xH, slc_interp_xH, cmap="viridis", vmin = 0, vmax= 1, shading='gouraud')
-cbar1 = colorbar(c1, ax=ax7, cax=axins7, orientation='horizontal')
-axins7.tick_params(colors="black")
-axins7.set_xlabel(r"$x_{\rm H}$", color="black")
+axins4 = inset_axes(ax4, width="30%", height="8%", loc="upper right")
+c1 = ax4.pcolormesh(z_interp_xH, x_xH, slc_interp_xH, cmap="viridis", vmin = 0, vmax= 1, shading='gouraud')
+cbar1 = colorbar(c1, ax=ax4, cax=axins4, orientation='horizontal')
+axins4.tick_params(colors="black")
+axins4.set_xlabel(r"$x_{\rm H}$", color="black")
 ######
 
 # -------------------------------------------------------------------------------------
 
 # Legends
 
-line1 = Line2D([],[],color='b',linestyle='-',label='longitude=0',linewidth=1)
-line2 = Line2D([],[],color='c',linestyle='-',label='longitude=0',linewidth=1)
-line3 = Line2D([],[],color='r',linestyle='-',label='longitude=0',linewidth=1)
-line4 = Line2D([],[],color='g',linestyle='-',label='longitude=0',linewidth=1)
-line5 = Line2D([],[],color='m',linestyle='-',label='longitude=0',linewidth=1)
-line6 = Line2D([],[],color='k',linestyle='-',label='longitude=0',linewidth=1)
-line7 = Line2D([],[],color='k',linestyle='--',label='longitude=0',linewidth=1)
-line8 = Line2D([],[],color='k',linestyle=':',label='longitude=0',linewidth=1)
+line1 = Line2D([],[],color='k',linestyle='-',label='longitude=0',linewidth=1)
+line2 = Line2D([],[],color='k',linestyle='--',label='longitude=0',linewidth=1)
+line3 = Line2D([],[],color=colors[0],linestyle='-',label='longitude=0',linewidth=1)
+line4 = Line2D([],[],color=colors[1],linestyle='-',label='longitude=0',linewidth=1)
+line5 = Line2D([],[],color=colors[2],linestyle='-',label='longitude=0',linewidth=1)
+
 no_line = Line2D([],[],color='k',linestyle='-',linewidth=0, alpha = 0) # When we don't really want a handle in legend
 
 
@@ -319,22 +366,21 @@ def remove_handles_legend(legend) :
     for item in legend.legendHandles :
         item.set_visible(False)
 
-#legend_text = [r"$\rm w.o.~DM$", r"$\rm 10~GeV~(bkr, \, erfc)$", r"$\rm 0.13~GeV~(bkr, \, erfc)$", r"$\rm 10~GeV~(no~bkr,\, erfc)$", r"$\rm 0.13~GeV~(no~bkr,\, erfc)$", r"$\rm 0.13~GeV~(bkr,\, NFW_{subs})$"]
-#legend11 = ax1.legend(solid_lines[0:len(legend_text)+1], legend_text, loc='upper left', bbox_to_anchor=(0.01,1.35), ncol=3)
-legend12 = ax1.legend([no_line], [r"$k = {:2.2f}~\rm Mpc^{{-1}}$".format(k_approx[0])], handlelength=0, handletextpad=0, loc='upper right', bbox_to_anchor=(0.99,0.99))
-legend41 = ax4.legend([line6, line7], [r"$\overline{x_e}$", r"$\overline{x_{\rm HII}}$"], loc='upper right', bbox_to_anchor=(0.99,0.99))
-legend51 = ax5.legend([line6, line7, line8], [r"$\overline{T_{\rm S}}$", r"$\overline{T_{\rm K}}$", r"$T_{\rm CMB}$"], loc='upper right', bbox_to_anchor=(0.99,0.99))
+fig.suptitle(r"$\chi \to e^+ e^-,~m_\chi = 126~{\rm MeV},~\tau = 10^{26}~{\rm s} $", fontsize=18, y=1.01)
+legend_text_1 = [r"$\rm DarkHistory$", r"$\rm Templates$"]
+legend_text_2 = [r"$\rm without~DM~inj.$", r"$\rm no~backreaction$", r"$\rm with~backreaction$"]
+legend11 = ax1.legend([line1, line2], legend_text_1, loc='upper left', bbox_to_anchor=(0.01,1.35), ncol=2)
+legend12 = ax1.legend([line3, line4, line5], legend_text_2, loc='upper left', bbox_to_anchor=(0.01,1.20), ncol=3)
+legend13 = ax1.legend([no_line], [r"$k = {:2.2f}~\rm Mpc^{{-1}}$".format(k_approx[0])], handlelength=0, handletextpad=0, loc='upper right', bbox_to_anchor=(0.99,0.99))
 
-
-remove_handles_legend(legend12)
-#ax1.add_artist(legend11)
+remove_handles_legend(legend13)
+ax1.add_artist(legend11)
 ax1.add_artist(legend12)
-ax4.add_artist(legend41)
 
 # -------------------------------------------------------------------------------------
 
 # Saving the figure
-fig.suptitle(r"$\chi \to e^+ e^-$", fontsize=18, y=1.01)
+
 fig.savefig('./example_plot_0.pdf', bbox_inches='tight')
 
 ## END OF SCRIPT

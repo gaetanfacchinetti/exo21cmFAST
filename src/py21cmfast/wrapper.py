@@ -1,6 +1,8 @@
 ############################################################################
 #    Modified versions of DarkHistory for 21cmFAST
+#
 #    Copyright (C) 2022  Gaetan Facchinetti
+#    gaetan.facchinetti@ulb.be
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -3181,14 +3183,14 @@ def run_lightcone(
         redshift, z_max = _redshift_bounds(min_redshift=redshift, max_redshift=max_redshift)
 
         # Print the input parameters of the DM model we treat here
-        logger.info("The input parameters for the DM model are the following ones:")
-        logger.info(user_params.DM_MASS, user_params.DM_PROCESS, 
+        logger.debug("The input parameters for the DM model are the following ones:")
+        logger.debug(user_params.DM_MASS, user_params.DM_PROCESS, 
             user_params.DM_SIGMAV, user_params.DM_PRIMARY, 
             user_params.DM_BOOST, user_params.DM_FS_METHOD, 
             user_params.DM_BACKREACTION)
 
-        logger.info("--------------------------------------")
-        logger.info("Start initialisation using DarkHistory")
+        logger.debug("--------------------------------------")
+        logger.debug("Start initialisation using DarkHistory")
 
         
         # Define the boost function, either something already defined in the code or a customed value
@@ -3256,7 +3258,7 @@ def run_lightcone(
         ## We take xe = xHII given by DarkHistory -- in the arrays we take the value 
         ## before the last one as the last value is for the next redshift step in DarkHistory
 
-        if flag_options.FORCE_INIT_COND is False: #(here it is always false for now) 
+        if flag_options.FORCE_INIT_COND is False: # (here it is always false for now) 
             xe_init = br_data['x'][-2][0]
             Tm_init = br_data['Tm'][-2]*eV_to_K
         
@@ -3309,7 +3311,7 @@ def run_lightcone(
         #### Initial conditions:
         
         if flag_options.FORCE_INIT_COND is False: 
-            ## Maybe put something different here ... but what? (work in progress)
+            ## Maybe put something different here ... but what?
             xe_init = global_params.XION_at_Z_HEAT_MAX 
             Tm_init = global_params.TK_at_Z_HEAT_MAX
 
@@ -3323,7 +3325,7 @@ def run_lightcone(
         # Initialise the CStructWrapper object ExoticEnergyInjected with our dictionnary
         exotic_energy_injected = ExoticEnergyInjected(f_dict[-1]) 
         
-        logger.info(exotic_energy_injected)
+        logger.debug("Initial energu injected " + exotic_energy_injected.__str__())
 
         logger.info("Initialisation completed")
         logger.info("--------------------------------------")
@@ -3336,7 +3338,7 @@ def run_lightcone(
     with global_params.use(**global_kwargs, ZPRIME_STEP_FACTOR = z_prime_step, XION_at_Z_HEAT_MAX = xe_init, TK_at_Z_HEAT_MAX = Tm_init):
          
         
-        print("Test:", global_params.TK_at_Z_HEAT_MAX, global_params.XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
+        logger.debug("Test:", global_params.TK_at_Z_HEAT_MAX, global_params.XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
         #print("rs-1:", br_data['rs'][-1]-1)
 
         random_seed, user_params, cosmo_params = _configure_inputs([("random_seed", random_seed),("user_params", user_params),("cosmo_params", cosmo_params),], init_box, perturb,)
@@ -3476,7 +3478,7 @@ def run_lightcone(
 
         for iz, z in enumerate(scrollz[:-1]):
 
-            print("redshift:", z)
+            logger.info("redshift:", z)
             
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb[iz]
@@ -3718,7 +3720,7 @@ def run_lightcone(
 
             if (flag_options.USE_DM_ENERGY_INJECTION is True) : 
                 exotic_energy_injected.update(**(f_dict[-1]))
-                print("| z (next): {:2.2f}".format(scrollz[iz+1]), "| x_HII: {:1.3e}".format(xHII), "| Tm: {:1.3e}".format(Tm*eV_to_K), "K | f_heat: {:1.3e}".format(f_dict[-1]['f_HEAT']))
+                logger.warning("| z (next): {:2.2f}".format(scrollz[iz+1]) + " | x_HII: {:1.3e}".format(xHII) +  " | Tm: {:1.3e}".format(Tm*eV_to_K) + " K | f_heat: {:1.3e}".format(f_dict[-1]['f_HEAT']))
 
                 xHII_arr = np.append(xHII_arr, xHII)
                 Tm_arr   = np.append(Tm_arr, Tm)

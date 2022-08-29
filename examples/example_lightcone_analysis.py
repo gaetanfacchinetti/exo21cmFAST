@@ -1,9 +1,10 @@
-###############################################################
-###############################################################
-########################## I/O ################################
-###############################################################
-###############################################################
-
+############################################################################
+#    Code to analyse the lightcone data 
+#    
+#    Gaetan Facchinetti from an original version of Quentin Decant 
+#    Based on the 21cmFAST documentation
+#    gaetan.facchinetti@ulb.be | quentin.decant@ulb.be
+############################################################################
 
 import os
 from tkinter import E
@@ -31,26 +32,6 @@ def make_analysis(path, lightcone, n_psbins=50, nchunks = None):
     save_global_quantities(path, lightcone)
     compute_and_save_powerspectra(path, lightcone, n_psbins=n_psbins, nchunks=nchunks)
     
-
-"""
-#This function is used to make the directory of the experiment 
-# nameRun = name of folder where we store everything
-def make_run_directory(nameRun):
-    path = os.getcwd()
-    path = path + "/"+ nameRun
-    try:
-        os.mkdir(path)
-    except OSError:
-        # The run directory already exists, we do not want to overwrite the thing, so
-        # we are going to generate a random string, to give the run a "unique" name  
-        randomName = "".join(random.choices(string.ascii_lowercase,k=8))
-        path = path +"_" + randomName
-        os.mkdir(path)
-        print("Created directory with random path name %s " % path)
-    else:
-        print("Successfully created the directory %s " % path)
-    return path
-"""
 
 # Attention I modified this function
 # Here I give the full path to the file

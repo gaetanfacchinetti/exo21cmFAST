@@ -1,6 +1,9 @@
 ############################################################################
-#    Code to organise a database for the different parts
+#    Code to run lightcones in command line 
+#    with dark matter energy injection
+#
 #    Copyright (C) 2022  Gaetan Facchinetti
+#    gaetan.facchinetti@ulb.be
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -21,10 +24,12 @@ import py21cmfast as p21c
 import py21cmfast.dm_dtb_tools as db_tools
 import example_lightcone_analysis as lightcone_analysis
 import os
+import logging
 
 import traceback
 import argparse
 
+logger = logging.getLogger(__name__)
 
 
 # Define the database location
@@ -42,7 +47,7 @@ approx = args.approximate
 db_manager = db_tools.DHDatabase(path = database_location, cache_path = cache_location) if approx is False else db_tools.ApproxDepDatabase(path = database_location, cache_path = cache_location)
 input, force_overwrite, nomp = db_manager.define_models(args)
 input_models = db_manager.add_models_database(input, force_overwrite=force_overwrite)
-print(" --------------------- ")
+logger.info(" --------------------- ")
 
 #############################################################
 
@@ -58,7 +63,7 @@ for current_model in input_models :
         # We clear the cache in order to avoid any problem
         # Set the directory to our custom cache directory
         if not os.path.exists(cache_direc): os.mkdir(cache_direc)
-        p21c.config['direc'] = cache_direc
+        p21c.config['direc'] = db_manager.cache_path
 
         # If we do not specify anything it is that we do not care of the DM
         dm_energy_inj = True if (not current_model.process == 'none') else False
@@ -75,9 +80,9 @@ for current_model in input_models :
             #max_redshift = max_redshift, # Maximal value of redshift -- By default Z_HEAT_MAX for None of when USE_TS_FLUCT = True
             ## User parameters
             user_params = {
-                "BOX_LEN":                  50,    # Default value: 300  (Box length Mpc) 1000
+                "BOX_LEN":                  50,  # Default value: 300  (Box length Mpc) 1000
                 "DIM":                      None,  # Default value: None / gives DIM=3*HII_DIM (High resolution) None
-                "HII_DIM":                  20,    # Default value: 200  (HII cell resolution) 350
+                "HII_DIM":                  20,   # Default value: 200  (HII cell resolution) 350
                 "USE_FFTW_WISDOM":          False, # Default value: False (Speed up FFT)
                 "HMF":                      1,     # Default value: 1 (Halo mass function)
                 "USE_RELATIVE_VELOCITIES":  False, # Default value: False (Turn on relative velocites)  -> Attention if USE_RELATIVE_VELOCITIES: True, POWER_SPECTRUM: 5 (CLASS) necessarily
@@ -155,8 +160,8 @@ for current_model in input_models :
         # If something goes wrong we remove the entry in the database
         db_manager.remove_entries_database(current_model.index, force_deletion=True)
         traceback.print_exc()
-        print("\n------------------------------")
-        print("Entry not added to the database")
+        logger.error("\n------------------------------")
+        logger.error("Entry not added to the database")
         exit(0)
 
 
