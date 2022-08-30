@@ -312,14 +312,14 @@ def remove_handles_legend(legend) :
         item.set_visible(False)
 
 fig.suptitle(r"${\rm Residuals:}~\chi \to e^+ e^-,~m_\chi = 126~{\rm MeV},~\tau = 10^{26}~{\rm s} $", fontsize=18, y=1.01)
-legend_text_1 = [r"$\rm DarkHistory$", r"$\rm Templates$"]
+#legend_text_1 = [r"$\rm DarkHistory$", r"$\rm Templates$"]
 legend_text_2 = [r"$\rm without~DM~inj.$", r"$\rm no~backreaction$", r"$\rm with~backreaction$"]
-legend11 = ax1.legend([line1, line2], legend_text_1, loc='upper left', bbox_to_anchor=(0.01,1.35), ncol=2)
-legend12 = ax1.legend([line3, line4, line5], legend_text_2, loc='upper left', bbox_to_anchor=(0.01,1.20), ncol=3)
+#legend11 = ax1.legend([line1, line2], legend_text_1, loc='upper left', bbox_to_anchor=(0.01,1.35), ncol=2)
+legend12 = ax1.legend([line3, line4, line5], legend_text_2, loc='upper left', bbox_to_anchor=(0.01,1.25), ncol=3)
 legend13 = ax1.legend([no_line], [r"$k = {:2.2f}~\rm Mpc^{{-1}}$".format(k_approx[0][0])], handlelength=0, handletextpad=0, loc='lower left', bbox_to_anchor=(0.01,0.01))
 
 remove_handles_legend(legend13)
-ax1.add_artist(legend11)
+#ax1.add_artist(legend11)
 ax1.add_artist(legend12)
 
 
