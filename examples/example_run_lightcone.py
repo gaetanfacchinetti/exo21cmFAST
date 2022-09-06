@@ -64,8 +64,6 @@ for current_model in input_models :
         if not os.path.exists(cache_direc): os.mkdir(cache_direc)
         p21c.config['direc'] = cache_direc
 
-        print(db_manager.cache_path)
-
         # If we do not specify anything it is that we do not care of the DM
         dm_energy_inj = True if (not current_model.process == 'none') else False
 
