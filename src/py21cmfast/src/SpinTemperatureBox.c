@@ -103,10 +103,6 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
         double J_alpha_DM_ave, eps_DM_ave, Lambda_ion_DM_ave;
         double dxheat_DM_dzp, eps_DM, dxion_DM_dt, dxlya_DM_dt, EinjDM;
 
-        // sj
-        // file to which we can print the J_alpha data
-        //FILE *output_file;
-        //char *output_file_path = "/home/ulb/physth_fi/gfacchin/exo21cmFAST_env/output/dep_energy_DM/res_21cmFAST/data_J_alpha.dat";
         double J_alpha_x_ave, J_alpha_star_ave, Lambda_ion_ave, eps_heat_ave;
 
         //output_file = fopen(output_file_path, "a");
@@ -2127,10 +2123,6 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
 
             /////////////////////////////  END LOOP ////////////////////////////////////////////
             // compute new average values
-
-            //output_file = fopen(output_file_path, "a");
-            //fprintf(output_file, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", zp, J_alpha_x_ave, J_alpha_star_ave, J_alpha_DM_ave, Lambda_ion_ave, eps_heat_ave, eps_DM_ave, Lambda_ion_DM_ave);
-            //fclose(output_file);
 
             if (LOG_LEVEL >= DEBUG_LEVEL)
             {

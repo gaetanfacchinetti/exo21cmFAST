@@ -454,63 +454,6 @@ class UserParams(StructWithDefaults):
     MINIMIZE_MEMORY: bool, optional
         If set, the code will run in a mode that minimizes memory usage, at the expense
         of some CPU/disk-IO. Good for large boxes / small computers.
-    
-    -- Properties of DM energy injection with DarkHistory
-    DM_MASS: float, optional
-        Mass of the dark matter particle in eV
-        By default it is set to 1e+10 eV
-    DM_PROCESS: str, optional
-        Whether we consider decaying or annihilating DM
-        'swave': swave annihilation
-        'decay': decaying dark matter
-        'none' : no DM energy injection
-    DM_SIGMAV: float, optional
-        Annihilation cross section in cm^3 s^{-1}
-        If -2 it is evaluated as (pann=3.5e-28)*(M_DM/1GeV)/f_eff with f_eff = 0.5
-        If -1 it is tabulated on Planck18 curves
-        By default it is set to -2
-    DM_LIFETIME: float, optional
-        Lifetime of decaying dark matter in s
-        By default it is set to 1 s
-    DM_PRIMARY: str, optional
-        Primary particles produced
-        'elec_delta': two electrons per event with the same energy
-        'phot_delta': two photons per event with the same energy
-        'e', 'gamma', ...
-        Be default it is set on 'elec_delta'
-    DM_BOOST: str, optional
-        Boost factor for DM annihilation due to clumping
-        Choice amongst: 'erfc', 'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs'
-        By default it is set on 'erfc'
-    DM_FS_METHOD: str, optional
-        Method to compute the fraction of energy injected
-        Choice amongst: 'He', 'no_He', 'He_recomb'
-        By default it is set to no_He
-    DM_BACKREACTION: bool, optional
-        Include the backreaction of the ionization history on the injected energy
-        By default it is set to True
-    
-    -- Properties of DM energy injection with effective relations
-    DM_FHEAT_APPROX_SHAPE: int or str, optional
-        Functional form for the deposition fraction into heat: f_heat(z) 
-        If str, should correspond to one of the following
-        0: 'constant'
-        1: 'exponential'
-        2: 'schechter'
-    DM_FHEAT_APPROX_PARAMS: list of floats, optional
-        Parameters to feed to the functional form for f_heat (see above)
-    DM_FION_H_OVER_FHEAT: float, optional
-        Ratio of the deposition fraction into ionisation of hydrogen over heat
-        (This assumes that this ratio is a constant for all z)
-        By default the values tabulated from DarkHistory are used
-    DM_FION_HE_OVER_FHEAT: float, optional
-        Ratio of the deposition fraction into ionisation of helium over heat
-        (This assumes that this ratio is a constant for all z)
-        By default the values tabulated from DarkHistory are used
-    DM_FEXC_OVER_FHEAT: float, optional
-        Ratio of the deposition fraction into excitation over heat
-        (This assumes that this ratio is a constant for all z)
-        By default the values tabulated from DarkHistory are used
     """
 
     _ffi = ffi
@@ -530,23 +473,6 @@ class UserParams(StructWithDefaults):
         "FAST_FCOLL_TABLES": False,
         "USE_2LPT": True,
         "MINIMIZE_MEMORY": False,
-
-        ## Gaetan
-        "DM_MASS": 1e+10,
-        "DM_PROCESS": 'SWAVE',
-        "DM_SIGMAV": 3e+26,
-        "DM_LIFETIME": 0,
-        "DM_PRIMARY": 'elec_delta',
-        "DM_BOOST": 'erfc',
-        "DM_FS_METHOD": 'no_He',
-        "DM_BACKREACTION": True,
-
-        # approximate energy injection values
-        'DM_FHEAT_APPROX_SHAPE':  'constant',
-        'DM_FHEAT_APPROX_PARAMS': [0.],
-        'DM_FION_H_OVER_FHEAT': -1,
-        'DM_FION_HE_OVER_FHEAT': -1,
-        'DM_FEXC_OVER_FHEAT': -1,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -658,166 +584,6 @@ class UserParams(StructWithDefaults):
         else:
             return self._FAST_FCOLL_TABLES
 
-    
-    
-    ################################################################################################
-    ## New in exo21cmFAST
-
-    _allowed_process        = ['none', 'swave', 'decay']
-    _allowed_boost          = ['none', 'erfc', 'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs']
-    _allowed_primary        = ['none', 'elec_delta', 'phot_delta', 
-                                'e_L', 'e_R', 'e', 'mu_L', 'mu_R', 'mu', 'tau_L', 'tau_R', 'tau',
-                                'q', 'c', 'b', 't', 'gamma', 'g', 
-                                'W_L', 'W_T', 'W', 'Z_L', 'Z_T', 'Z', 'h']
-    _allowed_fs_method      = ['He', 'no_He', 'He_recomb', 'none']
-    _fheat_shapes           = ['none', 'constant', 'exponential', 'schechter']
-    _n_params_shapes        = [1, 1, 2, 3] # Number of parameters corresponding to each shape
-
-    @property
-    def DM_MASS(self):
-        """ Mass of the dark matter particle in eV """
-        if isinstance(self._DM_MASS, (int, float)) and self._DM_MASS >= 0:
-            return float(self._DM_MASS)
-        else :
-            raise ValueError("DM_MASS must be a positive float")   
-    
-    @property
-    def DM_PROCESS(self): 
-        """ Whether we consider decaying or annihilating DM """
-        if isinstance(self._DM_PROCESS, str) and self._DM_PROCESS.lower() in self._allowed_process:
-            return self._DM_PROCESS.lower()
-        else : 
-            raise ValueError("DM_PROCESS must be a string in the allowed options")
-    
-    @property
-    def DM_SIGMAV(self): 
-        """ Annihilation cross section in cm^3 s^{-1} """
-        if isinstance(self._DM_SIGMAV, (int, float)) :
-            if self._DM_SIGMAV <= 0 and self._DM_PROCESS.lower() == 'swave':
-                raise ValueError("DM_SIGMAV must be a positive float if DM_PROCESS is set to swave")
-            else:
-                return float(self._DM_SIGMAV)
-        else:
-            raise ValueError("DM_SIGMAV must be a float")
-
-    @property
-    def DM_LIFETIME(self): 
-        """ Lifetime of decaying dark matter in s """
-        if isinstance(self._DM_LIFETIME, (int, float)) :
-            if self._DM_LIFETIME <= 0 and self._DM_PROCESS.lower() == 'decay':
-                raise ValueError("DM_LIFETIME must be a positive float if DM_PROCESS is set to decay")
-            else:
-                return float(self._DM_LIFETIME)
-        else:
-            raise ValueError("DM_LIFETIME must be a float")
-
-    @property
-    def DM_PRIMARY(self): 
-        """ Primary particles produced """
-        if isinstance(self._DM_PRIMARY, str) and self._DM_PRIMARY in self._allowed_primary:
-            return self._DM_PRIMARY
-        else : 
-            raise ValueError("DM_PRIMARY must be a string in the allowed options")
-
-    @property
-    def DM_BOOST(self): 
-        """ Primary particles produced """
-        if isinstance(self._DM_BOOST, str) and self._DM_BOOST in self._allowed_boost:
-            return self._DM_BOOST
-        else : 
-            raise ValueError("DM_BOOST must be a string in the allowed options")
-
-    @property
-    def DM_FS_METHOD(self): 
-        """ Method to compute the fraction of energy injected """
-        if isinstance(self._DM_FS_METHOD, str) and self._DM_FS_METHOD in self._allowed_fs_method:
-            return self._DM_FS_METHOD
-        else : 
-            raise ValueError("DM_FS_METHOD must be a string in the allowed options")
-
-    @property
-    def DM_BACKREACTION(self):
-        """ Include the backreaction of the ionization history on the injected energy """
-        if isinstance(self._DM_BACKREACTION, bool):
-            return self._DM_BACKREACTION
-        else : 
-            raise ValueError("DM_BACKREACTION must be a boolean")
-
-    @property
-    def DM_FHEAT_APPROX_SHAPE(self):
-        """ Sets the approximate shape for the deposition fraction into heat"""
-       
-        if self._DM_FHEAT_APPROX_SHAPE == None:
-            return self._DM_FHEAT_APPROX_SHAPE 
-
-        if isinstance(self._DM_FHEAT_APPROX_SHAPE, int): 
-            if self._DM_FHEAT_APPROX_SHAPE < len(self._fheat_shapes):
-                return self._DM_FHEAT_APPROX_SHAPE
-            else:
-                return ValueError("If DM_FHEAT_APPROX_SHAPE is of type int it should be below", len(self._fheat_shapes))
-        
-        elif isinstance(self._DM_FHEAT_APPROX_SHAPE, str):
-            if self._DM_FHEAT_APPROX_SHAPE in  self._fheat_shapes:
-                return self._fheat_shapes.index(self._DM_FHEAT_APPROX_SHAPE)
-            else:
-                return ValueError("If DM_FHEAT_APPROX_SHAPE is of type str should be in:", self._fheat_shapes)
-       
-        else : 
-            raise ValueError("DM_FHEAT_APPROX_SHAPE must be a int or a str")
-
-
-    @property
-    def DM_FHEAT_APPROX_PARAMS(self):
-        """ Sets the parameters of the DM_FHEAT_APPROX_SHAPE function """
-
-        if isinstance(self._DM_FHEAT_APPROX_PARAMS, list):
-            if len(self._DM_FHEAT_APPROX_PARAMS) == self._n_params_shapes[self.DM_FHEAT_APPROX_SHAPE] \
-                and all(isinstance(x, float) for x in self._DM_FHEAT_APPROX_PARAMS):
-                return self._DM_FHEAT_APPROX_PARAMS
-            else:
-                raise ValueError("DM_FHEAT_APPROX_PARAMS must be a list of floats of length", 
-                                self._n_params_shapes[self.DM_FHEAT_APPROX_SHAPE], 
-                                "for DM_FHEAT_APPROX_SHAPE:", self._DM_FHEAT_APPROX_SHAPE)
-        else:
-            raise ValueError("DM_FHEAT_APPROX_PARAMS must be a list of floats")
-
-    @property
-    def DM_FION_H_OVER_FHEAT(self):
-        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
-        if self._DM_FION_H_OVER_FHEAT is None :
-            return None
-        
-        if isinstance(self._DM_FION_H_OVER_FHEAT, (int, float)):
-            return float(self._DM_FION_H_OVER_FHEAT)
-        else : 
-            raise ValueError("DM_FION_H_OVER_FHEAT must be a float")
-
-    @property
-    def DM_FION_HE_OVER_FHEAT(self):
-        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
-        if self._DM_FION_HE_OVER_FHEAT is None :
-            return None
-        
-        if isinstance(self._DM_FION_HE_OVER_FHEAT, (int, float)):
-            return float(self._DM_FION_HE_OVER_FHEAT)
-        else : 
-            raise ValueError("DM_FION_HE_OVER_FHEAT must be a float")
-
-    @property
-    def DM_FEXC_OVER_FHEAT(self):
-        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
-        if self._DM_FEXC_OVER_FHEAT is None :
-            return None
-        
-        if isinstance(self._DM_FEXC_OVER_FHEAT, (int, float)):
-            return float(self._DM_FEXC_OVER_FHEAT)
-        else : 
-            raise ValueError("DM_FEXC_OVER_FHEAT must be a float")
- 
-    ################################################################################################
-
-
-
 
 class FlagOptions(StructWithDefaults):
     """
@@ -862,6 +628,36 @@ class FlagOptions(StructWithDefaults):
     USE_VELS_AUX: bool, optional
         Auxiliary variable (not input) to check if minihaloes are being used without relative velocities and complain
     
+    -- Properties of DM energy injection with DarkHistory or effective relations
+    DM_PROCESS: str, optional
+        Whether we consider decaying or annihilating DM
+        'swave': swave annihilation
+        'decay': decaying dark matter
+        'none' : no DM energy injection
+    DM_PRIMARY: str, optional
+        Primary particles produced
+        'elec_delta': two electrons per event with the same energy
+        'phot_delta': two photons per event with the same energy
+        'e', 'gamma', ...
+        Be default it is set on 'elec_delta'
+    DM_BOOST: str, optional
+        Boost factor for DM annihilation due to clumping
+        Choice amongst: 'erfc', 'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs'
+        By default it is set on 'erfc'
+    DM_FS_METHOD: str, optional
+        Method to compute the fraction of energy injected
+        Choice amongst: 'He', 'no_He', 'He_recomb'
+        By default it is set to no_He
+    DM_BACKREACTION: bool, optional
+        Include the backreaction of the ionization history on the injected energy
+        By default it is set to True
+    DM_FHEAT_APPROX_SHAPE: int or str, optional
+        Functional form for the deposition fraction into heat: f_heat(z) 
+        If str, should correspond to one of the following
+        0: 'none'
+        1: 'constant'
+        2: 'exponential'
+        3: 'schechter'
     USE_DM_ENERGY_INJECTION: bool, optional
         Whether to introude exotic energy injection due to DM annihilation or decay
         Be default the code will be using DarkHistory to evaluate the injected energy
@@ -884,6 +680,15 @@ class FlagOptions(StructWithDefaults):
         "M_MIN_in_Mass": False,
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
+
+        ## Gaetan
+        "DM_PROCESS": 'SWAVE',
+        "DM_PRIMARY": 'elec_delta',
+        "DM_BOOST": 'erfc',
+        "DM_FS_METHOD": 'no_He',
+        "DM_BACKREACTION": True,
+        'DM_FHEAT_APPROX_SHAPE':  'constant',
+
         "USE_DM_ENERGY_INJECTION": False,
         "USE_EFFECTIVE_DEP_FUNCS": False,
         "FORCE_INIT_COND": False
@@ -976,6 +781,78 @@ class FlagOptions(StructWithDefaults):
 
     ######################################################################################
     ## New in Exo21cmFAST
+    _allowed_process        = ['none', 'swave', 'decay']
+    _allowed_boost          = ['none', 'erfc', 'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs']
+    _allowed_primary        = ['none', 'elec_delta', 'phot_delta', 
+                                'e_L', 'e_R', 'e', 'mu_L', 'mu_R', 'mu', 'tau_L', 'tau_R', 'tau',
+                                'q', 'c', 'b', 't', 'gamma', 'g', 
+                                'W_L', 'W_T', 'W', 'Z_L', 'Z_T', 'Z', 'h']
+    _allowed_fs_method      = ['He', 'no_He', 'He_recomb', 'none']
+    _fheat_shapes           = ['none', 'constant', 'exponential', 'schechter']
+
+    @property
+    def DM_PROCESS(self): 
+        """ Whether we consider decaying or annihilating DM """
+        if isinstance(self._DM_PROCESS, str) and self._DM_PROCESS.lower() in self._allowed_process:
+            return self._DM_PROCESS.lower()
+        else : 
+            raise ValueError("DM_PROCESS must be a string in the allowed options")
+    
+    @property
+    def DM_PRIMARY(self): 
+        """ Primary particles produced """
+        if isinstance(self._DM_PRIMARY, str) and self._DM_PRIMARY in self._allowed_primary:
+            return self._DM_PRIMARY
+        else : 
+            raise ValueError("DM_PRIMARY must be a string in the allowed options")
+
+    @property
+    def DM_BOOST(self): 
+        """ Primary particles produced """
+        if isinstance(self._DM_BOOST, str) and self._DM_BOOST in self._allowed_boost:
+            return self._DM_BOOST
+        else : 
+            raise ValueError("DM_BOOST must be a string in the allowed options")
+
+    @property
+    def DM_FS_METHOD(self): 
+        """ Method to compute the fraction of energy injected """
+        if isinstance(self._DM_FS_METHOD, str) and self._DM_FS_METHOD in self._allowed_fs_method:
+            return self._DM_FS_METHOD
+        else : 
+            raise ValueError("DM_FS_METHOD must be a string in the allowed options")
+
+    @property
+    def DM_FHEAT_APPROX_SHAPE(self):
+        """ Sets the approximate shape for the deposition fraction into heat"""
+
+        if self._DM_FHEAT_APPROX_SHAPE == None:
+            return self._DM_FHEAT_APPROX_SHAPE
+
+        if isinstance(self._DM_FHEAT_APPROX_SHAPE, int):
+            if self._DM_FHEAT_APPROX_SHAPE < len(self._fheat_shapes):
+                return self._DM_FHEAT_APPROX_SHAPE
+            else:
+                return ValueError("If DM_FHEAT_APPROX_SHAPE is of type int it should be below", len(self._fheat_shapes))
+
+        elif isinstance(self._DM_FHEAT_APPROX_SHAPE, str):
+            if self._DM_FHEAT_APPROX_SHAPE in  self._fheat_shapes:
+                return self._fheat_shapes.index(self._DM_FHEAT_APPROX_SHAPE)
+            else:
+                return ValueError("If DM_FHEAT_APPROX_SHAPE is of type str should be in:", self._fheat_shapes)
+
+        else :
+            raise ValueError("DM_FHEAT_APPROX_SHAPE must be a int or a str")
+
+
+    @property
+    def DM_BACKREACTION(self):
+        """ Include the backreaction of the ionization history on the injected energy """
+        if isinstance(self._DM_BACKREACTION, bool):
+            return self._DM_BACKREACTION
+        else : 
+            raise ValueError("DM_BACKREACTION must be a boolean")
+
     @property
     def USE_DM_ENERGY_INJECTION(self):
         """ Specify if we account for DM energy injection """
@@ -1098,6 +975,37 @@ class AstroParams(StructWithDefaults):
         Impact of the LW feedback on Mturn for minihaloes. Default is 22.8685 and 0.47 following Machacek+01, respectively. Latest simulations suggest 2.0 and 0.6. See Sec 2 of Muñoz+21 (2110.13919).
     A_VCB, BETA_VCB: float, optional
         Impact of the DM-baryon relative velocities on Mturn for minihaloes. Default is 1.0 and 1.8, and agrees between different sims. See Sec 2 of Muñoz+21 (2110.13919).
+
+    -- Properties of DM energy injection with DarkHistory or effective relations
+    DM_MASS: float, optional
+        Mass of the dark matter particle in eV
+        By default it is set to 1e+10 eV
+    DM_SIGMAV: float, optional
+        Annihilation cross section in cm^3 s^{-1}
+        If -2 it is evaluated as (pann=3.5e-28)*(M_DM/1GeV)/f_eff with f_eff = 0.5
+        If -1 it is tabulated on Planck18 curves
+        By default it is set to -2
+    DM_LIFETIME: float, optional
+        Lifetime of decaying dark matter in s
+        By default it is set to 1 s
+    DM_FHEAT_APPROX_PARAM_F0: float, optional
+        Parameters to feed to the functional form for f_heat (see above)
+    DM_FHEAT_APPROX_PARAM_A: float, optional
+        Parameters to feed to the functional form for f_heat (see above)
+    DM_FHEAT_APPROX_PARAM_B: float, optional
+        Parameters to feed to the functional form for f_heat (see above)
+    DM_FION_H_OVER_FHEAT: float, optional
+        Ratio of the deposition fraction into ionisation of hydrogen over heat
+        (This assumes that this ratio is a constant for all z)
+        By default the values tabulated from DarkHistory are used
+    DM_FION_HE_OVER_FHEAT: float, optional
+        Ratio of the deposition fraction into ionisation of helium over heat
+        (This assumes that this ratio is a constant for all z)
+        By default the values tabulated from DarkHistory are used
+    DM_FEXC_OVER_FHEAT: float, optional
+        Ratio of the deposition fraction into excitation over heat
+        (This assumes that this ratio is a constant for all z)
+        By default the values tabulated from DarkHistory are used
     """
 
     _ffi = ffi
@@ -1126,14 +1034,25 @@ class AstroParams(StructWithDefaults):
         "BETA_LW": 0.6,
         "A_VCB": 1.0,
         "BETA_VCB": 1.8,
+
+        "DM_MASS": 1e+10,
+        "DM_SIGMAV": 3e+26,
+        "DM_LIFETIME": 1,
+        'DM_FHEAT_APPROX_PARAM_F0': 1.5310e-01,
+        'DM_FHEAT_APPROX_PARAM_A': -3.2090e-03,
+        'DM_FHEAT_APPROX_PARAM_B': 1.2950e-01,
+        'DM_FION_H_OVER_FHEAT': -1,
+        'DM_FION_HE_OVER_FHEAT': -1,
+        'DM_FEXC_OVER_FHEAT': -1,
     }
 
     def __init__(
-        self, *args, INHOMO_RECO=FlagOptions._defaults_["INHOMO_RECO"], **kwargs
+        self, *args, INHOMO_RECO=FlagOptions._defaults_["INHOMO_RECO"], DM_PROCESS=FlagOptions._defaults_["DM_PROCESS"], **kwargs
     ):
         # TODO: should try to get inhomo_reco out of here... just needed for default of
         #  R_BUBBLE_MAX.
         self.INHOMO_RECO = INHOMO_RECO
+        self.DM_PROCESS = DM_PROCESS
         super().__init__(*args, **kwargs)
 
     def convert(self, key, val):
@@ -1144,10 +1063,10 @@ class AstroParams(StructWithDefaults):
             "F_STAR7_MINI",
             "F_ESC7_MINI",
             "M_TURN",
-            "ION_Tvir_MIN",
             "L_X",
             "L_X_MINI",
             "X_RAY_Tvir_MIN",
+
         ]:
             return 10 ** val
         else:
@@ -1209,8 +1128,92 @@ class AstroParams(StructWithDefaults):
         else:
             return self._t_STAR
 
+    @property
+    def DM_MASS(self):
+        """ Mass of the dark matter particle in eV """
+        if isinstance(self._DM_MASS, (int, float)) and self._DM_MASS >= 0:
+            return float(self._DM_MASS)
+        else :
+            raise ValueError("DM_MASS must be a positive float")
 
+    @property
+    def DM_SIGMAV(self):
+        """ Annihilation cross section in cm^3 s^{-1} """
+        if isinstance(self._DM_SIGMAV, (int, float)) :
+            if self._DM_SIGMAV <= 0 and self.DM_PROCESS.lower() == 'swave':
+                raise ValueError("DM_SIGMAV must be a positive float if DM_PROCESS is set to swave")
+            else:
+                return float(self._DM_SIGMAV)
+        else:
+            raise ValueError("DM_SIGMAV must be a float")
 
+    @property
+    def DM_LIFETIME(self):
+        """ Lifetime of decaying dark matter in s """
+        if isinstance(self._DM_LIFETIME, (int, float)) :
+            if self._DM_LIFETIME <= 0 and self.DM_PROCESS.lower() == 'decay':
+                raise ValueError("DM_LIFETIME must be a positive float if DM_PROCESS is set to decay")
+            else:
+                return float(self._DM_LIFETIME)
+        else:
+            raise ValueError("DM_LIFETIME must be a float")
+
+    @property
+    def DM_FHEAT_APPROX_PARAM_F0(self):
+        """ parameters of the DM_FHEAT_APPROX """
+        if isinstance(self._DM_FHEAT_APPROX_PARAM_F0, (int, float)):
+            return float(self._DM_FHEAT_APPROX_PARAM_F0)
+        else :
+            raise ValueError("DM_FHEAT_APPROX_PARAM_F0 must be a float")
+
+    @property
+    def DM_FHEAT_APPROX_PARAM_A(self):
+        """ parameters of the DM_FHEAT_APPROX """
+        if isinstance(self._DM_FHEAT_APPROX_PARAM_A, (int, float)):
+            return float(self._DM_FHEAT_APPROX_PARAM_A)
+        else :
+            raise ValueError("DM_FHEAT_APPROX_PARAM_A must be a float")
+
+    @property
+    def DM_FHEAT_APPROX_PARAM_B(self):
+        """ parameters of the DM_FHEAT_APPROX """
+        if isinstance(self._DM_FHEAT_APPROX_PARAM_B, (int, float)):
+            return float(self._DM_FHEAT_APPROX_PARAM_B)
+        else :
+            raise ValueError("DM_FHEAT_APPROX_PARAM_B must be a float")
+
+    @property
+    def DM_FION_H_OVER_FHEAT(self):
+        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
+        if self._DM_FION_H_OVER_FHEAT is None :
+            return None
+
+        if isinstance(self._DM_FION_H_OVER_FHEAT, (int, float)):
+            return float(self._DM_FION_H_OVER_FHEAT)
+        else :
+            raise ValueError("DM_FION_H_OVER_FHEAT must be a float")
+
+    @property
+    def DM_FION_HE_OVER_FHEAT(self):
+        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
+        if self._DM_FION_HE_OVER_FHEAT is None :
+            return None
+
+        if isinstance(self._DM_FION_HE_OVER_FHEAT, (int, float)):
+            return float(self._DM_FION_HE_OVER_FHEAT)
+        else :
+            raise ValueError("DM_FION_HE_OVER_FHEAT must be a float")
+
+    @property
+    def DM_FEXC_OVER_FHEAT(self):
+        """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
+        if self._DM_FEXC_OVER_FHEAT is None :
+            return None
+
+        if isinstance(self._DM_FEXC_OVER_FHEAT, (int, float)):
+            return float(self._DM_FEXC_OVER_FHEAT)
+        else :
+            raise ValueError("DM_FEXC_OVER_FHEAT must be a float")
 
 
 #####################################################################################

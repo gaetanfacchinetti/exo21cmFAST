@@ -33,16 +33,6 @@ struct UserParams{
     bool USE_2LPT;
     bool MINIMIZE_MEMORY;
 
-    // DM related quantities
-    // Be careful we cannot pass char* 
-    float DM_MASS;
-    //char* DM_PROCESS;
-    float DM_SIGMAV;
-    float DM_LIFETIME;
-    //char* DM_PRIMARY;
-    //char* DM_BOOST;
-    //char* DM_FS_METHOD;
-    bool DM_BACKREACTION;
 };
 
 struct AstroParams{
@@ -75,6 +65,10 @@ struct AstroParams{
     float t_STAR;
 
     int N_RSD_STEPS;
+
+    float DM_MASS;
+    float DM_SIGMAV;
+    float DM_LIFETIME;
 };
 
 struct FlagOptions{
@@ -90,6 +84,14 @@ struct FlagOptions{
     bool PHOTON_CONS;
     bool FIX_VCB_AVG;
     bool USE_DM_ENERGY_INJECTION;
+
+    // DM related quantities
+    // Be careful we cannot pass char* 
+    //char* DM_PROCESS;
+    //char* DM_PRIMARY;
+    //char* DM_BOOST;
+    //char* DM_FS_METHOD;
+    bool DM_BACKREACTION;
 };
 
 
