@@ -169,13 +169,13 @@ logger = logging.getLogger(__name__)
 ## Import what is necessary to use DarkHistory
 import sys
 
-DARKHISTORY_NOT_FOUND = False
+_DARKHISTORY_NOT_FOUND_ = False
 
 try:
     from . import dh_tools as dep_21 # Tools to use DH inside 21cmFAST
     import DarkHistory.darkhistory.physics as phys
 except:
-    DARKHISTORY_NOT_FOUND = True
+    _DARKHISTORY_NOT_FOUND_ = True
 
 from .c_21cmfast import ffi
 #####################################################################################
@@ -1913,7 +1913,7 @@ def spin_temperature(
             astro_params=astro_params,
             flag_options=flag_options,
             random_seed=random_seed,
-            exotic_energy_injected=exotic_energy_injected, # Gaetan exotic_energy_injected is a StructWithDefault object
+            exotic_energy_injected=exotic_energy_injected, # New in exo21cmFAST -- exotic_energy_injected is a StructWithDefault object
             prev_spin_redshift=prev_z,
             perturbed_field_redshift=perturbed_field.redshift
             if (perturbed_field is not None and perturbed_field.is_computed)
@@ -1970,7 +1970,7 @@ def spin_temperature(
                     flag_options=flag_options,
                     redshift=prev_z,
                     regenerate=regenerate,
-                    exotic_energy_injected=None, # Gaetan -> For the first we go with the default
+                    exotic_energy_injected=None, # New in exo21cmFAST -> For the first we go with the default
                     hooks=hooks,
                     direc=direc,
                     cleanup=False,  # we know we'll need the memory again
@@ -3515,7 +3515,7 @@ def run_lightcone(
                     previous_spin_temp=st,
                     astro_params=astro_params,
                     flag_options=flag_options,
-                    exotic_energy_injected = exotic_energy_injected if (flag_options.USE_DM_ENERGY_INJECTION is True) else None , # New in exo21cmFAST
+                    exotic_energy_injected = exotic_energy_injected if (flag_options.USE_DM_ENERGY_INJECTION is True) else None, # New in exo21cmFAST
                     perturbed_field=perturb_min if use_interp_perturb_field else pf2,
                     regenerate=regenerate,
                     init_boxes=init_box,
