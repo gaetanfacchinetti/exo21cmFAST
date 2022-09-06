@@ -3720,7 +3720,7 @@ def run_lightcone(
 
             if (flag_options.USE_DM_ENERGY_INJECTION is True) : 
                 exotic_energy_injected.update(**(f_dict[-1]))
-                logger.warning("| z (next): {:2.2f}".format(scrollz[iz+1]) + " | x_HII: {:1.3e}".format(xHII) +  " | Tm: {:1.3e}".format(Tm*eV_to_K) + " K | f_heat: {:1.3e}".format(f_dict[-1]['f_HEAT']))
+                logger.info("| z (next): {:2.2f}".format(scrollz[iz+1]) + " | x_HII: {:1.3e}".format(xHII) +  " | Tm: {:1.3e}".format(Tm*eV_to_K) + " K | f_heat: {:1.3e}".format(f_dict[-1]['f_HEAT']))
 
                 xHII_arr = np.append(xHII_arr, xHII)
                 Tm_arr   = np.append(Tm_arr, Tm)
