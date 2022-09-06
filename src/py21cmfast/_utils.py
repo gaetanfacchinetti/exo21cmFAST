@@ -938,7 +938,9 @@ class OutputStruct(StructWrapper, metaclass=ABCMeta):
                             file_v = grp.attrs[kk]
                             if file_v == "none":
                                 file_v = None
-                            if file_v != v:
+                            if v == "none":
+                                v = None
+                            if np.any(file_v != v):
                                 logger.debug("For file %s:" % fname)
                                 logger.debug(
                                     f"\tThough md5 and seed matched, the parameter {kk} did not match,"

@@ -3120,6 +3120,7 @@ def run_lightcone(
     # This first instantiation only helps to get the properties of the DM
     user_params  = UserParams(user_params)
     flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
+	astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
     # Some useful conversion factors
     eV_to_K = 11604.5250061657
@@ -3184,10 +3185,10 @@ def run_lightcone(
 
         # Print the input parameters of the DM model we treat here
         logger.debug("The input parameters for the DM model are the following ones:")
-        logger.debug(user_params.DM_MASS, user_params.DM_PROCESS, 
-            user_params.DM_SIGMAV, user_params.DM_PRIMARY, 
-            user_params.DM_BOOST, user_params.DM_FS_METHOD, 
-            user_params.DM_BACKREACTION)
+        logger.debug(astro_params.DM_MASS, flag_options.DM_PROCESS, 
+            astro_params.DM_SIGMAV, flag_options.DM_PRIMARY, 
+            flag_options.DM_BOOST, flag_options.DM_FS_METHOD, 
+            flag_options.DM_BACKREACTION)
 
         logger.debug("--------------------------------------")
         logger.debug("Start initialisation using DarkHistory")
@@ -3195,23 +3196,23 @@ def run_lightcone(
         
         # Define the boost function, either something already defined in the code or a customed value
         func_boost = None
-        if user_params.DM_BOOST != 'none':     
-            func_boost = phys.struct_boost_func(user_params.DM_BOOST) # if (not user_params.DM_BOOST.split('_')[0] == 'custom') else io.boost_from_file(user_params.DM_BOOST) 
+        if flag_options.DM_BOOST != 'none':     
+            func_boost = phys.struct_boost_func(flag_options.DM_BOOST) # if (not flag_options.DM_BOOST.split('_')[0] == 'custom') else io.boost_from_file(flag_options.DM_BOOST) 
 
         # Here we use a slightly modified version of the function evolve
-        br_data = dep_21.evolve(DM_process=user_params.DM_PROCESS,
-                                mDM=user_params.DM_MASS,
-                                sigmav=user_params.DM_SIGMAV,
-                                lifetime=user_params.DM_LIFETIME,
-                                primary=user_params.DM_PRIMARY,
+        br_data = dep_21.evolve(DM_process=flag_options.DM_PROCESS,
+                                mDM=astro_params.DM_MASS,
+                                sigmav=astro_params.DM_SIGMAV,
+                                lifetime=astro_params.DM_LIFETIME,
+                                primary=flag_options.DM_PRIMARY,
                                 struct_boost=func_boost,
                                 start_rs = z_max+1,
                                 end_rs = 0.999*np.exp(np.log(1+max_redshift) + coarsen_factor*dlnz),
                                 helium_TLA=False,
                                 init_cond=None,
                                 coarsen_factor=coarsen_factor,
-                                backreaction=user_params.DM_BACKREACTION,
-                                compute_fs_method=user_params.DM_FS_METHOD,
+                                backreaction=flag_options.DM_BACKREACTION,
+                                compute_fs_method=flag_options.DM_FS_METHOD,
                                 use_tqdm=False)
 
         # Fetch the deposited fraction in the dictionnary
@@ -3236,7 +3237,7 @@ def run_lightcone(
             _next_rs = rs[_irs+1] if (_irs < len(rs)-1) else max_redshift+1
 
             # Evaluate the smooth injected function at the next time step
-            energy_injected_smooth = injection_rate(user_params.DM_PROCESS, _next_rs, mDM=user_params.DM_MASS, sigmav=user_params.DM_SIGMAV, lifetime=user_params.DM_LIFETIME)
+            energy_injected_smooth = injection_rate(flag_options.DM_PROCESS, _next_rs, mDM=astro_params.DM_MASS, sigmav=astro_params.DM_SIGMAV, lifetime=astro_params.DM_LIFETIME)
 
             f_dict.append({
                 "f_H_ION" : f_H_ion_low[_irs] + f_H_ion_high[_irs], 
@@ -3269,9 +3270,9 @@ def run_lightcone(
     if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is True) : 
         
         # Evaluate the smooth injected function at the next time step
-        energy_injected_smooth =  injection_rate(user_params.DM_PROCESS, max_redshift+1, 
-                                                mDM=user_params.DM_MASS, sigmav=user_params.DM_SIGMAV, 
-                                                lifetime=user_params.DM_LIFETIME) # in erg/s/(number of baryons)
+        energy_injected_smooth =  injection_rate(flag_options.DM_PROCESS, max_redshift+1, 
+                                                mDM=astro_params.DM_MASS, sigmav=astro_params.DM_SIGMAV, 
+                                                lifetime=astro_params.DM_LIFETIME) # in erg/s/(number of baryons)
 
          ## Define the approximate f_heat_function
         def f_heat_approx(z: float, params: list, model_shape: list = 0) -> float:
@@ -3283,22 +3284,22 @@ def run_lightcone(
                 return params[0] * np.exp( params[1]*(z-15.) + params[2]*np.log(z/15.) )
 
         # Tabulated values on DarkHistory runs
-        if user_params.DM_PROCESS == 'decay':
-            f_H_ION_over_f_HEAT  = 2.2  if (user_params.DM_FION_H_OVER_FHEAT < 0)  else user_params.DM_FION_H_OVER_FHEAT
-            f_EXC_over_f_HEAT    = 1.7  if (user_params.DM_FEXC_OVER_FHEAT < 0)    else user_params.DM_FEXC_OVER_FHEAT
-            f_He_ION_over_f_HEAT = 0.07 if (user_params.DM_FION_HE_OVER_FHEAT < 0) else user_params.DM_FION_HE_OVER_FHEAT
+        if flag_options.DM_PROCESS == 'decay':
+            f_H_ION_over_f_HEAT  = 2.2  if (astro_params.DM_FION_H_OVER_FHEAT < 0)  else astro_params.DM_FION_H_OVER_FHEAT
+            f_EXC_over_f_HEAT    = 1.7  if (astro_params.DM_FEXC_OVER_FHEAT < 0)    else astro_params.DM_FEXC_OVER_FHEAT
+            f_He_ION_over_f_HEAT = 0.07 if (astro_params.DM_FION_HE_OVER_FHEAT < 0) else astro_params.DM_FION_HE_OVER_FHEAT
 
         # Tabulated values for swave to be inserted here at some point
-        if user_params.DM_PROCESS == 'swave': 
+        if flag_options.DM_PROCESS == 'swave': 
             if user_params.FION_H_OVER_FHEAT < 0 or user_params.FION_HE_OVER_FHEAT < 0 or user_params.FEXC_OVER_FHEAT < 0:
                 raise ValueError("No tabulated values have been implemented yet for FION_H_OVER_FHEAT, FION_HE_OVER_FHEAT and FEXCOVER_FHEAT in the swave case")
             else: 
-                f_H_ION_over_f_HEAT  = user_params.DM_FION_H_OVER_FHEAT
-                f_EXC_over_f_HEAT    = user_params.DM_FEXC_OVER_FHEAT
-                f_He_ION_over_f_HEAT = user_params.DM_FION_HE_OVER_FHEAT
+                f_H_ION_over_f_HEAT  = astro_params.DM_FION_H_OVER_FHEAT
+                f_EXC_over_f_HEAT    = astro_params.DM_FEXC_OVER_FHEAT
+                f_He_ION_over_f_HEAT = astro_params.DM_FION_HE_OVER_FHEAT
 
 
-        f_HEAT_init = f_heat_approx(global_params.Z_HEAT_MAX, params = user_params.DM_FHEAT_APPROX_PARAMS, model_shape = user_params.DM_FHEAT_APPROX_SHAPE)
+        f_HEAT_init = f_heat_approx(global_params.Z_HEAT_MAX, params = [astro_params.DM_FHEAT_APPROX_PARAM_F0, astro_params.DM_FHEAT_APPROX_PARAM_A, astro_params.DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.DM_FHEAT_APPROX_SHAPE)
 
         f_dict.append({
             "f_H_ION" : f_H_ION_over_f_HEAT * f_HEAT_init, 
@@ -3650,27 +3651,27 @@ def run_lightcone(
             if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is False) : 
 
                 ## Boost function 
-                func_boost = phys.struct_boost_func(user_params.DM_BOOST) if (user_params.DM_BOOST != 'none') else lambda x: 1
-                # if (not user_params.DM_BOOST.split('_')[0] == 'custom') else io.boost_from_file(user_params.DM_BOOST) 
+                func_boost = phys.struct_boost_func(flag_options.DM_BOOST) if (flag_options.DM_BOOST != 'none') else lambda x: 1
+                # if (not flag_options.DM_BOOST.split('_')[0] == 'custom') else io.boost_from_file(flag_options.DM_BOOST) 
 
                 ## Here we use full 
                 br_data = dep_21.evolve_one_step(
-                                    DM_process=user_params.DM_PROCESS,
-                                    mDM=user_params.DM_MASS,
-                                    sigmav=user_params.DM_SIGMAV,
-                                    primary=user_params.DM_PRIMARY,
-                                    lifetime=user_params.DM_LIFETIME,
+                                    DM_process=flag_options.DM_PROCESS,
+                                    mDM=astro_params.DM_MASS,
+                                    sigmav=astro_params.DM_SIGMAV,
+                                    primary=flag_options.DM_PRIMARY,
+                                    lifetime=astro_params.DM_LIFETIME,
                                     struct_boost=func_boost,
                                     init_cond=(xHII, xHeII, Tm), 
                                     coarsen_factor=coarsen_factor,
-                                    compute_fs_method=user_params.DM_FS_METHOD,
+                                    compute_fs_method=flag_options.DM_FS_METHOD,
                                     in_highengphot_specs = br_data['highengphot'],
                                     in_lowengphot_specs = br_data['lowengphot'],
                                     in_lowengelec_specs = br_data['lowengelec'],
                                     in_highengdep = br_data['highengdep'], 
-                                    xHII_vs_rs = None if user_params.DM_BACKREACTION else phys.xHII_std,
-                                    xHeII_vs_rs = None if user_params.DM_BACKREACTION else phys.xHeII_std,
-                                    Tm_vs_rs = None if user_params.DM_BACKREACTION else phys.Tm_std)
+                                    xHII_vs_rs = None if flag_options.DM_BACKREACTION else phys.xHII_std,
+                                    xHeII_vs_rs = None if flag_options.DM_BACKREACTION else phys.xHeII_std,
+                                    Tm_vs_rs = None if flag_options.DM_BACKREACTION else phys.Tm_std)
 
                 # Fetch the deposited fraction at this redshift step
                 # Update the dictionnary
@@ -3689,9 +3690,9 @@ def run_lightcone(
 
                 rs_temp = br_data['rs'][-1]
 
-                energy_injected_smooth =  injection_rate(user_params.DM_PROCESS, rs_temp, 
-                                                mDM=user_params.DM_MASS, sigmav=user_params.DM_SIGMAV, 
-                                                lifetime=user_params.DM_LIFETIME) # in erg/s/(number of baryons)
+                energy_injected_smooth =  injection_rate(flag_options.DM_PROCESS, rs_temp, 
+                                                mDM=astro_params.DM_MASS, sigmav=astro_params.DM_SIGMAV, 
+                                                lifetime=astro_params.DM_LIFETIME) # in erg/s/(number of baryons)
                 
                 #TO BE SET BACK TO THIS VALUE
                 f_dict.append({
@@ -3707,7 +3708,7 @@ def run_lightcone(
 
                 # The value of f_heat at z is used to compute the result at z+dz
                 # (Similarly to the case where we use the DarkHistory code)
-                f_HEAT = f_heat_approx(scrollz[iz+1], params= user_params.DM_FHEAT_APPROX_PARAMS, model_shape = user_params.DM_FHEAT_APPROX_SHAPE)
+                f_HEAT = f_heat_approx(scrollz[iz+1], params= [astro_params.DM_FHEAT_APPROX_PARAM_F0, astro_params.DM_FHEAT_APPROX_PARAM_A, astro_params.DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.DM_FHEAT_APPROX_SHAPE)
 
                 f_dict.append({
                     "f_H_ION" : f_H_ION_over_f_HEAT * f_HEAT, 
