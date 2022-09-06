@@ -1148,7 +1148,7 @@ def determine_halo_list(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
 
         if user_params.HMF != 1:
             raise ValueError("USE_HALO_FIELD is only valid for HMF = 1")
@@ -1281,7 +1281,7 @@ def perturb_halo_list(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
 
         if user_params.HMF != 1:
             raise ValueError("USE_HALO_FIELD is only valid for HMF = 1")
@@ -1534,7 +1534,7 @@ def ionize_box(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
 
         if spin_temp is not None and not flag_options.USE_TS_FLUCT:
             logger.warning(
@@ -1877,7 +1877,7 @@ def spin_temperature(
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
         flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
 
 
         # Explicitly set this flag to True, though it shouldn't be required!
@@ -2223,7 +2223,7 @@ def run_coeval(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
 
         if use_interp_perturb_field and flag_options.USE_MINI_HALOS:
             raise ValueError("Cannot use an interpolated perturb field with minihalos!")
@@ -2686,7 +2686,7 @@ def run_lightcone(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
 
         if user_params.MINIMIZE_MEMORY and not write:
             raise ValueError(
@@ -3120,7 +3120,7 @@ def run_lightcone(
     # This first instantiation only helps to get the properties of the DM
     user_params  = UserParams(user_params)
     flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
-	astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+    astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
 
     # Some useful conversion factors
     eV_to_K = 11604.5250061657
@@ -3349,7 +3349,7 @@ def run_lightcone(
         user_params  = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
         flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
 
         if user_params.MINIMIZE_MEMORY and not write:
             raise ValueError("If trying to minimize memory usage, you must be caching. Set write=True!")
