@@ -407,6 +407,8 @@ class TsBox(_AllParamsBox):
             self.exotic_energy_injected = ExoticEnergyInjected()
         else:
             self.exotic_energy_injected = exotic_energy_injected # New in exo21cmFAST
+
+        #print(self.exotic_energy_injected)
         
         super().__init__(**kwargs)
         

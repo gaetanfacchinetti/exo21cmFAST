@@ -103,8 +103,6 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
         double J_alpha_DM_ave, eps_DM_ave, Lambda_ion_DM_ave;
         double dxheat_DM_dzp, eps_DM, dxion_DM_dt, dxlya_DM_dt, EinjDM;
 
-        // sj
-        // file to which we can print the J_alpha data
         double J_alpha_x_ave, J_alpha_star_ave, Lambda_ion_ave, eps_heat_ave;
 
         //output_file = fopen(output_file_path, "a");
@@ -2126,15 +2124,6 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
             /////////////////////////////  END LOOP ////////////////////////////////////////////
             // compute new average values
 
-            //sj
-            J_alpha_star_ave /= (double)HII_TOT_NUM_PIXELS;
-            J_alpha_x_ave /= (double)HII_TOT_NUM_PIXELS;
-            J_alpha_DM_ave /= (double)HII_TOT_NUM_PIXELS;
-            Lambda_ion_ave /= (double)HII_TOT_NUM_PIXELS;
-            Lambda_ion_DM_ave /= (double)HII_TOT_NUM_PIXELS;
-            eps_heat_ave /= (double)HII_TOT_NUM_PIXELS;
-            eps_DM_ave /= (double)HII_TOT_NUM_PIXELS;
-
             if (LOG_LEVEL >= DEBUG_LEVEL)
             {
                 x_e_ave /= (double)HII_TOT_NUM_PIXELS;
@@ -2145,6 +2134,15 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
                 xalpha_ave /= (double)HII_TOT_NUM_PIXELS;
                 Xheat_ave /= (double)HII_TOT_NUM_PIXELS;
                 Xion_ave /= (double)HII_TOT_NUM_PIXELS;
+
+                //sj
+                J_alpha_star_ave /= (double)HII_TOT_NUM_PIXELS;
+                J_alpha_x_ave /= (double)HII_TOT_NUM_PIXELS;
+                J_alpha_DM_ave /= (double)HII_TOT_NUM_PIXELS;
+                Lambda_ion_ave /= (double)HII_TOT_NUM_PIXELS;
+                Lambda_ion_DM_ave /= (double)HII_TOT_NUM_PIXELS;
+                eps_heat_ave /= (double)HII_TOT_NUM_PIXELS;
+                eps_DM_ave /= (double)HII_TOT_NUM_PIXELS;
 
                 if (flag_options->USE_MINI_HALOS)
                 {
