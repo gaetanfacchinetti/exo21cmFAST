@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Define the database location
 database_location = "/home/ulb/physth_fi/gfacchin/exo21cmFAST_release/output/test_database"
-cache_location = "/scratch/ulb/physth_fi/gfacchin/output_exo21cmFAST/"
+cache_location = "/scratch/ulb/physth_fi/gfacchin/output_exo21cmFAST"
 
 
 
@@ -58,12 +58,13 @@ for current_model in input_models :
     ##################### EVALUATION ############################
 
     try:
-        cache_direc = cache_location + "/_cache_" + str(current_model.index)
-
-        # We clear the cache in order to avoid any problem
+        
         # Set the directory to our custom cache directory
+        cache_direc = db_manager.cache_path + "/_cache_" + str(current_model.index)
         if not os.path.exists(cache_direc): os.mkdir(cache_direc)
-        p21c.config['direc'] = db_manager.cache_path
+        p21c.config['direc'] = cache_direc
+
+        print(db_manager.cache_path)
 
         # If we do not specify anything it is that we do not care of the DM
         dm_energy_inj = True if (not current_model.process == 'none') else False
