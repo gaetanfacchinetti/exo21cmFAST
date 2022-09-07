@@ -1063,10 +1063,10 @@ class AstroParams(StructWithDefaults):
             "F_STAR7_MINI",
             "F_ESC7_MINI",
             "M_TURN",
+			"ION_Tvir_MIN"
             "L_X",
             "L_X_MINI",
             "X_RAY_Tvir_MIN",
-
         ]:
             return 10 ** val
         else:
