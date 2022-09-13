@@ -116,6 +116,7 @@ filename = [database_location + '/darkhistory/BrightnessTemp_' + str(index_no_DM
             *[database_location + '/approx/BrightnessTemp_' + str(ind) for ind in index_approx],]
 
 
+print(filename)
 
 # -------------------------------------------------------------------------------------
 
@@ -140,30 +141,45 @@ for i, fname in enumerate(filename) :
 filename = [*[database_location + '/darkhistory/result_run_' + str(ind) + '.txt' for ind in index_exact], 
             *[database_location + '/approx/result_run_' + str(ind) + '.txt' for ind in index_approx]]
 
-z_f = []
-f_H_ion = []
-f_He_ion = []
-f_exc = []
-f_heat = []
-f_cont = []
+print(filename)
+
+z_f          = []
+f_H_ion      = []
+f_He_ion     = []
+f_exc        = []
+f_heat       = []
+f_cont       = []
 inj_e_smooth = []
-xe = []
+xe           = []
+Tk           = []
 
 
 for file in filename :
     data = np.loadtxt(file)
-    z_f.append(data[:, 0]-1)
+    z_f.append(data[:, 0])
     f_H_ion.append(data[:, 1])
     f_He_ion.append(data[:, 2])
     f_exc.append(data[:, 3])
     f_heat.append(data[:, 4])
     f_cont.append(data[:, 5])
     xe.append(data[:,7])
+    inj_e_smooth.append(data[:,6])        # in erg/s^{-1} (per baryons)
+    Tk.append(data[:, 8]*11604.525006165) # Temperature in K
 
-    inj_e_smooth.append(data[:,6]) # in erg/s^{-1} (per baryons)
+
 
 # -------------------------------------------------------------------------------------
 
+
+#Tk_func     = interpolate.interp1d(z_f[2], Tk[2], fill_value="extrapolate") 
+#Tk_box_func = interpolate.interp1d(z_GQ[4], Tk_box[4], fill_value="extrapolate") 
+#print(Tk_func(10.040190060231323), Tk_box_func(10.040190060231323))
+
+#plt.plot(z_GQ[4], 100*(Tk_box_func(z_GQ[4]) - Tk_func(z_GQ[4]))/Tk_box_func(z_GQ[4]), '-')
+#plt.yscale('log')
+#plt.savefig("test.pdf", bbox_inches='tight')
+
+#exit(0)
 
 # Prepare the figure for the plot
 
@@ -320,7 +336,7 @@ ax9.plot(z_GQ[4], Tk_box[4], '--', color=colors[1]) # approx no bkr
 lightcone_noDM = p21c.LightCone.read(fname = database_location + '/darkhistory/BrightnessTemp_' + str(index_no_DM_0) + '/Lightcone/Lightcone.h5')
 
 slc_Tb = np.take(lightcone_noDM.brightness_temp, 0, axis=0)
-x_Tb = linspace(4, lightcone_noDM.cell_size * lightcone_noDM.shape[0], lightcone_noDM.shape[0])
+x_Tb = linspace(0, lightcone_noDM.cell_size * lightcone_noDM.shape[0], lightcone_noDM.shape[0])
 y_Tb = lightcone_noDM.lightcone_redshifts
 z_interp_Tb = linspace(4, 34, 400)
 slc_interp_Tb = []
@@ -335,7 +351,7 @@ axins3.set_xlabel(r"$\delta T_b~{\rm [mK]}$", color="white")
 
 
 slc_xH = np.take(lightcone_noDM.xH_box, 0, axis=0)
-x_xH = linspace(4, lightcone_noDM.cell_size * lightcone_noDM.shape[0], lightcone_noDM.shape[0])
+x_xH = linspace(0, lightcone_noDM.cell_size * lightcone_noDM.shape[0], lightcone_noDM.shape[0])
 y_xH = lightcone_noDM.lightcone_redshifts
 z_interp_xH = linspace(4, 34, 400)
 slc_interp_xH = []
@@ -381,6 +397,6 @@ ax1.add_artist(legend12)
 
 # Saving the figure
 
-fig.savefig('./example_plot_0.pdf', bbox_inches='tight')
+fig.savefig('./figures/example_plot_0.pdf', bbox_inches='tight')
 
 ## END OF SCRIPT

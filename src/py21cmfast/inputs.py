@@ -879,6 +879,12 @@ class FlagOptions(StructWithDefaults):
             return self._FORCE_INIT_COND
         else:
             raise ValueError("FORCE_INIT_COND must be a bool")
+
+
+    @property
+    def dm_fheat_approx_shape_str(self):
+        """ String representation of the template shape """
+        return self._fheat_shapes[self.DM_FHEAT_APPROX_SHAPE]
     ######################################################################################
 
 
@@ -1063,7 +1069,7 @@ class AstroParams(StructWithDefaults):
             "F_STAR7_MINI",
             "F_ESC7_MINI",
             "M_TURN",
-			"ION_Tvir_MIN"
+			"ION_Tvir_MIN",
             "L_X",
             "L_X_MINI",
             "X_RAY_Tvir_MIN",

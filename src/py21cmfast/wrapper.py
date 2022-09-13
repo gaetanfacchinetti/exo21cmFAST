@@ -3274,14 +3274,15 @@ def run_lightcone(
                                                 mDM=astro_params.DM_MASS, sigmav=astro_params.DM_SIGMAV, 
                                                 lifetime=astro_params.DM_LIFETIME) # in erg/s/(number of baryons)
 
-         ## Define the approximate f_heat_function
-        def f_heat_approx(z: float, params: list, model_shape: list = 0) -> float:
-            if model_shape == 1: # Constant function
+        ## Define the approximate f_heat_function
+        def f_heat_approx(z: float, params: list, model_shape: str = 'constant') -> float:
+            if model_shape == 'constant': # Constant function
                 return params[0]
-            if model_shape == 2: # Exponential
+            if model_shape == 'exponential': # Exponential
                 return params[0] * np.exp( params[1]*(z-15.) )
-            if model_shape == 3: # Schechter function
+            if model_shape == 'schechter': # Schechter function
                 return params[0] * np.exp( params[1]*(z-15.) + params[2]*np.log(z/15.) )
+            return ValueError("Cannot define the template for f_heat")
 
         # Tabulated values on DarkHistory runs
         if flag_options.DM_PROCESS == 'decay':
@@ -3299,7 +3300,7 @@ def run_lightcone(
                 f_He_ION_over_f_HEAT = astro_params.DM_FION_HE_OVER_FHEAT
 
 
-        f_HEAT_init = f_heat_approx(global_params.Z_HEAT_MAX, params = [astro_params.DM_FHEAT_APPROX_PARAM_F0, astro_params.DM_FHEAT_APPROX_PARAM_A, astro_params.DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.DM_FHEAT_APPROX_SHAPE)
+        f_HEAT_init = f_heat_approx(global_params.Z_HEAT_MAX, params = [astro_params.DM_FHEAT_APPROX_PARAM_F0, astro_params.DM_FHEAT_APPROX_PARAM_A, astro_params.DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.dm_fheat_approx_shape_str)
 
         f_dict.append({
             "f_H_ION" : f_H_ION_over_f_HEAT * f_HEAT_init, 
@@ -3645,8 +3646,7 @@ def run_lightcone(
             
             xHII  = np.mean(st.x_e_box)
             xHeII = np.mean(st.x_e_box)
-            Tm    = np.mean(st.Tk_box)/eV_to_K
-
+            Tm    = np.mean(st.Tk_box)/eV_to_K  # temperature in eV
 
             if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is False) : 
 
@@ -3708,7 +3708,7 @@ def run_lightcone(
 
                 # The value of f_heat at z is used to compute the result at z+dz
                 # (Similarly to the case where we use the DarkHistory code)
-                f_HEAT = f_heat_approx(scrollz[iz+1], params= [astro_params.DM_FHEAT_APPROX_PARAM_F0, astro_params.DM_FHEAT_APPROX_PARAM_A, astro_params.DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.DM_FHEAT_APPROX_SHAPE)
+                f_HEAT = f_heat_approx(scrollz[iz+1], params= [astro_params.DM_FHEAT_APPROX_PARAM_F0, astro_params.DM_FHEAT_APPROX_PARAM_A, astro_params.DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.dm_fheat_approx_shape_str)
 
                 f_dict.append({
                     "f_H_ION" : f_H_ION_over_f_HEAT * f_HEAT, 
@@ -3739,8 +3739,8 @@ def run_lightcone(
         if (flag_options.USE_DM_ENERGY_INJECTION is True) : 
             out_DH = {
                 'f'  : f_dict,
-                'x'  : xHII_arr,
-                'Tm' : Tm_arr,
+                'x'  : xHII_arr, 
+                'Tm' : Tm_arr,   # in eV
                 'z'  : z_arr
             }
     

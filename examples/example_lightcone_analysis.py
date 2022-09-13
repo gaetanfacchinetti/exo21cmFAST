@@ -255,7 +255,6 @@ def make_plots_powerspectra(path, k_ref, plot=False):
     
     ####
         
-
     return z_PS, delta_z, k_approx
 
 ##################################################################################################
@@ -266,7 +265,7 @@ def make_plots_powerspectra(path, k_ref, plot=False):
 
 #This function is used to compute the powerspectra
 def compute_powerspectra(lightcone, n_psbins=50, nchunks=10):
-    powerspectras ,redshift_indices = powerspectra(lightcone, n_psbins=n_psbins, nchunks=nchunks)
+    powerspectras, redshift_indices = powerspectra(lightcone, n_psbins=n_psbins, nchunks=nchunks)
     return powerspectras, redshift_indices
 
 

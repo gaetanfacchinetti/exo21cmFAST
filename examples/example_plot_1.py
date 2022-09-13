@@ -157,7 +157,7 @@ xe            = [[np.array([]) for i in [0, 1]] for f in filenames_energy_inj]
 for i, file in enumerate(filenames_energy_inj) :
     for j in [0, 1] :
         data = np.loadtxt(file[j])
-        z_f[i][j]       = data[:, 0]-1
+        z_f[i][j]       = data[:, 0]
         f_H_ion[i][j]   = data[:, 1]
         f_He_ion[i][j]  = data[:, 2]
         f_exc[i][j]     = data[:, 3]
