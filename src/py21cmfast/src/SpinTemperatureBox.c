@@ -565,8 +565,8 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
 
                 // set boundary conditions for the evolution equations->  values of Tk and x_e at Z_HEAT_MAX
                 // user has opted to use his/her own value or will use the results obtained from recfast
-                xe_BC = (global_params.XION_at_Z_HEAT_MAX > 0) ? global_params.XION_at_Z_HEAT_MAX : xion_RECFAST(global_params.Z_HEAT_MAX, 0);
-                Tk_BC = (global_params.TK_at_Z_HEAT_MAX > 0) ? global_params.TK_at_Z_HEAT_MAX : T_RECFAST(global_params.Z_HEAT_MAX, 0);
+                xe_BC = (astro_params->XION_at_Z_HEAT_MAX > 0) ? astro_params->XION_at_Z_HEAT_MAX : xion_RECFAST(global_params.Z_HEAT_MAX, 0);
+                Tk_BC = (astro_params->TK_at_Z_HEAT_MAX > 0) ? astro_params->TK_at_Z_HEAT_MAX : T_RECFAST(global_params.Z_HEAT_MAX, 0);
 
                 // and initialize to the boundary values at Z_HEAT_END
                 #pragma omp parallel shared(previous_spin_temp, Tk_BC, xe_BC) private(ct) num_threads(user_params->N_THREADS)

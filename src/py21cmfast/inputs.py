@@ -200,14 +200,6 @@ class GlobalParams(StructInstanceWrapper):
         Logarithmic redshift step-size used in the z' integral.  Logarithmic dz.
         Decreasing (closer to unity) increases total simulation time for lightcones,
         and for Ts calculations.
-    TK_at_Z_HEAT_MAX : float
-        If positive, then overwrite default boundary conditions for the evolution
-        equations with this value. The default is to use the value obtained from RECFAST.
-        See also `XION_at_Z_HEAT_MAX`.
-    XION_at_Z_HEAT_MAX : float
-        If positive, then overwrite default boundary conditions for the evolution
-        equations with this value. The default is to use the value obtained from RECFAST.
-        See also `TK_at_Z_HEAT_MAX`.
     Pop : int
         Stellar Population responsible for early heating (2 or 3)
     Pop2_ion : float
@@ -1006,6 +998,14 @@ class AstroParams(StructWithDefaults):
         Ratio of the deposition fraction into excitation over heat
         (This assumes that this ratio is a constant for all z)
         By default the values tabulated from DarkHistory are used
+    TK_at_Z_HEAT_MAX : float
+        If positive, then overwrite default boundary conditions for the evolution
+        equations with this value. The default is to use the value obtained from RECFAST.
+        See also `XION_at_Z_HEAT_MAX`.
+    XION_at_Z_HEAT_MAX : float
+        If positive, then overwrite default boundary conditions for the evolution
+        equations with this value. The default is to use the value obtained from RECFAST.
+        See also `TK_at_Z_HEAT_MAX`.
     """
 
     _ffi = ffi
@@ -1044,6 +1044,8 @@ class AstroParams(StructWithDefaults):
         'DM_FION_H_OVER_FHEAT': -1,
         'DM_FION_HE_OVER_FHEAT': -1,
         'DM_FEXC_OVER_FHEAT': -1,
+		'TK_at_Z_HEAT_MAX' : -1,
+		'XION_at_Z_HEAT_MAX': -1,
     }
 
     def __init__(
@@ -1063,7 +1065,7 @@ class AstroParams(StructWithDefaults):
             "F_STAR7_MINI",
             "F_ESC7_MINI",
             "M_TURN",
-			"ION_Tvir_MIN"
+			"ION_Tvir_MIN",
             "L_X",
             "L_X_MINI",
             "X_RAY_Tvir_MIN",

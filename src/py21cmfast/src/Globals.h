@@ -45,8 +45,6 @@ struct GlobalParams{
     float R_XLy_MAX;
     int NUM_FILTER_STEPS_FOR_Ts;
     float ZPRIME_STEP_FACTOR;
-    double TK_at_Z_HEAT_MAX;
-    double XION_at_Z_HEAT_MAX;
     int Pop;
     float Pop2_ion;
     float Pop3_ion;
@@ -124,8 +122,6 @@ extern struct GlobalParams global_params = {
     .R_XLy_MAX = 500.,
     .NUM_FILTER_STEPS_FOR_Ts = 40,
     .ZPRIME_STEP_FACTOR = 1.02,
-    .TK_at_Z_HEAT_MAX = -1,
-    .XION_at_Z_HEAT_MAX = -1,
     .Pop = 2,
     .Pop2_ion = 5000,
     .Pop3_ion = 44021,

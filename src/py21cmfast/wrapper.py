@@ -631,9 +631,9 @@ def compute_luminosity_function(
         Mhfunc_all.shape = (len(redshifts), nbins, 2)
         for iz in range(len(redshifts)):
             Muvfunc_all[iz] = np.linspace(
-                np.min([Muvfunc.min(), Muvfunc_MINI.min()]),
-                np.max([Muvfunc.max(), Muvfunc_MINI.max()]),
-                nbins,
+                #np.min([Muvfunc.min(), Muvfunc_MINI.min()]),
+                #np.max([Muvfunc.max(), Muvfunc_MINI.max()]),
+                -24, -4, nbins,
             )
             lfunc_all[iz] = np.log10(
                 10
@@ -3135,8 +3135,8 @@ def run_lightcone(
     # We define the default redshift step
     # And the initial conditions
     z_prime_step = global_params.ZPRIME_STEP_FACTOR
-    xe_init = global_params.XION_at_Z_HEAT_MAX  # A negative value means that the initial condition will be set to the RECFAST value in the C-code
-    Tm_init = global_params.TK_at_Z_HEAT_MAX    # A negative means that the initial condition will be set to the RECFAST value in the C-code
+    xe_init = astro_params.XION_at_Z_HEAT_MAX  # A negative value means that the initial condition will be set to the RECFAST value in the C-code
+    Tm_init = astro_params.TK_at_Z_HEAT_MAX    # A negative means that the initial condition will be set to the RECFAST value in the C-code
     
     # Set the function for the energy injection rate
     # These functions are taken from DarkHistory
@@ -3313,8 +3313,8 @@ def run_lightcone(
         
         if flag_options.FORCE_INIT_COND is False: 
             ## Maybe put something different here ... but what?
-            xe_init = global_params.XION_at_Z_HEAT_MAX 
-            Tm_init = global_params.TK_at_Z_HEAT_MAX
+            xe_init = astro_params.XION_at_Z_HEAT_MAX 
+            Tm_init = astro_params.TK_at_Z_HEAT_MAX
 
         # Tables to save the ionisation fraction, the temperature and the redshift steps
         xHII_arr = np.array([])
@@ -3336,10 +3336,10 @@ def run_lightcone(
 
 
     ## In the following we use the global_params by default except for 
-    with global_params.use(**global_kwargs, ZPRIME_STEP_FACTOR = z_prime_step, XION_at_Z_HEAT_MAX = xe_init, TK_at_Z_HEAT_MAX = Tm_init):
+    with global_params.use(**global_kwargs, ZPRIME_STEP_FACTOR = z_prime_step):
          
         
-        logger.debug("Test:", global_params.TK_at_Z_HEAT_MAX, global_params.XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
+        logger.debug("Test:", astro_params.TK_at_Z_HEAT_MAX, astro_params.XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
         #print("rs-1:", br_data['rs'][-1]-1)
 
         random_seed, user_params, cosmo_params = _configure_inputs([("random_seed", random_seed),("user_params", user_params),("cosmo_params", cosmo_params),], init_box, perturb,)

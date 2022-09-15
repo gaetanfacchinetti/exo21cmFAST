@@ -77,8 +77,6 @@ class InitialConditions(_OutputStruct):
         "R_XLy_MAX",  # st
         "NUM_FILTER_STEPS_FOR_Ts",  # ts
         "ZPRIME_STEP_FACTOR",  # ts
-        "TK_at_Z_HEAT_MAX",  # ts
-        "XION_at_Z_HEAT_MAX",  # ts
         "Pop",  # ib
         "Pop2_ion",  # ib
         "Pop3_ion",  # ib
@@ -192,8 +190,6 @@ class PerturbedField(_OutputStructZ):
         "R_XLy_MAX",  # st
         "NUM_FILTER_STEPS_FOR_Ts",  # ts
         "ZPRIME_STEP_FACTOR",  # ts
-        "TK_at_Z_HEAT_MAX",  # ts
-        "XION_at_Z_HEAT_MAX",  # ts
         "Pop",  # ib
         "Pop2_ion",  # ib
         "Pop3_ion",  # ib
