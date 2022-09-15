@@ -69,6 +69,8 @@ struct AstroParams{
     float DM_MASS;
     float DM_SIGMAV;
     float DM_LIFETIME;
+	float TK_at_Z_HEAT_MAX;
+	float XION_at_Z_HEAT_MAX;
 };
 
 struct FlagOptions{
