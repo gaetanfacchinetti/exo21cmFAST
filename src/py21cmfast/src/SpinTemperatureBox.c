@@ -2164,7 +2164,7 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
                 J_alpha_DM_ave /= (double)HII_TOT_NUM_PIXELS;    // llh
                 eps_DM_ave /= (double)HII_TOT_NUM_PIXELS;        // llh
                 Lambda_ion_DM_ave /= (double)HII_TOT_NUM_PIXELS;       // llh
-                LOG_INFO("eps_DM_ave = %e", eps_DM_ave);
+                LOG_DEBUG("eps_DM_ave = %e", eps_DM_ave);
             }
 
         } // end main integral loop over z'
