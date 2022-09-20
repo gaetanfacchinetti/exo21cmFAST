@@ -130,6 +130,7 @@ interpolated onto the lightcone cells):
 
 >>> lightcone = p21.run_lightcone(redshift=z2, max_redshift=z2, z_step_factor=1.03)
 """
+from importlib import find_loader
 import logging
 import numpy as np
 import os
@@ -1148,7 +1149,7 @@ def determine_halo_list(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if user_params.HMF != 1:
             raise ValueError("USE_HALO_FIELD is only valid for HMF = 1")
@@ -1281,7 +1282,7 @@ def perturb_halo_list(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if user_params.HMF != 1:
             raise ValueError("USE_HALO_FIELD is only valid for HMF = 1")
@@ -1534,7 +1535,7 @@ def ionize_box(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if spin_temp is not None and not flag_options.USE_TS_FLUCT:
             logger.warning(
@@ -1877,7 +1878,7 @@ def spin_temperature(
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
         flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
 
         # Explicitly set this flag to True, though it shouldn't be required!
@@ -2223,7 +2224,7 @@ def run_coeval(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if use_interp_perturb_field and flag_options.USE_MINI_HALOS:
             raise ValueError("Cannot use an interpolated perturb field with minihalos!")
@@ -2526,473 +2527,6 @@ def _get_redshifts(flag_options, redshift):
 
 
 
-"""
-
-def run_lightcone(
-    *,
-    redshift=None,
-    coarsen_factor=None,
-    max_redshift=None,
-    user_params=None,
-    cosmo_params=None,
-    astro_params=None,
-    flag_options=None,
-    regenerate=None,
-    write=None,
-    lightcone_quantities=("brightness_temp",),
-    global_quantities=("brightness_temp", "xH_box"),
-    direc=None,
-    init_box=None,
-    perturb=None,
-    random_seed=None,
-    coeval_callback=None,
-    coeval_callback_redshifts=1,
-    use_interp_perturb_field=False,
-    cleanup=True,
-    hooks=None,
-    always_purge: bool = False,
-    **global_kwargs,
-):
-    r""""""
-    Evaluate a full lightcone ending at a given redshift.
-
-    This is generally the easiest and most efficient way to generate a lightcone, though it can
-    be done manually by using the lower-level functions which are called by this function.
-
-    Parameters
-    ----------
-    redshift : float
-        The minimum redshift of the lightcone.
-    max_redshift : float, optional
-        The maximum redshift at which to keep lightcone information. By default, this is equal to
-        `z_heat_max`. Note that this is not *exact*, but will be typically slightly exceeded.
-    user_params : `~UserParams`, optional
-        Defines the overall options and parameters of the run.
-    astro_params : :class:`~AstroParams`, optional
-        Defines the astrophysical parameters of the run.
-    cosmo_params : :class:`~CosmoParams`, optional
-        Defines the cosmological parameters used to compute initial conditions.
-    flag_options : :class:`~FlagOptions`, optional
-        Options concerning how the reionization process is run, eg. if spin temperature
-        fluctuations are required.
-    lightcone_quantities : tuple of str, optional
-        The quantities to form into a lightcone. By default, just the brightness
-        temperature. Note that these quantities must exist in one of the output
-        structures:
-
-        * :class:`~InitialConditions`
-        * :class:`~PerturbField`
-        * :class:`~TsBox`
-        * :class:`~IonizedBox`
-        * :class:`BrightnessTemp`
-
-        To get a full list of possible quantities, run :func:`get_all_fieldnames`.
-    global_quantities : tuple of str, optional
-        The quantities to save as globally-averaged redshift-dependent functions.
-        These may be any of the quantities that can be used in ``lightcone_quantities``.
-        The mean is taken over the full 3D cube at each redshift, rather than a 2D
-        slice.
-    init_box : :class:`~InitialConditions`, optional
-        If given, the user and cosmo params will be set from this object, and it will not be
-        re-calculated.
-    perturb : list of :class:`~PerturbedField`, optional
-        If given, must be compatible with init_box. It will merely negate the necessity of
-        re-calculating the
-        perturb fields. It will also be used to set the redshift if given.
-    coeval_callback : callable, optional
-        User-defined arbitrary function computed on :class:`~Coeval`, at redshifts defined in
-        `coeval_callback_redshifts`.
-        If given, the function returns :class:`~LightCone` and the list of `coeval_callback` outputs.
-    coeval_callback_redshifts : list or int, optional
-        Redshifts for `coeval_callback` computation.
-        If list, computes the function on `node_redshifts` closest to the specified ones.
-        If positive integer, computes the function on every n-th redshift in `node_redshifts`.
-        Ignored in the case `coeval_callback is None`.
-    use_interp_perturb_field : bool, optional
-        Whether to use a single perturb field, at the lowest redshift of the lightcone,
-        to determine all spin temperature fields. If so, this field is interpolated in the
-        underlying C-code to the correct redshift. This is less accurate (and no more efficient),
-        but provides compatibility with older versions of 21cmFAST.
-    cleanup : bool, optional
-        A flag to specify whether the C routine cleans up its memory before returning.
-        Typically, if `spin_temperature` is called directly, you will want this to be
-        true, as if the next box to be calculate has different shape, errors will occur
-        if memory is not cleaned. Note that internally, this is set to False until the
-        last iteration.
-    minimize_memory_usage
-        If switched on, the routine will do all it can to minimize peak memory usage.
-        This will be at the cost of disk I/O and CPU time. Recommended to only set this
-        if you are running particularly large boxes, or have low RAM.
-    \*\*global_kwargs :
-        Any attributes for :class:`~py21cmfast.inputs.GlobalParams`. This will
-        *temporarily* set global attributes for the duration of the function. Note that
-        arguments will be treated as case-insensitive.
-
-    Returns
-    -------
-    lightcone : :class:`~py21cmfast.LightCone`
-        The lightcone object.
-    coeval_callback_output : list
-        Only if coeval_callback in not None.
-
-    Other Parameters
-    ----------------
-    regenerate, write, direc, random_seed
-        See docs of :func:`initial_conditions` for more information.
-    """"""
-    
-    ## Gaetan 
-    ## Here we just init flag options to see if USE_DM_ENERGY_INJECTION is set to True
-    flag_options = FlagOptions(flag_options)
-    if flag_options.USE_DM_ENERGY_INJECTION == True:
-        return  run_lightcone_with_DM(redshift=redshift,
-                                        coarsen_factor=coarsen_factor,
-                                        user_params=user_params,
-                                        cosmo_params=cosmo_params,
-                                        astro_params=astro_params,
-                                        flag_options=flag_options,
-                                        regenerate=regenerate,
-                                        write=write,
-                                        lightcone_quantities=lightcone_quantities,
-                                        global_quantities=global_quantities,
-                                        direc=direc,
-                                        init_box=init_box,
-                                        perturb=perturb,
-                                        random_seed=random_seed,
-                                        coeval_callback=coeval_callback,
-                                        coeval_callback_redshifts=coeval_callback_redshifts,
-                                        use_interp_perturb_field=use_interp_perturb_field,
-                                        cleanup=cleanup,
-                                        hooks=hooks,
-                                        always_purge = always_purge,
-                                        **global_kwargs)
-    
-
-    direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
-
-    with global_params.use(**global_kwargs):
-        random_seed, user_params, cosmo_params = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-            ],
-            init_box,
-            perturb,
-        )
-
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
-        flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
-        )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
-
-        if user_params.MINIMIZE_MEMORY and not write:
-            raise ValueError(
-                "If trying to minimize memory usage, you must be caching. Set write=True!"
-            )
-
-        # Ensure passed quantities are appropriate
-        _fld_names = _get_interpolation_outputs(
-            list(lightcone_quantities), list(global_quantities), flag_options
-        )
-
-        redshift = configure_redshift(redshift, perturb)
-
-        max_redshift = (
-            global_params.Z_HEAT_MAX
-            if (
-                flag_options.INHOMO_RECO
-                or flag_options.USE_TS_FLUCT
-                or max_redshift is None
-            )
-            else max_redshift
-        )
-
-        # Get the redshift through which we scroll and evaluate the ionization field.
-        scrollz = _logscroll_redshifts(redshift, global_params.ZPRIME_STEP_FACTOR, max_redshift)
-
-        if (flag_options.PHOTON_CONS and np.amin(scrollz) < global_params.PhotonConsEndCalibz):
-            raise ValueError(
-                f""" """
-                You have passed a redshift (z = {np.amin(scrollz)}) that is lower than the endpoint
-                of the photon non-conservation correction
-                (global_params.PhotonConsEndCalibz = {global_params.PhotonConsEndCalibz}).
-                If this behaviour is desired then set global_params.PhotonConsEndCalibz to a value lower than
-                z = {np.amin(scrollz)}.
-                """ """
-            )
-
-        coeval_callback_output = []
-        compute_coeval_callback = _get_coeval_callbacks(scrollz, coeval_callback, coeval_callback_redshifts)
-
-        if init_box is None:  # no need to get cosmo, user params out of it.
-            init_box = initial_conditions(user_params=user_params, cosmo_params=cosmo_params, hooks=hooks, regenerate=regenerate, direc=direc, random_seed=random_seed,)
-
-        # We can go ahead and purge some of the stuff in the init_box, but only if
-        # it is cached -- otherwise we could be losing information.
-        try:
-            # TODO: should really check that the file at path actually contains a fully
-            # working copy of the init_box.
-            init_box.prepare_for_perturb(flag_options=flag_options, force=always_purge)
-        except OSError:
-            pass
-
-        zz = scrollz if (perturb is None) else scrollz[:-1]
-
-        perturb_ = []
-        for z in zz:
-            p = perturb_field(redshift=z, init_boxes=init_box, regenerate=regenerate, direc=direc, hooks=hooks,)
-            if user_params.MINIMIZE_MEMORY:
-                try:
-                    p.purge(force=always_purge)
-                except OSError:
-                    pass
-
-            perturb_.append(p)
-
-        if perturb is not None:
-            perturb_.append(perturb)
-        perturb = perturb_
-        perturb_min = perturb[np.argmin(scrollz)]
-
-        # Now that we've got all the perturb fields, we can purge init more.
-        try:
-            init_box.prepare_for_spin_temp(flag_options=flag_options, force=always_purge)
-        except OSError:
-            pass
-
-        if flag_options.PHOTON_CONS:
-            calibrate_photon_cons(
-                user_params,
-                cosmo_params,
-                astro_params,
-                flag_options,
-                init_box,
-                regenerate,
-                write,
-                direc,
-            )
-
-        d_at_redshift, lc_distances, n_lightcone = _setup_lightcone(
-            cosmo_params,
-            max_redshift,
-            redshift,
-            scrollz,
-            user_params,
-            global_params.ZPRIME_STEP_FACTOR,
-        )
-
-        scroll_distances = (cosmo_params.cosmo.comoving_distance(scrollz).value - d_at_redshift)
-
-        # Iterate through redshift from top to bottom
-        st, ib, bt, prev_perturb = None, None, None, None
-        lc_index = 0
-        box_index = 0
-        lc = {quantity: np.zeros((user_params.HII_DIM, user_params.HII_DIM, n_lightcone), dtype=np.float32,) for quantity in lightcone_quantities}
-        interp_functions = {"z_re_box": "mean_max",}
-
-        global_q = {quantity: np.zeros(len(scrollz)) for quantity in global_quantities}
-        pf = None
-
-        perturb_files = []
-        spin_temp_files = []
-        ionize_files = []
-        brightness_files = []
-        for iz, z in enumerate(scrollz):
-            print("Redshift:", z)
-
-            # Best to get a perturb for this redshift, to pass to brightness_temperature
-            pf2 = perturb[iz]
-
-            # This ensures that all the arrays that are required for spin_temp are there,
-            # in case we dumped them from memory into file.
-            pf2.load_all()
-
-            if flag_options.USE_HALO_FIELD:
-
-                halo_field = determine_halo_list(
-                    redshift=z,
-                    init_boxes=init_box,
-                    astro_params=astro_params,
-                    flag_options=flag_options,
-                    regenerate=regenerate,
-                    hooks=hooks,
-                    direc=direc,
-                )
-                pt_halos = perturb_halo_list(
-                    redshift=z,
-                    init_boxes=init_box,
-                    astro_params=astro_params,
-                    flag_options=flag_options,
-                    halo_field=halo_field,
-                    regenerate=regenerate,
-                    hooks=hooks,
-                    direc=direc,
-                )
-                
-            if flag_options.USE_TS_FLUCT:
-                st2 = spin_temperature(
-                    redshift=z,
-                    previous_spin_temp=st,
-                    astro_params=astro_params,
-                    flag_options=flag_options,
-                    perturbed_field=perturb_min if use_interp_perturb_field else pf2,
-                    regenerate=regenerate,
-                    init_boxes=init_box,
-                    hooks=hooks,
-                    direc=direc,
-                    cleanup=(cleanup and iz == (len(scrollz) - 1)),
-                )
-
-            ib2 = ionize_box(
-                redshift=z,
-                previous_ionize_box=ib,
-                init_boxes=init_box,
-                perturbed_field=pf2,
-                previous_perturbed_field=prev_perturb,
-                astro_params=astro_params,
-                flag_options=flag_options,
-                spin_temp=st2 if flag_options.USE_TS_FLUCT else None,
-                pt_halos=pt_halos if flag_options.USE_HALO_FIELD else None,
-                regenerate=regenerate,
-                hooks=hooks,
-                direc=direc,
-                cleanup=(cleanup and iz == (len(scrollz) - 1)),
-            )
-
-            bt2 = brightness_temperature(
-                ionized_box=ib2,
-                perturbed_field=pf2,
-                spin_temp=st2 if flag_options.USE_TS_FLUCT else None,
-                hooks=hooks,
-                direc=direc,
-                regenerate=regenerate,
-            )
-
-            if coeval_callback is not None and compute_coeval_callback[iz]:
-                coeval = Coeval(
-                    redshift=z,
-                    initial_conditions=init_box,
-                    perturbed_field=pf2,
-                    ionized_box=ib2,
-                    brightness_temp=bt2,
-                    ts_box=st2 if flag_options.USE_TS_FLUCT else None,
-                    photon_nonconservation_data=_get_photon_nonconservation_data()
-                    if flag_options.PHOTON_CONS
-                    else None,
-                    _globals=None,
-                )
-                try:
-                    coeval_callback_output.append(coeval_callback(coeval))
-                except Exception as e:
-                    if sum(compute_coeval_callback[: iz + 1]) == 1:
-                        raise RuntimeError( f"coeval_callback computation failed on first trial, z={z}.")
-                    else:
-                        logger.warning(f"coeval_callback computation failed on z={z}, skipping. {type(e).__name__}: {e}")
-
-            perturb_files.append((z, os.path.join(direc, pf2.filename)))
-            if flag_options.USE_TS_FLUCT:
-                spin_temp_files.append((z, os.path.join(direc, st2.filename)))
-            ionize_files.append((z, os.path.join(direc, ib2.filename)))
-            brightness_files.append((z, os.path.join(direc, bt2.filename)))
-
-            outs = {"PerturbedField": (pf, pf2), "IonizedBox": (ib, ib2), "BrightnessTemp": (bt, bt2),}
-            if flag_options.USE_TS_FLUCT:
-                outs["TsBox"] = (st, st2)
-            if flag_options.USE_HALO_FIELD:
-                outs["PerturbHaloes"] = pt_halos
-
-            # Save mean/global quantities
-            for quantity in global_quantities:
-                global_q[quantity][iz] = np.mean(getattr(outs[_fld_names[quantity]][1], quantity))
-
-            # Interpolate the lightcone
-            if z < max_redshift:
-                for quantity in lightcone_quantities:
-                    data1, data2 = outs[_fld_names[quantity]]
-                    fnc = interp_functions.get(quantity, "mean")
-
-                    n = _interpolate_in_redshift(
-                        iz,
-                        box_index,
-                        lc_index,
-                        n_lightcone,
-                        scroll_distances,
-                        lc_distances,
-                        data1,
-                        data2,
-                        quantity,
-                        lc[quantity], # We extrapolate values for "quantity"
-                        fnc,
-                    )
-                lc_index += n
-                box_index += n
-
-            # Save current ones as old ones.
-            if flag_options.USE_TS_FLUCT:
-                st = st2
-            ib = ib2
-            bt = bt2
-            if flag_options.USE_MINI_HALOS:
-                prev_perturb = pf2
-
-            if pf is not None:
-                try:
-                    pf.purge(force=always_purge)
-                except OSError:
-                    pass
-
-            pf = pf2
-
-        if flag_options.PHOTON_CONS:
-            photon_nonconservation_data = _get_photon_nonconservation_data()
-            if photon_nonconservation_data:
-                lib.FreePhotonConsMemory()
-        else:
-            photon_nonconservation_data = None
-
-        if (
-            flag_options.USE_TS_FLUCT
-            and user_params.USE_INTERPOLATION_TABLES
-            and lib.interpolation_tables_allocated
-        ):
-            lib.FreeTsInterpolationTables(flag_options())
-
-        out = (
-            LightCone(
-                redshift,
-                user_params,
-                cosmo_params,
-                astro_params,
-                flag_options,
-                init_box.random_seed,
-                lc,
-                node_redshifts=scrollz,
-                global_quantities=global_q,
-                photon_nonconservation_data=photon_nonconservation_data,
-                _globals=dict(global_params.items()),
-                cache_files={
-                    "init": [(0, os.path.join(direc, init_box.filename))],
-                    "perturb_field": perturb_files,
-                    "ionized_box": ionize_files,
-                    "brightness_temp": brightness_files,
-                    "spin_temp": spin_temp_files,
-                },
-            ),
-            None,
-            coeval_callback_output,
-        )
-
-        if coeval_callback is None:
-            return out[0:2]
-        else:
-            return out
-
-
-"""
-
 
 def run_lightcone(
     *,
@@ -3102,6 +2636,8 @@ def run_lightcone(
     -------
     lightcone : :class:`~py21cmfast.LightCone`
         The lightcone object.
+    output_exotic_energy°injection : dict
+        Data related to exotic energy injection
     coeval_callback_output : list
         Only if coeval_callback in not None.
 
@@ -3120,14 +2656,26 @@ def run_lightcone(
     # This first instantiation only helps to get the properties of the DM
     user_params  = UserParams(user_params)
     flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
-    astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
+    astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+
+    ## We fetch all the values from astro_params that we need in this function
+    _DM_MASS                  = 10**astro_params.DM_LOG10_MASS                       # in eV
+    _DM_LIFETIME              = 10**astro_params.DM_LOG10_LIFETIME                   # in s
+    _DM_SIGMAV                = 10**astro_params.DM_LOG10_SIGMAV                     # in cm^3 s^{-1}
+    _DM_FHEAT_APPROX_PARAM_F0 = 10**astro_params.DM_FHEAT_APPROX_PARAM_LOG10_F0      # no units 
+    _DM_FHEAT_APPROX_PARAM_A  = astro_params.DM_FHEAT_APPROX_PARAM_A                 # no units
+    _DM_FHEAT_APPROX_PARAM_B  = astro_params.DM_FHEAT_APPROX_PARAM_B                 # no units
+    _DM_FION_H_OVER_FHEAT     = 10**astro_params.DM_LOG10_FION_H_OVER_FHEAT          # no units
+    _DM_FION_HE_OVER_FHEAT    = 10**astro_params.DM_LOG10_FION_HE_OVER_FHEAT         # no units
+    _DM_FEXC_OVER_FHEAT       = 10**astro_params.DM_LOG10_FEXC_OVER_FHEAT            # no units
 
     # Some useful conversion factors
     eV_to_K = 11604.5250061657
     eV_to_erg = 1.602176487e-12
 
      # Initialise the dictionnary of deposited fractions and energy injection
-    f_dict = []
+    f_dict        = []
+    f_dict_output = []
 
     # We define the maximum redshift FOR 21cmFAST
     max_redshift = global_params.Z_HEAT_MAX if (flag_options.INHOMO_RECO or flag_options.USE_TS_FLUCT or max_redshift is None ) else max_redshift
@@ -3135,9 +2683,7 @@ def run_lightcone(
     # We define the default redshift step
     # And the initial conditions
     z_prime_step = global_params.ZPRIME_STEP_FACTOR
-    xe_init = astro_params.XION_at_Z_HEAT_MAX  # A negative value means that the initial condition will be set to the RECFAST value in the C-code
-    Tm_init = astro_params.TK_at_Z_HEAT_MAX    # A negative means that the initial condition will be set to the RECFAST value in the C-code
-    
+
     # Set the function for the energy injection rate
     # These functions are taken from DarkHistory
     rhoDM0 = 1.05371e4*0.1200 # eV cm^{-3}
@@ -3149,9 +2695,9 @@ def run_lightcone(
             return rhoDM0**2*(redshift+1)**3*sigmav/mDM/nb0*eV_to_erg
         elif process == 'decay':
             return rhoDM0/lifetime/nb0*eV_to_erg
-        
+
     # If we use the full DarkHistory parameterisation we run the initialisation loop
-    if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is False) : 
+    if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_DM_EFFECTIVE_DEP_FUNCS is False) : 
 
           # We first define the redshift steps
         if coarsen_factor is None:
@@ -3160,7 +2706,6 @@ def run_lightcone(
         
         # dlnz step used in DarkHistory
         dlnz = 1e-3 
-
 
         def _redshift_bounds(min_redshift: float, max_redshift: float) :
             
@@ -3184,9 +2729,9 @@ def run_lightcone(
         redshift, z_max = _redshift_bounds(min_redshift=redshift, max_redshift=max_redshift)
 
         # Print the input parameters of the DM model we treat here
-        logger.debug("The input parameters for the DM model are the following ones:")
-        logger.debug(astro_params.DM_MASS, flag_options.DM_PROCESS, 
-            astro_params.DM_SIGMAV, flag_options.DM_PRIMARY, 
+        logger.debug("The input parameters for the DM model are:")
+        logger.debug(_DM_MASS, flag_options.DM_PROCESS, 
+            _DM_SIGMAV, flag_options.DM_PRIMARY, 
             flag_options.DM_BOOST, flag_options.DM_FS_METHOD, 
             flag_options.DM_BACKREACTION)
 
@@ -3201,9 +2746,9 @@ def run_lightcone(
 
         # Here we use a slightly modified version of the function evolve
         br_data = dep_21.evolve(DM_process=flag_options.DM_PROCESS,
-                                mDM=astro_params.DM_MASS,
-                                sigmav=astro_params.DM_SIGMAV,
-                                lifetime=astro_params.DM_LIFETIME,
+                                mDM=_DM_MASS,
+                                sigmav=_DM_SIGMAV,
+                                lifetime=_DM_LIFETIME,
                                 primary=flag_options.DM_PRIMARY,
                                 struct_boost=func_boost,
                                 start_rs = z_max+1,
@@ -3234,10 +2779,10 @@ def run_lightcone(
         for _irs, _ in enumerate(rs):
 
             # Get the redshit of the next step
-            _next_rs = rs[_irs+1] if (_irs < len(rs)-1) else max_redshift+1
+            _next_z = rs[_irs+1]-1 if (_irs < len(rs)-1) else max_redshift
 
             # Evaluate the smooth injected function at the next time step
-            energy_injected_smooth = injection_rate(flag_options.DM_PROCESS, _next_rs, mDM=astro_params.DM_MASS, sigmav=astro_params.DM_SIGMAV, lifetime=astro_params.DM_LIFETIME)
+            energy_injected_smooth = injection_rate(flag_options.DM_PROCESS, _next_z, mDM=_DM_MASS, sigmav=_DM_SIGMAV, lifetime=_DM_LIFETIME)
 
             f_dict.append({
                 "f_H_ION" : f_H_ion_low[_irs] + f_H_ion_high[_irs], 
@@ -3249,9 +2794,12 @@ def run_lightcone(
                 })
         
         # Fetch the value of ionisation and temperature history from DarhHistory
-        xHII_arr = br_data['x'][:, 0]
-        Tm_arr   = br_data['Tm']
-        z_arr    = np.array([_rs - 1 for _rs in br_data['rs']])
+        xHII_arr = br_data['x'][:-1, 0]
+        Tm_arr   = br_data['Tm'][:-1]
+        z_arr    = np.array([_rs - 1 for _rs in br_data['rs'][:-1]])
+
+        for iz, _ in enumerate(z_arr):
+            print(z_arr[iz], Tm_arr[iz], xHII_arr[iz])
 
         #### Initial conditions:
 
@@ -3259,20 +2807,22 @@ def run_lightcone(
         ## We take xe = xHII given by DarkHistory -- in the arrays we take the value 
         ## before the last one as the last value is for the next redshift step in DarkHistory
 
-        if flag_options.FORCE_INIT_COND is False: # (here it is always false for now) 
-            xe_init = br_data['x'][-2][0]
-            Tm_init = br_data['Tm'][-2]*eV_to_K
-        
+        if flag_options.USE_CUSTOM_INIT_COND is False:
+            # If flag_options.FORCE_DEFAULT_INIT_COND is True this will be overriden in 
+            # the C-code (SpinTemperatureBox.c) by the RECFAST value without exotic energy injection
+            astro_params.update(**({'LOG10_XION_at_Z_HEAT_MAX' : np.log10(br_data['x'][-1][0]), 'LOG10_TK_at_Z_HEAT_MAX' : np.log10(br_data['Tm'][-1]*eV_to_K)}))
+
         ## Moreover we also enforce the redshift step in 21cmFAST to match that of DarkHistory
         ## Be default we have ZPRIME_STEP_FACTOR = 1.02 -> it becomes exp(coarsen_factor*1e-3) ~ 1 + coarsen_factor * 1e-3 + ...
         z_prime_step = np.exp(coarsen_factor*dlnz)
 
-    if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is True) : 
+
+    if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_DM_EFFECTIVE_DEP_FUNCS is True) : 
         
         # Evaluate the smooth injected function at the next time step
-        energy_injected_smooth =  injection_rate(flag_options.DM_PROCESS, max_redshift+1, 
-                                                mDM=astro_params.DM_MASS, sigmav=astro_params.DM_SIGMAV, 
-                                                lifetime=astro_params.DM_LIFETIME) # in erg/s/(number of baryons)
+        energy_injected_smooth =  injection_rate(flag_options.DM_PROCESS, max_redshift, 
+                                                mDM=_DM_MASS, sigmav=_DM_SIGMAV, 
+                                                lifetime=_DM_LIFETIME) # in erg/s/(number of baryons)
 
         ## Define the approximate f_heat_function
         def f_heat_approx(z: float, params: list, model_shape: str = 'constant') -> float:
@@ -3286,21 +2836,21 @@ def run_lightcone(
 
         # Tabulated values on DarkHistory runs
         if flag_options.DM_PROCESS == 'decay':
-            f_H_ION_over_f_HEAT  = 2.2  if (astro_params.DM_FION_H_OVER_FHEAT < 0)  else astro_params.DM_FION_H_OVER_FHEAT
-            f_EXC_over_f_HEAT    = 1.7  if (astro_params.DM_FEXC_OVER_FHEAT < 0)    else astro_params.DM_FEXC_OVER_FHEAT
-            f_He_ION_over_f_HEAT = 0.07 if (astro_params.DM_FION_HE_OVER_FHEAT < 0) else astro_params.DM_FION_HE_OVER_FHEAT
+            f_H_ION_over_f_HEAT  = 2.2  if (flag_options.USE_DM_CUSTOM_F_RATIOS is False)  else _DM_FION_H_OVER_FHEAT
+            f_EXC_over_f_HEAT    = 1.7  if (flag_options.USE_DM_CUSTOM_F_RATIOS is False)  else _DM_FEXC_OVER_FHEAT
+            f_He_ION_over_f_HEAT = 0.07 if (flag_options.USE_DM_CUSTOM_F_RATIOS is False)  else _DM_FION_HE_OVER_FHEAT
 
         # Tabulated values for swave to be inserted here at some point
         if flag_options.DM_PROCESS == 'swave': 
-            if user_params.FION_H_OVER_FHEAT < 0 or user_params.FION_HE_OVER_FHEAT < 0 or user_params.FEXC_OVER_FHEAT < 0:
+            if flag_options.USE_DM_CUSTOM_F_RATIOS is False:
                 raise ValueError("No tabulated values have been implemented yet for FION_H_OVER_FHEAT, FION_HE_OVER_FHEAT and FEXCOVER_FHEAT in the swave case")
             else: 
-                f_H_ION_over_f_HEAT  = astro_params.DM_FION_H_OVER_FHEAT
-                f_EXC_over_f_HEAT    = astro_params.DM_FEXC_OVER_FHEAT
-                f_He_ION_over_f_HEAT = astro_params.DM_FION_HE_OVER_FHEAT
+                f_H_ION_over_f_HEAT  = _DM_FION_H_OVER_FHEAT
+                f_EXC_over_f_HEAT    = _DM_FEXC_OVER_FHEAT
+                f_He_ION_over_f_HEAT = _DM_FION_HE_OVER_FHEAT
 
 
-        f_HEAT_init = f_heat_approx(global_params.Z_HEAT_MAX, params = [astro_params.DM_FHEAT_APPROX_PARAM_F0, astro_params.DM_FHEAT_APPROX_PARAM_A, astro_params.DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.dm_fheat_approx_shape_str)
+        f_HEAT_init = f_heat_approx(global_params.Z_HEAT_MAX, params = [_DM_FHEAT_APPROX_PARAM_F0, _DM_FHEAT_APPROX_PARAM_A, _DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.dm_fheat_approx_shape_str)
 
         f_dict.append({
             "f_H_ION" : f_H_ION_over_f_HEAT * f_HEAT_init, 
@@ -3312,16 +2862,15 @@ def run_lightcone(
 
         #### Initial conditions:
         
-        if flag_options.FORCE_INIT_COND is False: 
-            ## Maybe put something different here ... but what?
-            xe_init = astro_params.XION_at_Z_HEAT_MAX 
-            Tm_init = astro_params.TK_at_Z_HEAT_MAX
+        if flag_options.USE_CUSTOM_INIT_COND is False:
+            # We force the initial condition to the default value here
+            # We could put something else if necessary as well
+            flag_options.FORCE_DEFAULT_INIT_COND = True
 
         # Tables to save the ionisation fraction, the temperature and the redshift steps
         xHII_arr = np.array([])
         Tm_arr   = np.array([])
         z_arr    = np.array([])
-
 
     if (flag_options.USE_DM_ENERGY_INJECTION is True): 
         # Initialise the CStructWrapper object ExoticEnergyInjected with our dictionnary
@@ -3332,6 +2881,9 @@ def run_lightcone(
         logger.info("Initialisation completed")
         logger.info("--------------------------------------")
 
+    #print("Initialisation over:", flag_options.FORCE_DEFAULT_INIT_COND, flag_options.USE_CUSTOM_INIT_COND, astro_params.XION_at_Z_HEAT_MAX, astro_params.TK_at_Z_HEAT_MAX, _DM_LIFETIME)
+
+
     ## Initialisation over
     #####################################################################################
 
@@ -3340,7 +2892,7 @@ def run_lightcone(
     with global_params.use(**global_kwargs, ZPRIME_STEP_FACTOR = z_prime_step):
          
         
-        logger.debug("Test:", astro_params.TK_at_Z_HEAT_MAX, astro_params.XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
+        logger.debug("Test:", 10**astro_params.LOG10_TK_at_Z_HEAT_MAX, 10**astro_params.LOG10_XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
         #print("rs-1:", br_data['rs'][-1]-1)
 
         random_seed, user_params, cosmo_params = _configure_inputs([("random_seed", random_seed),("user_params", user_params),("cosmo_params", cosmo_params),], init_box, perturb,)
@@ -3350,7 +2902,7 @@ def run_lightcone(
         user_params  = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
         flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO, DM_PROCESS=flag_options.DM_PROCESS)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if user_params.MINIMIZE_MEMORY and not write:
             raise ValueError("If trying to minimize memory usage, you must be caching. Set write=True!")
@@ -3646,13 +3198,12 @@ def run_lightcone(
             ## At the bottom of the redshift loop we evaluate the energy deposited
             ## Here we assume that xHII = xHeII = xe
             ## Do not forget to put the temperature in eV
-
             
             xHII  = np.mean(st.x_e_box)
             xHeII = np.mean(st.x_e_box)
             Tm    = np.mean(st.Tk_box)/eV_to_K  # temperature in eV
 
-            if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is False) : 
+            if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_DM_EFFECTIVE_DEP_FUNCS is False) : 
 
                 ## Boost function 
                 func_boost = phys.struct_boost_func(flag_options.DM_BOOST) if (flag_options.DM_BOOST != 'none') else lambda x: 1
@@ -3661,10 +3212,10 @@ def run_lightcone(
                 ## Here we use full 
                 br_data = dep_21.evolve_one_step(
                                     DM_process=flag_options.DM_PROCESS,
-                                    mDM=astro_params.DM_MASS,
-                                    sigmav=astro_params.DM_SIGMAV,
+                                    mDM=_DM_MASS,
+                                    sigmav=_DM_SIGMAV,
                                     primary=flag_options.DM_PRIMARY,
-                                    lifetime=astro_params.DM_LIFETIME,
+                                    lifetime=_DM_LIFETIME,
                                     struct_boost=func_boost,
                                     init_cond=(xHII, xHeII, Tm), 
                                     coarsen_factor=coarsen_factor,
@@ -3677,10 +3228,7 @@ def run_lightcone(
                                     xHeII_vs_rs = None if flag_options.DM_BACKREACTION else phys.xHeII_std,
                                     Tm_vs_rs = None if flag_options.DM_BACKREACTION else phys.Tm_std)
 
-                # Fetch the deposited fraction at this redshift step
-                # Update the dictionnary
-                # Update the CStructWrapper object
-                
+                # Fetch the deposited fraction at this redshift step       
                 f_H_ion_low_temp   = br_data['f']['low']['H ion'][-1]
                 f_H_ion_high_temp  = br_data['f']['high']['H ion'][-1]
                 f_He_ion_low_temp  = br_data['f']['low']['He ion'][-1]
@@ -3691,45 +3239,53 @@ def run_lightcone(
                 f_heat_high_temp   = br_data['f']['high']['heat'][-1]
                 f_cont_low_temp    = br_data['f']['low']['cont'][-1]
                 f_cont_high_temp   = br_data['f']['high']['cont'][-1]
-
-                rs_temp = br_data['rs'][-1]
-
-                energy_injected_smooth =  injection_rate(flag_options.DM_PROCESS, rs_temp, 
-                                                mDM=astro_params.DM_MASS, sigmav=astro_params.DM_SIGMAV, 
-                                                lifetime=astro_params.DM_LIFETIME) # in erg/s/(number of baryons)
                 
-                #TO BE SET BACK TO THIS VALUE
-                f_dict.append({
-                    "f_H_ION" : f_H_ion_low_temp + f_H_ion_high_temp, 
-                    "f_He_ION": f_He_ion_low_temp + f_He_ion_high_temp, 
-                    "f_HEAT"  : f_heat_low_temp + f_heat_high_temp,
-                    "f_EXC"   : f_exc_low_temp + f_exc_high_temp,
-                    "f_CONT"  : f_cont_low_temp + f_cont_high_temp,
-                    "Inj_ENERGY_SMOOTH" : energy_injected_smooth,
-                    })
-           
-            if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_EFFECTIVE_DEP_FUNCS is True) : 
+                f_HEAT   = f_heat_low_temp + f_heat_high_temp
+                f_H_ION  = f_H_ion_low_temp + f_H_ion_high_temp
+                f_He_ION = f_He_ion_low_temp + f_He_ion_high_temp
+                f_EXC    = f_exc_low_temp + f_exc_high_temp
+                f_CONT   = f_cont_low_temp + f_cont_high_temp
+
+        
+            if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_DM_EFFECTIVE_DEP_FUNCS is True) : 
 
                 # The value of f_heat at z is used to compute the result at z+dz
                 # (Similarly to the case where we use the DarkHistory code)
-                f_HEAT = f_heat_approx(scrollz[iz+1], params= [astro_params.DM_FHEAT_APPROX_PARAM_F0, astro_params.DM_FHEAT_APPROX_PARAM_A, astro_params.DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.dm_fheat_approx_shape_str)
+                f_HEAT = f_heat_approx(scrollz[iz+1], params= [_DM_FHEAT_APPROX_PARAM_F0, _DM_FHEAT_APPROX_PARAM_A,   _DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.dm_fheat_approx_shape_str)
 
-                f_dict.append({
-                    "f_H_ION" : f_H_ION_over_f_HEAT * f_HEAT, 
-                    "f_He_ION": f_He_ION_over_f_HEAT * f_HEAT, 
-                    "f_EXC"   : f_EXC_over_f_HEAT * f_HEAT, 
-                    "f_HEAT"  : f_HEAT, 
-                    "f_CONT"  : 0., # Not really 0 but does not impact the results
-                    "Inj_ENERGY_SMOOTH" : energy_injected_smooth})
-
+                f_H_ION  = f_H_ION_over_f_HEAT * f_HEAT
+                f_He_ION = f_He_ION_over_f_HEAT * f_HEAT
+                f_EXC    = f_EXC_over_f_HEAT * f_HEAT
+                f_CONT   = 0.
+        
 
             if (flag_options.USE_DM_ENERGY_INJECTION is True) : 
-                exotic_energy_injected.update(**(f_dict[-1]))
-                logger.info("| z (next): {:2.2f}".format(scrollz[iz+1]) + " | x_HII: {:1.3e}".format(xHII) +  " | Tm: {:1.3e}".format(Tm*eV_to_K) + " K | f_heat: {:1.3e}".format(f_dict[-1]['f_HEAT']))
+                
+                # We update the tables of deposited fractions for the next redshift step
+                # Update the dictionnary
+                # Update the CStructWrapper object
+                energy_injected_smooth = injection_rate(flag_options.DM_PROCESS, z, 
+                                                        mDM=_DM_MASS, sigmav=_DM_SIGMAV, 
+                                                        lifetime=_DM_LIFETIME) # in erg/s/(number of baryons)
 
+                f_dict.append({
+                    "f_H_ION" : f_H_ION, 
+                    "f_He_ION": f_He_ION, 
+                    "f_HEAT"  : f_HEAT,
+                    "f_EXC"   : f_EXC,
+                    "f_CONT"  : f_CONT,
+                    "Inj_ENERGY_SMOOTH" : energy_injected_smooth,
+                    }) ## This is the entry for redshift scroll[iz+1]
+
+                exotic_energy_injected.update(**(f_dict[-1]))
+                logger.info("| z (next): {:2.2f}".format(scrollz[iz+1]) + " | x_HII (here): {:1.3e}".format(xHII) +  " | Tm (here): {:1.3e}".format(Tm*eV_to_K) + " K | f_heat (next): {:1.3e}".format(f_dict[-1]['f_HEAT']))
+                #print("| z (next): {:2.2f}".format(scrollz[iz+1]) + " | x_HII (here): {:1.3e}".format(xHII) +  " | Tm (here): {:1.3e}".format(Tm*eV_to_K) + " K | f_heat (next): {:1.3e}".format(f_dict[-1]['f_HEAT'])))
+            
                 xHII_arr = np.append(xHII_arr, xHII)
                 Tm_arr   = np.append(Tm_arr, Tm)
-                z_arr    = np.append(z_arr, scrollz[iz+1])
+                z_arr    = np.append(z_arr, z)
+                
+                print(z_arr[-1], Tm_arr[-1], xHII_arr[-1])
             
             #####################################################################################
 
@@ -3739,10 +3295,11 @@ def run_lightcone(
         
         #####################################################################################
         # New in Exo 21cmFAST
-        out_DH = {}
+        output_exotic_energy_injection = {}
         if (flag_options.USE_DM_ENERGY_INJECTION is True) : 
-            out_DH = {
-                'f'  : f_dict,
+            
+            output_exotic_energy_injection = {
+                'f'  : f_dict[:-1],
                 'x'  : xHII_arr, 
                 'Tm' : Tm_arr,   # in eV
                 'z'  : z_arr
@@ -3787,13 +3344,15 @@ def run_lightcone(
                 log10_mturnovers=log10_mturnovers,
                 log10_mturnovers_mini=log10_mturnovers_mini,
             ),
-            out_DH, # New in exo21cmFAST
+            output_exotic_energy_injection, # New in exo21cmFAST
             coeval_callback_output,
         )
         if coeval_callback is None:
             return out[0:2]
         else:
             return out
+
+        
 
 
         

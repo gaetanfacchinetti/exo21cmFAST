@@ -59,7 +59,7 @@ for current_model in input_models :
     ##################### EVALUATION ############################
 
     try:
-        
+
         # Set the directory to our custom cache directory
         cache_direc = db_manager.cache_path + "/_cache_" + str(current_model.index)
         if not os.path.exists(cache_direc): os.mkdir(cache_direc)
@@ -68,17 +68,10 @@ for current_model in input_models :
         # If we do not specify anything it is that we do not care of the DM
         dm_energy_inj = True if (not current_model.process == 'none') else False
 
-        # Set the global parameters for the initial conditions
-        # To take them into account need to set FORCE_INIT_COND to True in the Flag options
-        if (dm_energy_inj is True) and (approx is True) and (current_model.force_init_cond is True) : 
-            p21c.global_params.XION_at_Z_HEAT_MAX = current_model.xe_init
-            p21c.global_params.TK_at_Z_HEAT_MAX   = current_model.Tm_init
-
         # Run the lightcone accordingly
-        lightcone, output_DH = p21c.run_lightcone(
-            redshift = 4,  # Minimal value of redshift -> Here we will go slightly lower (cannot go below z = 4 for DarkHistory)
-            #max_redshift = max_redshift, # Maximal value of redshift -- By default Z_HEAT_MAX for None of when USE_TS_FLUCT = True
-            ## User parameters
+        lightcone, output_exotic_energy_injection = p21c.run_lightcone(
+            redshift = 4,        # Minimal value of redshift -> Here we will go slightly lower (cannot go below z = 4 for DarkHistory)
+            max_redshift = None, # Maximal value of redshift -- By default Z_HEAT_MAX for None of when USE_TS_FLUCT = True
             user_params = {
                 "BOX_LEN":                  50,    # Default value: 300  (Box length Mpc) 1000
                 "DIM":                      None,  # Default value: None / gives DIM=3*HII_DIM (High resolution) None
@@ -97,50 +90,54 @@ for current_model in input_models :
             },
 
             astro_params = {
-                ## -- Parameters of the DM model : specific to exo21cmFAST
-                "DM_MASS":         current_model.mDM,       # DM mass in eV
-                "DM_SIGMAV":       current_model.sigmav,    # Annihilation cross-section (in cm^3/s) | relevant only if DM_PROCESS = 'swave' 
-                "DM_LIFETIME":     current_model.lifetime,  # Lifetime | relevant only if DM_PROCESS = 'decay'
+                "LOG10_XION_at_Z_HEAT_MAX"  : np.log10(current_model.xe_init) if approx else -99, # Default value:  only effective is USE_CUSTOM_INIT_COND = True
+                "LOG10_TK_at_Z_HEAT_MAX"    : np.log10(current_model.Tm_init) if approx else -99, # Default value: -1 only effective is USE_CUSTOM_INIT_COND = True
 
-                # Specific to the template functions
-                "DM_FHEAT_APPROX_PARAM_F0": current_model.approx_params[0]   if (approx and len(current_model.approx_params) > 0) else 0,    # Parameters (list) to feed to the template of fheat
-                "DM_FHEAT_APPROX_PARAM_A":  current_model.approx_params[1]   if (approx and len(current_model.approx_params) > 1) else 0.,   # Parameters (list) to feed to the template of fheat
-                "DM_FHEAT_APPROX_PARAM_B":  current_model.approx_params[2]   if (approx and len(current_model.approx_params) > 2) else 0.,   # Parameters (list) to feed to the template of fheat
-                "DM_FION_H_OVER_FHEAT":     current_model.fion_H_over_fheat  if approx else -1,      # Ratio of f_ion_H over fheat  (if < 0 use values tabulated with DarkHistory)
-                "DM_FION_HE_OVER_FHEAT":    current_model.fion_He_over_fheat if approx else -1,      # Ratio of f_ion_He over fheat (if < 0 use values tabulated with DarkHistory)
-                "DM_FEXC_OVER_FHEAT":       current_model.fexc_over_fheat    if approx else -1,      # Ratio of fexc over fheat     (if < 0 use values tabulated with DarkHistory)
+                # --------------------------------------------------------------------------------------------------- #
+                "DM_LOG10_MASS"     : np.log10(current_model.mDM),                                                    # DM mass in eV
+                "DM_LOG10_SIGMAV"   : np.log10(current_model.sigmav)   if current_model.process == 'swave' else -99,  # Annihilation cross-section (in cm^3/s) | relevant only if DM_PROCESS = 'swave' 
+                "DM_LOG10_LIFETIME" : np.log10(current_model.lifetime) if current_model.process == 'decay' else -99,  # Lifetime | relevant only if DM_PROCESS = 'decay'
+
+                "DM_FHEAT_APPROX_PARAM_LOG10_F0" : np.log10(current_model.approx_params[0])   if (approx and len(current_model.approx_params) > 0) else -99,    # Parameters (list) to feed to the template of fheat
+                "DM_FHEAT_APPROX_PARAM_A"        : current_model.approx_params[1]             if (approx and len(current_model.approx_params) > 1) else -99,    # Parameters (list) to feed to the template of fheat
+                "DM_FHEAT_APPROX_PARAM_B"        : current_model.approx_params[2]             if (approx and len(current_model.approx_params) > 2) else -99,    # Parameters (list) to feed to the template of fheat
+                "DM_LOG10_FION_H_OVER_FHEAT"     : np.log10(current_model.fion_H_over_fheat)  if approx and current_model.fion_H_over_fheat > 0    else -99,    # Ratio of f_ion_H over fheat  (if < 0 use values tabulated with DarkHistory)
+                "DM_LOG10_FION_HE_OVER_FHEAT"    : np.log10(current_model.fion_He_over_fheat) if approx and current_model.fion_He_over_fheat > 0   else -99,    # Ratio of f_ion_He over fheat (if < 0 use values tabulated with DarkHistory)
+                "DM_LOG10_FEXC_OVER_FHEAT"       : np.log10(current_model.fexc_over_fheat)    if approx and current_model.fexc_over_fheat > 0      else -99,    # Ratio of fexc over fheat     (if < 0 use values tabulated with DarkHistory)
+                # --------------------------------------------------------------------------------------------------- #
             },
 
-            # All default flag_options are False
             flag_options = {
-                "USE_HALO_FIELD":           False, # Turn on halo field / otherwise mean collase (much faster) 
-                "USE_MINI_HALOS":           True , # Something for mini halos
-                "USE_MASS_DEPENDENT_ZETA":  True , # I don't understand this one
-                "SUBCELL_RSD":              True , # Add sub-cell redshift-space-distortion. Only effective if USE_TS_FLUCT:True
-                "INHOMO_RECO":              True , # Turn on inhomogeneous recombinations. Increases computation time
-                "USE_TS_FLUCT":             True,  # Turn on IGM spin temperature fluctuations
-                "M_MIN_in_Mass":            False, # If False minimal halo mass for virialisation set from temperature
-                "PHOTON_CONS":              False, # Turn on a small correction to account for photon non conservation
-                "FIX_VCB_AVG":              False, # I don't understand this one
-            
-                ## -- Parameters of the DM model : specific to exo21cmFAST
-                "USE_DM_ENERGY_INJECTION":  dm_energy_inj,                                                         # Turn on DM energy injection
-                "USE_EFFECTIVE_DEP_FUNCS":  True if (approx and current_model.approx_shape != 'none') else False,  # Treat the energy injection with approximate templates (instead of DarkHistory)
-                "FORCE_INIT_COND":          current_model.force_init_cond if approx else False,                    # Force initial conditions to that without DM energy injection (always)
-
-                # Specific to DarkHistory
-                "DM_PROCESS":               current_model.process,                                 # Energy injection process 'swave', 'decay', ... 
-                "DM_PRIMARY":               current_model.primary    if (not approx) else 'none',  # Primary particles (see list in user_params description)
-                "DM_BOOST":                 current_model.boost      if (not approx) else 'none',  # Annihilation boost | relevant only if DM_PROCESS = 'swave' 
-                "DM_FS_METHOD":             current_model.fs_method  if (not approx) else 'none',  # Method to compute the energy deposition (see DarkHistory doc)
-                "DM_BACKREACTION":          current_model.bkr        if (not approx) else False,   # Turns on backreaction
+                "USE_MINI_HALOS"          : False,                            # Something for mini halos
+                "USE_MASS_DEPENDENT_ZETA" : False,                            # Set zeta as a mass dependent function
+                "SUBCELL_RSD"             : False,                            # Add sub-cell redshift-space-distortion. Only effective if USE_TS_FLUCT:True
+                "INHOMO_RECO"             : False,                            # Turn on inhomogeneous recombinations. Increases computation time
+                "USE_TS_FLUCT"            : True,                             # Turn on IGM spin temperature fluctuations
+                "USE_HALO_FIELD"          : False,                            # Turn on halo field / otherwise mean collase (much faster) 
+                "M_MIN_in_Mass"           : False,                            # If False minimal halo mass for virialisation set from temperature
+                "PHOTON_CONS"             : False,                            # Turn on a small correction to account for photon non conservation
+                "FIX_VCB_AVG"             : False,                            # 
+                "FORCE_DEFAULT_INIT_COND" : False,                            # Force the initial condition to that without DM energy injection
+                "USE_CUSTOM_INIT_COND"    : current_model.force_init_cond if approx else False,    # Force initial conditions to the value defined by 
                 
-                # Specific to the template functions
-                "DM_FHEAT_APPROX_SHAPE":    current_model.approx_shape   if approx else 'none',                    # Shape of the template for f_heat
+
+                # --------------------------------------------------------------------------------------------------- #
+                "USE_DM_ENERGY_INJECTION"    : dm_energy_inj,   # Turn on DM energy injection
+                "USE_DM_EFFECTIVE_DEP_FUNCS" : approx,          # Treat the energy injection with approximate templates (instead of DarkHistory)
+                "USE_DM_CUSTOM_F_RATIOS"     : False,           # Not really important here (this is just used for checks)
+                
+                "DM_PROCESS"      : current_model.process,                                 # Energy injection process 'swave', 'decay', ... 
+                "DM_PRIMARY"      : current_model.primary    if (not approx) else 'none',  # Primary particles (see list in user_params description)
+                "DM_BOOST"        : current_model.boost      if (not approx) else 'none',  # Annihilation boost | relevant only if DM_PROCESS = 'swave' 
+                "DM_FS_METHOD"    : current_model.fs_method  if (not approx) else 'none',  # Method to compute the energy deposition (see DarkHistory doc)
+                "DM_BACKREACTION" : current_model.bkr        if (not approx) else False,   # Turns on backreaction
+                
+                "DM_FHEAT_APPROX_SHAPE" : current_model.approx_shape  if approx else 'none',  # Shape of the template for f_heat
+                # --------------------------------------------------------------------------------------------------- #
             },
-            coarsen_factor=16,  # Input factor that determine the redshift steps (put 16 to roughly have the default 21cmFAST value)
-            lightcone_quantities=('brightness_temp', 'xH_box',),
-            global_quantities=('brightness_temp', 'density', 'xH_box', 'x_e_box', 'Ts_box', 'Tk_box'),
+            coarsen_factor       = 16,  # Input factor that determine the redshift steps (put 16 to roughly have the default 21cmFAST value)
+            lightcone_quantities = ('brightness_temp', 'xH_box',),
+            global_quantities    = ('brightness_temp', 'density', 'xH_box', 'x_e_box', 'Ts_box', 'Tk_box'),
             direc=cache_direc, 
         )
 
@@ -150,7 +147,7 @@ for current_model in input_models :
 
         # Save the result of this lightcone
         # The output from DarkHistory
-        if dm_energy_inj == True : db_manager.print_f_vs_rs_from21cmFAST(output_DH, current_model)
+        if dm_energy_inj == True : db_manager.print_f_vs_rs_from21cmFAST(output_exotic_energy_injection, current_model)
 
         # The output from 21cmFAST is saved in a lightcone file
         # Moreover, we prepare the folder for the analysis of this lightcone

@@ -1,6 +1,6 @@
 figure.figsize : 5, 4
 
-#text.usetex : True
+text.usetex : True
 font.family : serif
 
 

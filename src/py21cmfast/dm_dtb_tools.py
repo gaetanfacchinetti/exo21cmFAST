@@ -21,12 +21,11 @@
 
 import os
 from pathlib import Path
-from collections.abc import Callable
 import shutil
 import copy
 from abc import abstractmethod
-
 import logging
+
 logger = logging.getLogger(__name__)
 
 ''' 

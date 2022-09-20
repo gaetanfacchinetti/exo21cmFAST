@@ -652,12 +652,21 @@ class FlagOptions(StructWithDefaults):
         3: 'schechter'
     USE_DM_ENERGY_INJECTION: bool, optional
         Whether to introude exotic energy injection due to DM annihilation or decay
-        Be default the code will be using DarkHistory to evaluate the injected energy
-    USE_EFFECTIVE_DEP_FUNCS: bool, optional
+        By default there is no exotic energy injection
+    USE_DM_EFFECTIVE_DEP_FUNCS: bool, optional
         If set to True, then the code will not use DarkHistory but rather an effective, approximated energy deposition functions (tabulated on DarkHistory)
-        Note that, for now, impossible to have USE_DM_ENERGY_INJECTION = True and USE_EFF = False if DM_PROCESS is different from 'decay'
-    FORCE_INIT_COND: bool, optional
-        If set to True then the initial conditions are set as if there had not been injection of energy due to DM before Z_HEAT_MAX
+    USE_DM_CUSTOM_F_RATIOS: bool, optional
+        Sets the ratios of f_ion/f_heat and f_exc/f_heat with DM_FION_H_OVER_FHEAT, ... in AstroParams
+    USE_CUSTOM_INIT_COND: bool, optional
+        Forces initial conditions to `TK_at_Z_HEAT_MAX` and `XION_at_Z_HEAT_MAX` in AstroParams
+        Note that if `USE_CUSTOM_INIT_COND` is False and `FORCE_DEFAULT_INIT_COND` is False the initial conditions are set 
+        either by vanilla RECFAST if USE_DM_EFFECTIVE_DEP_FUNCS is False or by the result of the DarkHistory run otherwise
+        Cannot be set to True if `FORCE_DEFAULT_INIT_COND` is True as well
+    FORCE_DEFAULT_INIT_COND: bool, optional
+        Forces the initial conditions to be that of vanilla RECFAST (even if exotic energy injection has happened before redshift Z_HEAT_MAX)
+        Note that if `USE_CUSTOM_INIT_COND` is False and `FORCE_DEFAULT_INIT_COND` is False the initial conditions are set 
+        either by vanilla RECFAST if `USE_DM_EFFECTIVE_DEP_FUNCS` is False or by the result of the DarkHistory run otherwise
+        Cannot be set to True if `USE_CUSTOM_INIT_COND` is True as well
     """
 
     _ffi = ffi
@@ -673,17 +682,20 @@ class FlagOptions(StructWithDefaults):
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
 
-        ## Gaetan
-        "DM_PROCESS": 'SWAVE',
-        "DM_PRIMARY": 'elec_delta',
-        "DM_BOOST": 'erfc',
-        "DM_FS_METHOD": 'no_He',
-        "DM_BACKREACTION": True,
-        'DM_FHEAT_APPROX_SHAPE':  'constant',
+        ## New in exo21cmFAST
+        "DM_PROCESS"            : 'swave',
+        "DM_PRIMARY"            : 'elec_delta',
+        "DM_BOOST"              : 'erfc',
+        "DM_FS_METHOD"          : 'no_He',
+        "DM_BACKREACTION"       : True,
+        'DM_FHEAT_APPROX_SHAPE' : 'constant',
 
-        "USE_DM_ENERGY_INJECTION": False,
-        "USE_EFFECTIVE_DEP_FUNCS": False,
-        "FORCE_INIT_COND": False
+        "USE_DM_ENERGY_INJECTION"    : False,
+        "USE_DM_EFFECTIVE_DEP_FUNCS" : False,
+        "USE_DM_CUSTOM_F_RATIOS"     : False,
+        
+        "USE_CUSTOM_INIT_COND"       : False,
+        "FORCE_DEFAULT_INIT_COND"    : False,
     }
 
     # This checks if relative velocities are off to complain if minihaloes are on
@@ -854,23 +866,48 @@ class FlagOptions(StructWithDefaults):
             raise ValueError("USE_DM_ENERGY_INJECTION must be a bool")
 
     @property
-    def USE_EFFECTIVE_DEP_FUNCS(self):
+    def USE_DM_EFFECTIVE_DEP_FUNCS(self):
         """ Specify if we treat DM energy injection at the effective level or with DarkHistory """
-        if isinstance(self._USE_EFFECTIVE_DEP_FUNCS, bool):
-            if self._USE_DM_ENERGY_INJECTION is False and self._USE_EFFECTIVE_DEP_FUNCS is True :  
-                raise ValueError("USE_DM_ENERGY_INJECTION must be True to set USE_EFFECTIVE_DEP_FUNCS to True")
+        if isinstance(self._USE_DM_EFFECTIVE_DEP_FUNCS, bool):
+            if self._USE_DM_ENERGY_INJECTION is False and self._USE_DM_EFFECTIVE_DEP_FUNCS is True :  
+                raise ValueError("USE_DM_ENERGY_INJECTION must be True to set USE_DM_EFFECTIVE_DEP_FUNCS to True")
             else:
-                return self._USE_EFFECTIVE_DEP_FUNCS
+                return self._USE_DM_EFFECTIVE_DEP_FUNCS
         else:
             raise ValueError("EFFECTIVE_DEP_FUNCS must be a bool")
 
     @property
-    def FORCE_INIT_COND(self):
-        """ Force init condition to that obtained without DM (whether we included DM energy injection of not) """
-        if isinstance(self._FORCE_INIT_COND, bool):
-            return self._FORCE_INIT_COND
+    def USE_DM_CUSTOM_F_RATIOS(self):
+        """ Use custom ratios of f_ion/f_heat, f_exc/f_heat, etc. """
+        if isinstance(self._USE_DM_CUSTOM_F_RATIOS, bool):
+            return self._USE_DM_CUSTOM_F_RATIOS
         else:
-            raise ValueError("FORCE_INIT_COND must be a bool")
+            return ValueError("USE_DM_CUSTOM_F_RATIOS must be a bool")
+
+
+    @property
+    def USE_CUSTOM_INIT_COND(self):
+        """ Force init condition to that set in AstroParams """
+        if isinstance(self._USE_CUSTOM_INIT_COND, bool):
+            return self._USE_CUSTOM_INIT_COND
+        else:
+            raise ValueError("USE_CUSTOM_INIT_COND must be a bool")
+
+
+    @property
+    def FORCE_DEFAULT_INIT_COND(self):
+        """ Force init condition to that obtained without DM (whether we included DM energy injection of not) """
+        if isinstance(self._FORCE_DEFAULT_INIT_COND, bool):
+            if self._USE_CUSTOM_INIT_COND == True and self._FORCE_DEFAULT_INIT_COND == True:
+                return ValueError("FORCE_DEFAULT_INIT_COND and USE_CUSTOM_INIT_COND cannot be both set to True")
+            elif self._USE_CUSTOM_INIT_COND == False and self._USE_DM_ENERGY_INJECTION == False and self._FORCE_DEFAULT_INIT_COND == False:
+                logger.warning("If USE_CUSTOM_INITIAL_COND and USE_DM_ENERGY_INJECTION are False then \
+                                we must use the defaut values and FORCE_DEFAULT_INIT_COND is set to True")
+                return True
+            else:    
+                return self._FORCE_DEFAULT_INIT_COND
+        else:
+            raise ValueError("FORCE_DEFAULT_INIT_COND must be a bool")
 
 
     @property
@@ -974,44 +1011,50 @@ class AstroParams(StructWithDefaults):
     A_VCB, BETA_VCB: float, optional
         Impact of the DM-baryon relative velocities on Mturn for minihaloes. Default is 1.0 and 1.8, and agrees between different sims. See Sec 2 of Muñoz+21 (2110.13919).
 
-    -- Properties of DM energy injection with DarkHistory or effective relations
-    DM_MASS: float, optional
-        Mass of the dark matter particle in eV
-        By default it is set to 1e+10 eV
-    DM_SIGMAV: float, optional
-        Annihilation cross section in cm^3 s^{-1}
-        If -2 it is evaluated as (pann=3.5e-28)*(M_DM/1GeV)/f_eff with f_eff = 0.5
-        If -1 it is tabulated on Planck18 curves
-        By default it is set to -2
-    DM_LIFETIME: float, optional
-        Lifetime of decaying dark matter in s
-        By default it is set to 1 s
-    DM_FHEAT_APPROX_PARAM_F0: float, optional
-        Parameters to feed to the functional form for f_heat (see above)
+    -- Properties of DM energy injection with DarkHistory or templates
+    DM_LOG10_MASS: float, optional
+        Mass of the dark matter particle -- given as log10(mass/eV)
+        By default it is set to 10 
+    DM_LOG10_SIGMAV: float, optional
+        Annihilation cross section -- given as log10(mass/(cm^3 s^{-1}))
+        Be default it is set to -26
+    DM_LOG10_LIFETIME: float, optional
+        Lifetime of decaying dark matter -- given as log10(lifetime/eV)
+        By default it is set to 26
+    DM_FHEAT_APPROX_PARAM_LOG10_F0: float, optional
+        Parameters to feed to the functional form for f_heat -- given as log10(f_0)
+        By default it is set to -1
     DM_FHEAT_APPROX_PARAM_A: float, optional
-        Parameters to feed to the functional form for f_heat (see above)
+        Parameters to feed to the functional form for f_heat 
+        By default it is set to 0.
     DM_FHEAT_APPROX_PARAM_B: float, optional
-        Parameters to feed to the functional form for f_heat (see above)
-    DM_FION_H_OVER_FHEAT: float, optional
-        Ratio of the deposition fraction into ionisation of hydrogen over heat
+        Parameters to feed to the functional form for f_heat 
+        By default it is set to 0.
+    DM_LOG10_FION_H_OVER_FHEAT: float, optional
+        Ratio of the deposition fraction into ionisation of hydrogen over heat -- given as log10(f_ion_H/f_heat)
+        Only effective if USE_DM_CUSTOM_F_RATIOS = True
         (This assumes that this ratio is a constant for all z)
-        By default the values tabulated from DarkHistory are used
-    DM_FION_HE_OVER_FHEAT: float, optional
-        Ratio of the deposition fraction into ionisation of helium over heat
+        By default it is set to 0.
+    DM_LOG10_FION_HE_OVER_FHEAT: float, optional 
+        Ratio of the deposition fraction into ionisation of helium over heat  -- given as log10(f_ion_He/f_heat)
+        Only effective if USE_DM_CUSTOM_F_RATIOS = True
         (This assumes that this ratio is a constant for all z)
-        By default the values tabulated from DarkHistory are used
-    DM_FEXC_OVER_FHEAT: float, optional
-        Ratio of the deposition fraction into excitation over heat
+        By default it is set to 0.
+    DM_LOG10_FEXC_OVER_FHEAT: float, optional
+        Ratio of the deposition fraction into excitation over heat -- given as log10(f_exc/f_heat)
+        Only effective if USE_DM_CUSTOM_F_RATIOS = True
         (This assumes that this ratio is a constant for all z)
-        By default the values tabulated from DarkHistory are used
-    TK_at_Z_HEAT_MAX : float
-        If positive, then overwrite default boundary conditions for the evolution
-        equations with this value. The default is to use the value obtained from RECFAST.
-        See also `XION_at_Z_HEAT_MAX`.
-    XION_at_Z_HEAT_MAX : float
-        If positive, then overwrite default boundary conditions for the evolution
-        equations with this value. The default is to use the value obtained from RECFAST.
-        See also `TK_at_Z_HEAT_MAX`.
+        By default it is set to 0.
+    LOG10_TK_at_Z_HEAT_MAX : float, optional
+        Default boundary conditions for the evolution -- given as log10(TK/K)
+        The default value is -99
+        Nonetheless the code always put `FORCE_DEFAULT_INIT_COND` to True if no other options are given
+        See also `FORCE_DEFAULT_INIT_COND` and `USE_CUSTOM_INIT_COND`
+    LOG10_XION_at_Z_HEAT_MAX : float, optional
+        Default boundary conditions for the evolution -- given as log10(xe)
+        The default value if -99
+        Nonetheless the code always put `FORCE_DEFAULT_INIT_COND` to True if no other options are given
+        See also `FORCE_DEFAULT_INIT_COND` and `USE_CUSTOM_INIT_COND`
     """
 
     _ffi = ffi
@@ -1041,26 +1084,26 @@ class AstroParams(StructWithDefaults):
         "A_VCB": 1.0,
         "BETA_VCB": 1.8,
 
-        "DM_MASS": 1e+10,
-        "DM_SIGMAV": 3e+26,
-        "DM_LIFETIME": 1,
-        'DM_FHEAT_APPROX_PARAM_F0': 1.5310e-01,
-        'DM_FHEAT_APPROX_PARAM_A': -3.2090e-03,
-        'DM_FHEAT_APPROX_PARAM_B': 1.2950e-01,
-        'DM_FION_H_OVER_FHEAT': -1,
-        'DM_FION_HE_OVER_FHEAT': -1,
-        'DM_FEXC_OVER_FHEAT': -1,
-		'TK_at_Z_HEAT_MAX' : -1,
-		'XION_at_Z_HEAT_MAX': -1,
+        # New in exo21cmFAST
+        "DM_LOG10_MASS"                  : 10,
+        "DM_LOG10_SIGMAV"                : -26,
+        "DM_LOG10_LIFETIME"              : 26,
+        "DM_FHEAT_APPROX_PARAM_LOG10_F0" : -1.,
+        "DM_FHEAT_APPROX_PARAM_A"        : 0.,
+        "DM_FHEAT_APPROX_PARAM_B"        : 0.,
+        "DM_LOG10_FION_H_OVER_FHEAT"     : -99,
+        "DM_LOG10_FION_HE_OVER_FHEAT"    : -99,
+        "DM_LOG10_FEXC_OVER_FHEAT"       : -99,
+		"LOG10_TK_at_Z_HEAT_MAX"         : -99,
+		"LOG10_XION_at_Z_HEAT_MAX"       : -99,
     }
 
     def __init__(
-        self, *args, INHOMO_RECO=FlagOptions._defaults_["INHOMO_RECO"], DM_PROCESS=FlagOptions._defaults_["DM_PROCESS"], **kwargs
+        self, *args, INHOMO_RECO=FlagOptions._defaults_["INHOMO_RECO"], **kwargs
     ):
         # TODO: should try to get inhomo_reco out of here... just needed for default of
         #  R_BUBBLE_MAX.
         self.INHOMO_RECO = INHOMO_RECO
-        self.DM_PROCESS = DM_PROCESS
         super().__init__(*args, **kwargs)
 
     def convert(self, key, val):
@@ -1137,42 +1180,36 @@ class AstroParams(StructWithDefaults):
             return self._t_STAR
 
     @property
-    def DM_MASS(self):
+    def DM_LOG10_MASS(self):
         """ Mass of the dark matter particle in eV """
-        if isinstance(self._DM_MASS, (int, float)) and self._DM_MASS >= 0:
-            return float(self._DM_MASS)
+        if isinstance(self._DM_LOG10_MASS, (int, float)) and self._DM_LOG10_MASS >= 0:
+            return float(self._DM_LOG10_MASS)
         else :
-            raise ValueError("DM_MASS must be a positive float")
+            raise ValueError("DM_LOG10_MASS must be a positive float")
 
     @property
-    def DM_SIGMAV(self):
+    def DM_LOG10_SIGMAV(self):
         """ Annihilation cross section in cm^3 s^{-1} """
-        if isinstance(self._DM_SIGMAV, (int, float)) :
-            if self._DM_SIGMAV <= 0 and self.DM_PROCESS.lower() == 'swave':
-                raise ValueError("DM_SIGMAV must be a positive float if DM_PROCESS is set to swave")
-            else:
-                return float(self._DM_SIGMAV)
+        if isinstance(self._DM_LOG10_SIGMAV, (int, float)) :
+            return float(self._DM_LOG10_SIGMAV)
         else:
-            raise ValueError("DM_SIGMAV must be a float")
+            raise ValueError("DM_LOG10_SIGMAV must be a float")
 
     @property
-    def DM_LIFETIME(self):
+    def DM_LOG10_LIFETIME(self):
         """ Lifetime of decaying dark matter in s """
-        if isinstance(self._DM_LIFETIME, (int, float)) :
-            if self._DM_LIFETIME <= 0 and self.DM_PROCESS.lower() == 'decay':
-                raise ValueError("DM_LIFETIME must be a positive float if DM_PROCESS is set to decay")
-            else:
-                return float(self._DM_LIFETIME)
+        if isinstance(self._DM_LOG10_LIFETIME, (int, float)) :
+            return float(self._DM_LOG10_LIFETIME)
         else:
-            raise ValueError("DM_LIFETIME must be a float")
+            raise ValueError("DM_LOG10_LIFETIME must be a float")
 
     @property
-    def DM_FHEAT_APPROX_PARAM_F0(self):
+    def DM_FHEAT_APPROX_PARAM_LOG10_F0(self):
         """ parameters of the DM_FHEAT_APPROX """
-        if isinstance(self._DM_FHEAT_APPROX_PARAM_F0, (int, float)):
-            return float(self._DM_FHEAT_APPROX_PARAM_F0)
+        if isinstance(self._DM_FHEAT_APPROX_PARAM_LOG10_F0, (int, float)):
+            return float(self._DM_FHEAT_APPROX_PARAM_LOG10_F0)
         else :
-            raise ValueError("DM_FHEAT_APPROX_PARAM_F0 must be a float")
+            raise ValueError("DM_FHEAT_APPROX_PARAM_LOG10_F0 must be a float")
 
     @property
     def DM_FHEAT_APPROX_PARAM_A(self):
@@ -1191,37 +1228,54 @@ class AstroParams(StructWithDefaults):
             raise ValueError("DM_FHEAT_APPROX_PARAM_B must be a float")
 
     @property
-    def DM_FION_H_OVER_FHEAT(self):
+    def DM_LOG10_FION_H_OVER_FHEAT(self):
         """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
-        if self._DM_FION_H_OVER_FHEAT is None :
+        if self._DM_LOG10_FION_H_OVER_FHEAT is None :
             return None
 
-        if isinstance(self._DM_FION_H_OVER_FHEAT, (int, float)):
-            return float(self._DM_FION_H_OVER_FHEAT)
+        if isinstance(self._DM_LOG10_FION_H_OVER_FHEAT, (int, float)):
+            return float(self._DM_LOG10_FION_H_OVER_FHEAT)
         else :
-            raise ValueError("DM_FION_H_OVER_FHEAT must be a float")
+            raise ValueError("DM_LOG10_FION_H_OVER_FHEAT must be a float")
 
     @property
-    def DM_FION_HE_OVER_FHEAT(self):
+    def DM_LOG10_FION_HE_OVER_FHEAT(self):
         """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
-        if self._DM_FION_HE_OVER_FHEAT is None :
+        if self._DM_LOG10_FION_HE_OVER_FHEAT is None :
             return None
 
-        if isinstance(self._DM_FION_HE_OVER_FHEAT, (int, float)):
-            return float(self._DM_FION_HE_OVER_FHEAT)
+        if isinstance(self._DM_LOG10_FION_HE_OVER_FHEAT, (int, float)):
+            return float(self._DM_LOG10_FION_HE_OVER_FHEAT)
         else :
-            raise ValueError("DM_FION_HE_OVER_FHEAT must be a float")
+            raise ValueError("DM_LOG10_FION_HE_OVER_FHEAT must be a float")
 
     @property
-    def DM_FEXC_OVER_FHEAT(self):
+    def DM_LOG10_FEXC_OVER_FHEAT(self):
         """ Constant ratio ofenergy deposited into ionisation of hydrogen over heat """
-        if self._DM_FEXC_OVER_FHEAT is None :
+        if self._DM_LOG10_FEXC_OVER_FHEAT is None :
             return None
 
-        if isinstance(self._DM_FEXC_OVER_FHEAT, (int, float)):
-            return float(self._DM_FEXC_OVER_FHEAT)
+        if isinstance(self._DM_LOG10_FEXC_OVER_FHEAT, (int, float)):
+            return float(self._DM_LOG10_FEXC_OVER_FHEAT)
         else :
-            raise ValueError("DM_FEXC_OVER_FHEAT must be a float")
+            raise ValueError("DM_LOG10_FEXC_OVER_FHEAT must be a float")
+
+    @property
+    def LOG10_TK_at_Z_HEAT_MAX(self):
+        """ Value of the IGM temperature at Z_HEAT_MAX """
+        if isinstance(self._LOG10_TK_at_Z_HEAT_MAX, (int, float)):
+            return float(self._LOG10_TK_at_Z_HEAT_MAX)
+        else :
+            raise ValueError("LOG10_TK_at_ZHEAT_MAX must be a float")
+
+    @property
+    def LOG10_XION_at_Z_HEAT_MAX(self):
+        """ Value of the IGM temperature at Z_HEAT_MAX """
+        if isinstance(self._LOG10_XION_at_Z_HEAT_MAX, (int, float)):
+            return float(self._LOG10_XION_at_Z_HEAT_MAX)
+        else :
+            raise ValueError("LOG10_XION_at_ZHEAT_MAX must be a float")
+
 
 
 #####################################################################################

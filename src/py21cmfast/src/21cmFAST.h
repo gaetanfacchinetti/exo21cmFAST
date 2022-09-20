@@ -66,11 +66,11 @@ struct AstroParams{
 
     int N_RSD_STEPS;
 
-    float DM_MASS;
-    float DM_SIGMAV;
-    float DM_LIFETIME;
-	float TK_at_Z_HEAT_MAX;
-	float XION_at_Z_HEAT_MAX;
+    float DM_LOG10_MASS;
+    float DM_LOG10_SIGMAV;
+    float DM_LOG10_LIFETIME;
+	float LOG10_TK_at_Z_HEAT_MAX;
+	float LOG10_XION_at_Z_HEAT_MAX;
 };
 
 struct FlagOptions{
@@ -89,11 +89,8 @@ struct FlagOptions{
 
     // DM related quantities
     // Be careful we cannot pass char* 
-    //char* DM_PROCESS;
-    //char* DM_PRIMARY;
-    //char* DM_BOOST;
-    //char* DM_FS_METHOD;
     bool DM_BACKREACTION;
+    bool FORCE_DEFAULT_INIT_COND;
 };
 
 
