@@ -903,7 +903,8 @@ class FlagOptions(StructWithDefaults):
             elif self._USE_CUSTOM_INIT_COND == False and self._USE_DM_ENERGY_INJECTION == False and self._FORCE_DEFAULT_INIT_COND == False:
                 logger.warning("If USE_CUSTOM_INITIAL_COND and USE_DM_ENERGY_INJECTION are False then \
                                 we must use the defaut values and FORCE_DEFAULT_INIT_COND is set to True")
-                return True
+                self._FORCE_DEFAULT_INIT_COND = True
+                return self._FORCE_DEFAULT_INIT_COND
             else:    
                 return self._FORCE_DEFAULT_INIT_COND
         else:
@@ -1266,7 +1267,7 @@ class AstroParams(StructWithDefaults):
         if isinstance(self._LOG10_TK_at_Z_HEAT_MAX, (int, float)):
             return float(self._LOG10_TK_at_Z_HEAT_MAX)
         else :
-            raise ValueError("LOG10_TK_at_ZHEAT_MAX must be a float")
+            raise ValueError("LOG10_TK_at_Z_HEAT_MAX must be a float")
 
     @property
     def LOG10_XION_at_Z_HEAT_MAX(self):
@@ -1274,7 +1275,7 @@ class AstroParams(StructWithDefaults):
         if isinstance(self._LOG10_XION_at_Z_HEAT_MAX, (int, float)):
             return float(self._LOG10_XION_at_Z_HEAT_MAX)
         else :
-            raise ValueError("LOG10_XION_at_ZHEAT_MAX must be a float")
+            raise ValueError("LOG10_XION_at_Z_HEAT_MAX must be a float")
 
 
 

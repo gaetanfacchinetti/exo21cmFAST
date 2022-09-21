@@ -635,13 +635,11 @@ class DatabaseManager:
     def print_f_vs_rs_from21cmFAST(self, evolve_data, input) :
 
         # Extract the values from the dictionnary evolve_data
-        z = evolve_data['z']
-        f = evolve_data['f']
-        T = evolve_data['Tm']
-        x = evolve_data['x']
+        z  = evolve_data['z']
+        f  = evolve_data['f']
+        Tm = evolve_data['Tm']
+        x  = evolve_data['x']
 
-        #print(len(f), f[-1])
-        #print(len(z), z)
 
         filename = self.path_result_run + str(input.index) + ".txt"
         
@@ -654,7 +652,7 @@ class DatabaseManager:
             for iz, zval in enumerate(z) :
                 print(zval, "\t", f[iz]['f_H_ION'], "\t", f[iz]['f_He_ION'], "\t",
                     f[iz]['f_EXC'], "\t", f[iz]['f_HEAT'], "\t", f[iz]['f_CONT'], "\t",
-                    f[iz]['Inj_ENERGY_SMOOTH'], "\t", x[iz], "\t", T[iz], file=ff)
+                    f[iz]['Inj_ENERGY_SMOOTH'], "\t", x[iz], "\t", Tm[iz], file=ff)
 
 
     def remove_show_models(self, args):

@@ -70,7 +70,7 @@ for current_model in input_models :
 
         # Run the lightcone accordingly
         lightcone, output_exotic_energy_injection = p21c.run_lightcone(
-            redshift = 4,        # Minimal value of redshift -> Here we will go slightly lower (cannot go below z = 4 for DarkHistory)
+            redshift = 20,        # Minimal value of redshift -> Here we will go slightly lower (cannot go below z = 4 for DarkHistory)
             max_redshift = None, # Maximal value of redshift -- By default Z_HEAT_MAX for None of when USE_TS_FLUCT = True
             user_params = {
                 "BOX_LEN":                  50,    # Default value: 300  (Box length Mpc) 1000
@@ -90,17 +90,17 @@ for current_model in input_models :
             },
 
             astro_params = {
-                "LOG10_XION_at_Z_HEAT_MAX"  : np.log10(current_model.xe_init) if approx else -99, # Default value:  only effective is USE_CUSTOM_INIT_COND = True
-                "LOG10_TK_at_Z_HEAT_MAX"    : np.log10(current_model.Tm_init) if approx else -99, # Default value: -1 only effective is USE_CUSTOM_INIT_COND = True
+                "LOG10_XION_at_Z_HEAT_MAX"  : np.log10(current_model.xe_init) if approx else -99, # Only effective is USE_CUSTOM_INIT_COND = True
+                "LOG10_TK_at_Z_HEAT_MAX"    : np.log10(current_model.Tm_init) if approx else -99, # Only effective is USE_CUSTOM_INIT_COND = True
 
                 # --------------------------------------------------------------------------------------------------- #
                 "DM_LOG10_MASS"     : np.log10(current_model.mDM),                                                    # DM mass in eV
                 "DM_LOG10_SIGMAV"   : np.log10(current_model.sigmav)   if current_model.process == 'swave' else -99,  # Annihilation cross-section (in cm^3/s) | relevant only if DM_PROCESS = 'swave' 
                 "DM_LOG10_LIFETIME" : np.log10(current_model.lifetime) if current_model.process == 'decay' else -99,  # Lifetime | relevant only if DM_PROCESS = 'decay'
 
-                "DM_FHEAT_APPROX_PARAM_LOG10_F0" : np.log10(current_model.approx_params[0])   if (approx and len(current_model.approx_params) > 0) else -99,    # Parameters (list) to feed to the template of fheat
-                "DM_FHEAT_APPROX_PARAM_A"        : current_model.approx_params[1]             if (approx and len(current_model.approx_params) > 1) else -99,    # Parameters (list) to feed to the template of fheat
-                "DM_FHEAT_APPROX_PARAM_B"        : current_model.approx_params[2]             if (approx and len(current_model.approx_params) > 2) else -99,    # Parameters (list) to feed to the template of fheat
+                "DM_FHEAT_APPROX_PARAM_LOG10_F0" : np.log10(current_model.approx_params[0])   if (approx and len(current_model.approx_params) > 0) else -99,    # Parameter to feed to the template of fheat
+                "DM_FHEAT_APPROX_PARAM_A"        : current_model.approx_params[1]             if (approx and len(current_model.approx_params) > 1) else -99,    # Parameter to feed to the template of fheat
+                "DM_FHEAT_APPROX_PARAM_B"        : current_model.approx_params[2]             if (approx and len(current_model.approx_params) > 2) else -99,    # Parameter to feed to the template of fheat
                 "DM_LOG10_FION_H_OVER_FHEAT"     : np.log10(current_model.fion_H_over_fheat)  if approx and current_model.fion_H_over_fheat > 0    else -99,    # Ratio of f_ion_H over fheat  (if < 0 use values tabulated with DarkHistory)
                 "DM_LOG10_FION_HE_OVER_FHEAT"    : np.log10(current_model.fion_He_over_fheat) if approx and current_model.fion_He_over_fheat > 0   else -99,    # Ratio of f_ion_He over fheat (if < 0 use values tabulated with DarkHistory)
                 "DM_LOG10_FEXC_OVER_FHEAT"       : np.log10(current_model.fexc_over_fheat)    if approx and current_model.fexc_over_fheat > 0      else -99,    # Ratio of fexc over fheat     (if < 0 use values tabulated with DarkHistory)
@@ -138,6 +138,7 @@ for current_model in input_models :
             coarsen_factor       = 16,  # Input factor that determine the redshift steps (put 16 to roughly have the default 21cmFAST value)
             lightcone_quantities = ('brightness_temp', 'xH_box',),
             global_quantities    = ('brightness_temp', 'density', 'xH_box', 'x_e_box', 'Ts_box', 'Tk_box'),
+            verbose_ntbk = True,
             direc=cache_direc, 
         )
 

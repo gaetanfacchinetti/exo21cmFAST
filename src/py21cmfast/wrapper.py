@@ -2533,6 +2533,7 @@ def run_lightcone(
     redshift=None,
     max_redshift=None,
     coarsen_factor=None,
+    verbose_ntbk = None,
     user_params=None,
     cosmo_params=None,
     astro_params=None,
@@ -2716,12 +2717,12 @@ def run_lightcone(
 
             zz = deepcopy(max_redshift)
             while zz > min_redshift:
-                zz = np.exp(np.log(1+zz) - coarsen_factor*dlnz)-1
+                zz = np.exp(np.log(1+zz) - coarsen_factor*dlnz)-1.
             z_min = zz
             zz = deepcopy(max_redshift)
             while zz < 2999: # Limited by the interpolation table in DarkHistory (should be 2999)
-                zz = np.exp(np.log(1+zz) + coarsen_factor*dlnz)-1
-            z_max = np.exp(np.log(1+zz) - coarsen_factor*dlnz)-1 # take the value just before 2999
+                zz = np.exp(np.log(1+zz) + coarsen_factor*dlnz)-1.
+            z_max = np.exp(np.log(1+zz) - coarsen_factor*dlnz)-1. # take the value just before 2999
             return z_min, z_max
 
         # Get the value of the minimal and maximal redshift in our study
@@ -2734,11 +2735,15 @@ def run_lightcone(
             _DM_SIGMAV, flag_options.DM_PRIMARY, 
             flag_options.DM_BOOST, flag_options.DM_FS_METHOD, 
             flag_options.DM_BACKREACTION)
+           
+        if verbose_ntbk is True: 
+            print("--------------------------------------")
+            print("Start initialisation using DarkHistory")
+        else:
+            logger.debug("--------------------------------------")
+            logger.debug("Start initialisation using DarkHistory")
 
-        logger.debug("--------------------------------------")
-        logger.debug("Start initialisation using DarkHistory")
 
-        
         # Define the boost function, either something already defined in the code or a customed value
         func_boost = None
         if flag_options.DM_BOOST != 'none':     
@@ -2751,7 +2756,7 @@ def run_lightcone(
                                 lifetime=_DM_LIFETIME,
                                 primary=flag_options.DM_PRIMARY,
                                 struct_boost=func_boost,
-                                start_rs = z_max+1,
+                                start_rs = z_max+1.,
                                 end_rs = 0.999*np.exp(np.log(1+max_redshift) + coarsen_factor*dlnz),
                                 helium_TLA=False,
                                 init_cond=None,
@@ -2796,10 +2801,7 @@ def run_lightcone(
         # Fetch the value of ionisation and temperature history from DarhHistory
         xHII_arr = br_data['x'][:-1, 0]
         Tm_arr   = br_data['Tm'][:-1]
-        z_arr    = np.array([_rs - 1 for _rs in br_data['rs'][:-1]])
-
-        for iz, _ in enumerate(z_arr):
-            print(z_arr[iz], Tm_arr[iz], xHII_arr[iz])
+        z_arr    = br_data['rs'][:-1]-1.
 
         #### Initial conditions:
 
@@ -2863,9 +2865,11 @@ def run_lightcone(
         #### Initial conditions:
         
         if flag_options.USE_CUSTOM_INIT_COND is False:
-            # We force the initial condition to the default value here
-            # We could put something else if necessary as well
-            flag_options.FORCE_DEFAULT_INIT_COND = True
+            # Here we could decide to put some well chosen initial conditions that are not
+            # the default ones when USE_CUSTOM_INIT_COND is False
+            # However there is not need for that right now
+            flag_options.update(**({"FORCE_DEFAULT_INIT_COND" : True}))
+            logger.warning("We enforce FORCE_DEFAULT_INIT_COND to true as USE_CUSTOM_INIT_COND is set to False")
 
         # Tables to save the ionisation fraction, the temperature and the redshift steps
         xHII_arr = np.array([])
@@ -2876,12 +2880,16 @@ def run_lightcone(
         # Initialise the CStructWrapper object ExoticEnergyInjected with our dictionnary
         exotic_energy_injected = ExoticEnergyInjected(f_dict[-1]) 
         
-        logger.debug("Initial energu injected " + exotic_energy_injected.__str__())
+        logger.debug("Initial energy injected " + exotic_energy_injected.__str__())
 
+
+    if verbose_ntbk is True:
+        print("Initialisation completed")
+        print("--------------------------------------")
+    else:
         logger.info("Initialisation completed")
         logger.info("--------------------------------------")
 
-    #print("Initialisation over:", flag_options.FORCE_DEFAULT_INIT_COND, flag_options.USE_CUSTOM_INIT_COND, astro_params.XION_at_Z_HEAT_MAX, astro_params.TK_at_Z_HEAT_MAX, _DM_LIFETIME)
 
 
     ## Initialisation over
@@ -2892,8 +2900,7 @@ def run_lightcone(
     with global_params.use(**global_kwargs, ZPRIME_STEP_FACTOR = z_prime_step):
          
         
-        logger.debug("Test:", 10**astro_params.LOG10_TK_at_Z_HEAT_MAX, 10**astro_params.LOG10_XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
-        #print("rs-1:", br_data['rs'][-1]-1)
+        logger.debug("Parameters intro:", 10**astro_params.LOG10_TK_at_Z_HEAT_MAX, 10**astro_params.LOG10_XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
 
         random_seed, user_params, cosmo_params = _configure_inputs([("random_seed", random_seed),("user_params", user_params),("cosmo_params", cosmo_params),], init_box, perturb,)
 
@@ -3032,10 +3039,21 @@ def run_lightcone(
         log10_mturnovers = np.zeros(len(scrollz))
         log10_mturnovers_mini = np.zeros(len(scrollz))
 
+        if verbose_ntbk is True:
+            frac = 0
+          
+
         for iz, z in enumerate(scrollz[:-1]):
 
-            logger.info("redshift:", z)
-            
+            if verbose_ntbk is True:
+                frac_old = deepcopy(frac)
+                frac = int(20*iz/len(scrollz[:-1]))
+                if iz == 0:
+                    print("         --------------------", flush=True)
+                    print("Running:", end = '', flush=True)
+                if frac > frac_old:
+                    print("*", end = '', flush=True)
+
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb[iz]
 
@@ -3154,6 +3172,9 @@ def run_lightcone(
                     getattr(outs[_fld_names[quantity]][1], quantity)
                 )
 
+
+            n = 0
+
             # Interpolate the lightcone
             if z < max_redshift:
                 for quantity in lightcone_quantities:
@@ -3173,6 +3194,7 @@ def run_lightcone(
                         lc[quantity],
                         fnc,
                     )
+
                 lc_index += n
                 box_index += n
 
@@ -3240,11 +3262,11 @@ def run_lightcone(
                 f_cont_low_temp    = br_data['f']['low']['cont'][-1]
                 f_cont_high_temp   = br_data['f']['high']['cont'][-1]
                 
-                f_HEAT   = f_heat_low_temp + f_heat_high_temp
-                f_H_ION  = f_H_ion_low_temp + f_H_ion_high_temp
+                f_HEAT   = f_heat_low_temp   + f_heat_high_temp
+                f_H_ION  = f_H_ion_low_temp  + f_H_ion_high_temp
                 f_He_ION = f_He_ion_low_temp + f_He_ion_high_temp
-                f_EXC    = f_exc_low_temp + f_exc_high_temp
-                f_CONT   = f_cont_low_temp + f_cont_high_temp
+                f_EXC    = f_exc_low_temp    + f_exc_high_temp
+                f_CONT   = f_cont_low_temp   + f_cont_high_temp
 
         
             if (flag_options.USE_DM_ENERGY_INJECTION is True) and (flag_options.USE_DM_EFFECTIVE_DEP_FUNCS is True) : 
@@ -3253,9 +3275,9 @@ def run_lightcone(
                 # (Similarly to the case where we use the DarkHistory code)
                 f_HEAT = f_heat_approx(scrollz[iz+1], params= [_DM_FHEAT_APPROX_PARAM_F0, _DM_FHEAT_APPROX_PARAM_A,   _DM_FHEAT_APPROX_PARAM_B], model_shape = flag_options.dm_fheat_approx_shape_str)
 
-                f_H_ION  = f_H_ION_over_f_HEAT * f_HEAT
+                f_H_ION  = f_H_ION_over_f_HEAT  * f_HEAT
                 f_He_ION = f_He_ION_over_f_HEAT * f_HEAT
-                f_EXC    = f_EXC_over_f_HEAT * f_HEAT
+                f_EXC    = f_EXC_over_f_HEAT    * f_HEAT
                 f_CONT   = 0.
         
 
@@ -3264,9 +3286,9 @@ def run_lightcone(
                 # We update the tables of deposited fractions for the next redshift step
                 # Update the dictionnary
                 # Update the CStructWrapper object
-                energy_injected_smooth = injection_rate(flag_options.DM_PROCESS, z, 
+                energy_injected_smooth = injection_rate(flag_options.DM_PROCESS, scrollz[iz+1], # Here we save the value fo the next redshift step
                                                         mDM=_DM_MASS, sigmav=_DM_SIGMAV, 
-                                                        lifetime=_DM_LIFETIME) # in erg/s/(number of baryons)
+                                                        lifetime=_DM_LIFETIME)                  # in erg/s/(number of baryons)
 
                 f_dict.append({
                     "f_H_ION" : f_H_ION, 
@@ -3279,13 +3301,11 @@ def run_lightcone(
 
                 exotic_energy_injected.update(**(f_dict[-1]))
                 logger.info("| z (next): {:2.2f}".format(scrollz[iz+1]) + " | x_HII (here): {:1.3e}".format(xHII) +  " | Tm (here): {:1.3e}".format(Tm*eV_to_K) + " K | f_heat (next): {:1.3e}".format(f_dict[-1]['f_HEAT']))
-                #print("| z (next): {:2.2f}".format(scrollz[iz+1]) + " | x_HII (here): {:1.3e}".format(xHII) +  " | Tm (here): {:1.3e}".format(Tm*eV_to_K) + " K | f_heat (next): {:1.3e}".format(f_dict[-1]['f_HEAT'])))
             
                 xHII_arr = np.append(xHII_arr, xHII)
                 Tm_arr   = np.append(Tm_arr, Tm)
                 z_arr    = np.append(z_arr, z)
-                
-                print(z_arr[-1], Tm_arr[-1], xHII_arr[-1])
+            
             
             #####################################################################################
 
@@ -3293,6 +3313,9 @@ def run_lightcone(
         ## END OF THE LOOP ON REDSHIFT ##
         #################################
         
+        if verbose_ntbk is True:
+            print('') # now go back to a new line
+
         #####################################################################################
         # New in Exo 21cmFAST
         output_exotic_energy_injection = {}

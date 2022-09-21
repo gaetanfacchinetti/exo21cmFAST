@@ -1931,7 +1931,7 @@ def evolve(
 
     data = {
         'rs': out_highengphot_specs.rs,
-        'x': x_arr, 'Tm': Tm_arr, 
+        'x': x_arr[:-1], 'Tm': Tm_arr[:-1], 
         'highengphot': out_highengphot_specs,
         'lowengphot': out_lowengphot_specs, 
         'lowengelec': out_lowengelec_specs,

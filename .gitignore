@@ -53,4 +53,5 @@ r2c*
 plots/
 .vscode/
 
-examples/figures/
+examples/figures/*
+examples/cache/*
