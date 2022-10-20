@@ -2656,6 +2656,7 @@ def run_lightcone(
     # We first instantiate a user_params class from the input user_params
     # This first instantiation only helps to get the properties of the DM
     user_params  = UserParams(user_params)
+    cosmo_params = CosmoParams(cosmo_params)
     flag_options = FlagOptions(flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
     astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
@@ -2673,10 +2674,11 @@ def run_lightcone(
     # Some useful conversion factors
     eV_to_K = 11604.5250061657
     eV_to_erg = 1.602176487e-12
+    g_to_eV = 5.6095883571872e+32
+    proton_mass_g = 1.67262192e-24 
 
      # Initialise the dictionnary of deposited fractions and energy injection
     f_dict        = []
-    f_dict_output = []
 
     # We define the maximum redshift FOR 21cmFAST
     max_redshift = global_params.Z_HEAT_MAX if (flag_options.INHOMO_RECO or flag_options.USE_TS_FLUCT or max_redshift is None ) else max_redshift
@@ -2686,10 +2688,10 @@ def run_lightcone(
     z_prime_step = global_params.ZPRIME_STEP_FACTOR
 
     # Set the function for the energy injection rate
-    # These functions are taken from DarkHistory
-    rhoDM0 = 1.05371e4*0.1200 # eV cm^{-3}
-    nb0 = 2.5122236052124415e-07 # Value used in DarkHistory for the number of baryons today in cm^{-3}
-   
+    rhoDM0 = cosmo_params.cosmo.critical_density(0).value * g_to_eV * cosmo_params.cosmo.Odm0         # eV cm^{-3}  ## (1.05371e4)
+    nb0    = cosmo_params.cosmo.critical_density(0).value * cosmo_params.cosmo.Ob0 / proton_mass_g    # cm^{-3}     ## 2.5122236052124415e-07 : Value used in DarkHistory for the number of baryons today
+
+
     def injection_rate(process, redshift, mDM, sigmav, lifetime):
         """ Injection rates in erg/s/(number of baryons) """ 
         if process == 'swave':
@@ -2899,7 +2901,7 @@ def run_lightcone(
     ## In the following we use the global_params by default except for 
     with global_params.use(**global_kwargs, ZPRIME_STEP_FACTOR = z_prime_step):
          
-        
+
         logger.debug("Parameters intro:", 10**astro_params.LOG10_TK_at_Z_HEAT_MAX, 10**astro_params.LOG10_XION_at_Z_HEAT_MAX, global_params.ZPRIME_STEP_FACTOR)
 
         random_seed, user_params, cosmo_params = _configure_inputs([("random_seed", random_seed),("user_params", user_params),("cosmo_params", cosmo_params),], init_box, perturb,)
@@ -3050,7 +3052,7 @@ def run_lightcone(
                 frac = int(20*iz/len(scrollz[:-1]))
                 if iz == 0:
                     print("         --------------------", flush=True)
-                    print("Running:", end = '', flush=True)
+                    print("Running: ", end = '', flush=True)
                 if frac > frac_old:
                     print("*", end = '', flush=True)
 

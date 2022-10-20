@@ -20,12 +20,14 @@
 ############################################################################
 
 
-import py21cmfast as p21c
-import py21cmfast.dm_dtb_tools as db_tools
-import example_lightcone_analysis as lightcone_analysis
+import py21cmfast     as p21f
+import py21cmanalysis as p21a
+#import example_lightcone_analysis as lightcone_analysis
+
 import os
 import logging
 import numpy as np
+
 
 import traceback
 import argparse
@@ -42,10 +44,10 @@ cache_location = "/scratch/ulb/physth_fi/gfacchin/output_exo21cmFAST"
 ####################### INITIALISATION #######################
 
 # Read the input from the command line
-args = db_tools.parse_args(argparse.ArgumentParser())
+args = p21f.dm_dtb_tools.parse_args(argparse.ArgumentParser())
 approx = args.approximate
 
-db_manager = db_tools.DHDatabase(path = database_location, cache_path = cache_location) if approx is False else db_tools.ApproxDepDatabase(path = database_location, cache_path = cache_location)
+db_manager = p21f.dm_dtb_tools.DHDatabase(path = database_location, cache_path = cache_location) if approx is False else p21f.dm_dtb_tools.ApproxDepDatabase(path = database_location, cache_path = cache_location)
 input, force_overwrite, nomp = db_manager.define_models(args)
 input_models = db_manager.add_models_database(input, force_overwrite=force_overwrite)
 logger.info(" --------------------- ")
@@ -63,19 +65,19 @@ for current_model in input_models :
         # Set the directory to our custom cache directory
         cache_direc = db_manager.cache_path + "/_cache_" + str(current_model.index)
         if not os.path.exists(cache_direc): os.mkdir(cache_direc)
-        p21c.config['direc'] = cache_direc
+        p21f.config['direc'] = cache_direc
 
         # If we do not specify anything it is that we do not care of the DM
         dm_energy_inj = True if (not current_model.process == 'none') else False
 
         # Run the lightcone accordingly
-        lightcone, output_exotic_energy_injection = p21c.run_lightcone(
-            redshift = 20,        # Minimal value of redshift -> Here we will go slightly lower (cannot go below z = 4 for DarkHistory)
+        lightcone, output_exotic_energy_injection = p21f.run_lightcone(
+            redshift = 5,        # Minimal value of redshift -> Here we will go slightly lower (cannot go below z = 4 for DarkHistory)
             max_redshift = None, # Maximal value of redshift -- By default Z_HEAT_MAX for None of when USE_TS_FLUCT = True
             user_params = {
-                "BOX_LEN":                  50,    # Default value: 300  (Box length Mpc) 1000
+                "BOX_LEN":                  500,   # Default value: 300 (Box length Mpc) 1000
                 "DIM":                      None,  # Default value: None / gives DIM=3*HII_DIM (High resolution) None
-                "HII_DIM":                  20,    # Default value: 200  (HII cell resolution) 350
+                "HII_DIM":                  256,   # Default value: 200  (HII cell resolution) 350
                 "USE_FFTW_WISDOM":          False, # Default value: False (Speed up FFT)
                 "HMF":                      1,     # Default value: 1 (Halo mass function)
                 "USE_RELATIVE_VELOCITIES":  False, # Default value: False (Turn on relative velocites)  -> Attention if USE_RELATIVE_VELOCITIES: True, POWER_SPECTRUM: 5 (CLASS) necessarily
@@ -109,9 +111,9 @@ for current_model in input_models :
 
             flag_options = {
                 "USE_MINI_HALOS"          : False,                            # Something for mini halos
-                "USE_MASS_DEPENDENT_ZETA" : False,                            # Set zeta as a mass dependent function
-                "SUBCELL_RSD"             : False,                            # Add sub-cell redshift-space-distortion. Only effective if USE_TS_FLUCT:True
-                "INHOMO_RECO"             : False,                            # Turn on inhomogeneous recombinations. Increases computation time
+                "USE_MASS_DEPENDENT_ZETA" : True,                             # Set zeta as a mass dependent function
+                "SUBCELL_RSD"             : True,                             # Add sub-cell redshift-space-distortion. Only effective if USE_TS_FLUCT:True
+                "INHOMO_RECO"             : True,                             # Turn on inhomogeneous recombinations. Increases computation time
                 "USE_TS_FLUCT"            : True,                             # Turn on IGM spin temperature fluctuations
                 "USE_HALO_FIELD"          : False,                            # Turn on halo field / otherwise mean collase (much faster) 
                 "M_MIN_in_Mass"           : False,                            # If False minimal halo mass for virialisation set from temperature
@@ -154,9 +156,12 @@ for current_model in input_models :
         # Moreover, we prepare the folder for the analysis of this lightcone
         # We run on first analysis to have something to plot out of the box  
         path_output = db_manager.path_brightness_temp  + str(current_model.index)
-        lightcone_analysis.make_run_directory(path_output)                                # Create/clean the directory where we store everything
-        lightcone_analysis.make_and_save_lightcone_directory(path_output, lightcone)      # Save the lightcone in a folder called Lightcone created here
-        lightcone_analysis.make_analysis(path_output, lightcone, n_psbins=24, nchunks=65) # Run a first analysis to have something to plot out of the box
+        z_centers, power_spectra = p21a.compute_powerspectra_1D(lightcone=lightcone, nchunks=15, n_psbins=None, k_min=0.1, k_max=1, logk=True) # Compute the power spectra
+        p21a.export_powerspectra_1D(path=path_output, z_centers = z_centers, power_spectra = power_spectra)
+        
+        #lightcone_analysis.make_run_directory(path_output)                                # Create/clean the directory where we store everything
+        #lightcone_analysis.make_and_save_lightcone_directory(path_output, lightcone)      # Save the lightcone in a folder called Lightcone created here
+        #lightcone_analysis.make_analysis(path_output, lightcone, n_psbins=24, nchunks=65) # Run a first analysis to have something to plot out of the box
 
         #############################################################
 

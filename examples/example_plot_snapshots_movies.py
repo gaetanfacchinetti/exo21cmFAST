@@ -33,7 +33,7 @@ import example_lightcone_analysis as lightcone_analysis
 
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-matplotlib.rc_file('matplotlibrc')
+#matplotlib.rc_file('matplotlibrc')
 
 database_location = "/home/ulb/physth_fi/gfacchin/exo21cmFAST_release/output/test_database"
 cache_location = "/scratch/ulb/physth_fi/gfacchin/output_exo21cmFAST/"
@@ -53,8 +53,14 @@ def db_manager(approx = False) :
 
 
 # Get the reference plot witout exotic energy injection
-index_no_DM_0 = db_manager(approx = False).search(bkr=False, process='none', mDM=0., primary='none', boost='none', fs_method='none', 
-                                                sigmav=0., lifetime=0., comment='large_box')[0]
+#index = db_manager(approx = False).search(bkr=False, process='none', mDM=0., primary='none', boost='none', fs_method='none', 
+#                                                sigmav=0., lifetime=0., comment='large_box')[0]
+
+#index = db_manager(approx = False).search(bkr=True, process='decay', mDM=1.26e+8, primary='elec_delta', lifetime=1e+26, comment='large_box_2')[0]
+index = db_manager(approx = True).search(process='decay', mDM=1.26e+8, lifetime=1e+26, approx_shape='schechter', approx_params=[1.5310e-01,-3.2090e-03,1.2950e-01], comment='large_box_2')[0]
+
+
+print(index)
 
 # -------------------------------------------------------------------------------------
 
@@ -64,7 +70,10 @@ ax = fig.gca()
 
 ######
 ## Plotting the brightness temperature for the case without DM
-lightcone = p21c.LightCone.read(fname = database_location + '/darkhistory/BrightnessTemp_' + str(index_no_DM_0) + '/Lightcone/Lightcone.h5')
+#lightcone = p21c.LightCone.read(fname = database_location + '/darkhistory/BrightnessTemp_' + str(index) + '/Lightcone/Lightcone.h5')
+lightcone = p21c.LightCone.read(fname = database_location + '/approx/BrightnessTemp_' + str(index) + '/Lightcone/Lightcone.h5')
+
+
 redshift_arr      = lightcone.lightcone_redshifts
 redshift_node_arr = lightcone.node_redshifts
 Tb = lightcone.brightness_temp
@@ -93,7 +102,6 @@ y_arr = linspace(0, lightcone.cell_size * lightcone.shape[1], lightcone.shape[1]
 number_images = 1200
 i = number_images
 
-
 """
 for z in np.linspace(4, 30, number_images):
     
@@ -105,8 +113,8 @@ for z in np.linspace(4, 30, number_images):
     index_image_str = f'{i:05d}'
 
 
-    #ax.pcolormesh(x_arr, y_arr, func_Tb(z), cmap="EoR", vmin = -150, vmax= 30, shading='gouraud')
-    #fig.savefig('./figures/brightness_temperature/Tb_index' + index_image_str + '_z' + str("{:.2e}".format(z)) + '.png', dpi=300, bbox_inches='tight',  pad_inches = 0)
+    ax.pcolormesh(x_arr, y_arr, func_Tb(z), cmap="EoR", vmin = -150, vmax= 30, shading='gouraud')
+    fig.savefig('./figures/brightness_temperature_with_exo/Tb_index' + index_image_str + '_z' + str("{:.2e}".format(z)) + '.png', dpi=300, bbox_inches='tight',  pad_inches = 0)
     
     #ax.pcolormesh(x_arr, y_arr, func_xH(z), cmap="viridis", vmin = 0, vmax= 1, shading='gouraud')
     #fig.savefig('./figures/ionization_fraction/xH_index' + index_image_str + '_z' + str("{:.2e}".format(z)) + '.png', dpi=300, bbox_inches='tight',  pad_inches = 0)
@@ -118,7 +126,10 @@ for z in np.linspace(4, 30, number_images):
 
 fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [1, 1], 'wspace': 0, 'hspace': 0}, sharex=True, figsize=(5,5))
 
+
+
 i = number_images
+
 for z in np.linspace(5, 30, number_images):
     
     ax1.cla()
@@ -140,8 +151,7 @@ for z in np.linspace(5, 30, number_images):
     z_arr = np.arange(z, 34, 0.1)
     ax1.scatter(z_arr, func_Tb_global(z_arr), c=func_Tb_global(z_arr), cmap="EoR", vmin = -150, vmax= 30)
     ax2.scatter(z_arr, func_Tb_power(z_arr), c='k')
-    fig.savefig('./figures/brightness_temperature_global/Tb_index' + index_image_str + '_z' + str("{:.4e}".format(z)) + '.png', dpi=300, bbox_inches='tight',  pad_inches = 0.1)
+    fig.savefig('./figures/brightness_temperature_global_with_exo/Tb_index' + index_image_str + '_z' + str("{:.4e}".format(z)) + '.png', dpi=300, bbox_inches='tight',  pad_inches = 0.1)
     i = i-1
-
 
 ## END OF SCRIPT

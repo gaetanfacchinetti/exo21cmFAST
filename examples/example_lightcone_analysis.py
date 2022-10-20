@@ -142,9 +142,10 @@ def save_powerspectra(path,powerspectra,redshiftlist,noNaN=False):
         pathDataPS = path + "/Data/Powerspectra_NoNan" 
 
     os.mkdir(pathDataPS)
+
     for i in range(len(redshiftlist)):
         keys = np.array([['k'],['delta']]).T
-        data = np.hstack((np.array([powerspectra[i]['k']]).T,np.array([powerspectra[i]['delta']]).T))
+        data = np.hstack((np.array([powerspectra[i]['k']]).T, np.array([powerspectra[i]['delta']]).T))
         arrayToSave = np.vstack((keys,data))
         z = redshiftlist[i]
         nameRedshift = str(z).replace(".", "_")

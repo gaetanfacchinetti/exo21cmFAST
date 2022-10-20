@@ -53,6 +53,7 @@ from .wrapper import (
     spin_temperature,
 )
 
+
 configure_logging()
 
 try:
