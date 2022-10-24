@@ -5,13 +5,13 @@
 ######################################################
 
 # Define functions to calculate PS, following py21cmmc
-import os 
-import shutil
 
 import numpy as np
 import powerbox.tools as pb_tools
 from astropy import cosmology
 from astropy import units
+
+from . import tools as tls
 
 def get_k_min_max(lightcone, n_chunks=24):
     """
@@ -122,13 +122,8 @@ def compute_powerspectra_1D(lightcone, nchunks=15,
     # Create lightcone redshift chunks
     # If chunk indices not given, divide lightcone into nchunks equally spaced redshift chunks
     if chunk_indices is None:
-        chunk_indices = list(range(0,lightcone.n_slices,round(lightcone.n_slices / nchunks),))
-
-        if len(chunk_indices) > nchunks:
-            chunk_indices = chunk_indices[:-1]
-
-        chunk_indices.append(lightcone.n_slices)
-
+        #print(lightcone.n_slices, lightcone.brightness_temp.shape, round(lightcone.n_slices / nchunks))
+        chunk_indices = list(range(0, lightcone.n_slices, int(lightcone.n_slices / nchunks)))
     else:
         nchunks = len(chunk_indices) - 1
 
@@ -153,7 +148,7 @@ def compute_powerspectra_1D(lightcone, nchunks=15,
 
         #####
 
-        index_center = int(lightcone.brightness_temp.shape[0])
+        index_center = int(lightcone.n_slices / nchunks)
            
         if index_center % 2 == 0:
             dist_center = 0.5 * ( lc_distances[start + int(0.5 * index_center)] + lc_distances[start + int(0.5 * index_center) - 1])
@@ -189,15 +184,14 @@ def compute_powerspectra_1D(lightcone, nchunks=15,
     return z_centers, data
 
 
-def export_powerspectra_1D(path, z_centers, power_spectra) :
+def export_powerspectra_1D_vs_k(path, z_centers, power_spectra, clean_existing_dir: bool = True) -> None:
     """ Export the power_spectra obtained from compute_power_spectra_1D """
     
     # Make the directories associated to path
-    make_directory(path)
-    make_directory(path + "/power_spectra")
+    tls.make_directory(path + "/power_spectra_vs_k", clean_existing_dir)
 
     for iz, z in enumerate(z_centers):
-        save_path_ps = path + '/power_spectra/ps_z_' + "{0:.1f}".format(z) + '.txt' 
+        save_path_ps = path + '/power_spectra_vs_k/ps_z_' + "{0:.1f}".format(z) + '.txt' 
 
         with open(save_path_ps, 'w') as f:
             print("# Power spectrum at redshit z = " + str(z), file=f)
@@ -205,7 +199,7 @@ def export_powerspectra_1D(path, z_centers, power_spectra) :
             for ik, k in enumerate(power_spectra[iz]['k']): 
                 print(str(k) + "\t" +  str(power_spectra[iz]['delta'][ik]) + "\t" +  str(power_spectra[iz]['err_delta'][ik]), file=f)
 
-    save_path_redshifts = path + '/power_spectra/redshift_chunks.txt'
+    save_path_redshifts = path + '/power_spectra_vs_k/redshift_chunks.txt'
     with open(save_path_redshifts, 'w') as f:
         print("# Redshift chunks at which the power spectrum is computed", file=f)
         for z in z_centers: 
@@ -213,27 +207,25 @@ def export_powerspectra_1D(path, z_centers, power_spectra) :
 
 
 
-def make_directory(path):
-    if not os.path.exists(path): 
-        os.mkdir(path)
-    else:
-        clean_directory(path)
-        print("Successfully cleaned the directory " + path)
+def export_powerspectra_1D_vs_z(path, z_centers, power_spectra, clean_existing_dir:bool = True) -> None :
+    """ Export the power_spectra obtained from compute_power_spectra_1D """
+    
+    # Make the directories associated to path
+    tls.make_directory(path + "/power_spectra_vs_z", clean_existing_dir)
+
+    for ik, k in enumerate(power_spectra[0]['k']):
+        save_path_ps = path + '/power_spectra_vs_z/ps_k_' + "{0:.6f}".format(k) + '.txt' 
+
+        with open(save_path_ps, 'w') as f:
+            print("# Power spectrum at mode k = " + str(k), file=f)
+            print("# z [Mpc^{-1}] | Delta_{21}^2 [mK^2] | err_Delta [mK^2]", file=f)
+            for iz, z in enumerate(z_centers): 
+                print(str(z) + "\t" +  str(power_spectra[iz]['delta'][ik]) + "\t" +  str(power_spectra[iz]['err_delta'][ik]), file=f)
 
 
-def clean_directory(path):
-    """ Clean the directory at the path: path """
-
-    for filename in os.listdir(path):
-        file_path = os.path.join(path, filename)
-        
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        
-        except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
+    save_path_k = path + '/power_spectra_vs_z/k_chunks.txt'
+    with open(save_path_k, 'w') as f:
+        print("# k values at which the power spectrum is computed [Mpc^{-1}]", file=f)
+        for k in power_spectra[0]['k']: 
+            print(k, file=f)
 

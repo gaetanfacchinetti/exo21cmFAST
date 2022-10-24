@@ -2681,7 +2681,7 @@ def run_lightcone(
     f_dict        = []
 
     # We define the maximum redshift FOR 21cmFAST
-    max_redshift = global_params.Z_HEAT_MAX if (flag_options.INHOMO_RECO or flag_options.USE_TS_FLUCT or max_redshift is None ) else max_redshift
+    max_redshift = global_params.Z_HEAT_MAX if (flag_options.INHOMO_RECO or flag_options.USE_TS_FLUCT or max_redshift is None) else max_redshift
     
     # We define the default redshift step
     # And the initial conditions
@@ -3049,12 +3049,14 @@ def run_lightcone(
 
             if verbose_ntbk is True:
                 frac_old = deepcopy(frac)
-                frac = int(20*iz/len(scrollz[:-1]))
+                frac = int(20*iz/(len(scrollz[:-1])-1))
                 if iz == 0:
                     print("         --------------------", flush=True)
                     print("Running: ", end = '', flush=True)
                 if frac > frac_old:
                     print("*", end = '', flush=True)
+                if iz == scrollz[:-2]:
+                    print('') # Go back to a new line
 
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb[iz]

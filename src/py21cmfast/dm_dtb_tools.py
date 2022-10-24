@@ -310,7 +310,7 @@ class DatabaseManager:
 
         self.path_database_file = self.path + "/.database.txt"
         self.path_result_run = self.path + "/result_run_"
-        self.path_brightness_temp = self.path + "/BrightnessTemp_"
+        self.path_lightcone = self.path + "/Lightcone_"
         self.cache_path_folder = self.cache_path + "/_cache_"
         
         if not os.path.exists(self.path) : 
@@ -397,8 +397,8 @@ class DatabaseManager:
                     logger.warning("The file:", self.path_result_run + str(models_arr[i].index) + ".txt", "does not exist in the first place.")
                     logger.warning("The database has missed a deletion ... entry only removed from the database file.")
                 
-                if os.path.exists(self.path_brightness_temp + str(models_arr[i].index)) : 
-                    shutil.rmtree(self.path_brightness_temp + str(models_arr[i].index))
+                if os.path.exists(self.path_lightcone + str(models_arr[i].index)) : 
+                    shutil.rmtree(self.path_lightcone + str(models_arr[i].index))
 
                 if os.path.exists(self.cache_path_folder + str(models_arr[i].index)) : 
                     shutil.rmtree(self.cache_path_folder + str(models_arr[i].index))
@@ -408,8 +408,8 @@ class DatabaseManager:
             else : 
                 if os.path.exists(self.path_result_run + str(models_arr[i-1].index) + ".txt") : 
                     os.rename(self.path_result_run + str(models_arr[i-1].index) + ".txt", self.path_result_run + str(models_arr[i-1].index-1) + ".txt")
-                if os.path.exists(self.path_brightness_temp + str(models_arr[i-1].index)) : 
-                    os.rename(self.path_brightness_temp + str(models_arr[i-1].index), self.path_brightness_temp + str(models_arr[i-1].index-1))
+                if os.path.exists(self.path_lightcone + str(models_arr[i-1].index)) : 
+                    os.rename(self.path_lightcone + str(models_arr[i-1].index), self.path_lightcone + str(models_arr[i-1].index-1))
                 if os.path.exists(self.cache_path_folder + str(models_arr[i-1].index)) : 
                     os.rename(self.cache_path_folder + str(models_arr[i-1].index), self.cache_path_folder + str(models_arr[i-1].index-1))
                 

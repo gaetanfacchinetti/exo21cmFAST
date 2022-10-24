@@ -95,6 +95,16 @@ for current_model in input_models :
                 "LOG10_XION_at_Z_HEAT_MAX"  : np.log10(current_model.xe_init) if approx else -99, # Only effective is USE_CUSTOM_INIT_COND = True
                 "LOG10_TK_at_Z_HEAT_MAX"    : np.log10(current_model.Tm_init) if approx else -99, # Only effective is USE_CUSTOM_INIT_COND = True
 
+                # The astrophysical parameters that we can vary
+                "t_STAR"     : 0.5,     # linear
+                "F_STAR10"   : -1.3,    # log
+                "F_ESC10"    : -1.0,    # log
+                "ALPHA_STAR" : 0.5,     # linear
+                "ALPHA_ESC"  : -0.5,    # linear
+                "L_X"        : 40.0,    # log
+                "M_TURN"     : 8.7,      # log
+
+
                 # --------------------------------------------------------------------------------------------------- #
                 "DM_LOG10_MASS"     : np.log10(current_model.mDM),                                                    # DM mass in eV
                 "DM_LOG10_SIGMAV"   : np.log10(current_model.sigmav)   if current_model.process == 'swave' else -99,  # Annihilation cross-section (in cm^3/s) | relevant only if DM_PROCESS = 'swave' 
@@ -155,10 +165,18 @@ for current_model in input_models :
         # The output from 21cmFAST is saved in a lightcone file
         # Moreover, we prepare the folder for the analysis of this lightcone
         # We run on first analysis to have something to plot out of the box  
-        path_output = db_manager.path_brightness_temp  + str(current_model.index)
-        z_centers, power_spectra = p21a.compute_powerspectra_1D(lightcone=lightcone, nchunks=15, n_psbins=None, k_min=0.1, k_max=1, logk=True) # Compute the power spectra
-        p21a.export_powerspectra_1D(path=path_output, z_centers = z_centers, power_spectra = power_spectra)
+        path_output = db_manager.path_lightcone  + str(current_model.index)
+        p21a.make_directory(path_output)                                 # Create the directory to store the data we want to export
+        lightcone.save(fname = "lightcone.h5", direc = path_output)      # Save the lightcone in the directory
         
+        # Export the data in human readable format
+        z_centers, power_spectra = p21a.compute_powerspectra_1D(lightcone=lightcone, nchunks=15, n_psbins=None, logk=True) # Compute the power spectra
+        
+        p21a.export_global_quantities(path = path_output)
+        p21a.export_powerspectra_1D_vs_k(path=path_output, z_centers = z_centers, power_spectra = power_spectra)
+        p21a.export_powerspectra_1D_vs_z(path=path_output, z_centers = z_centers, power_spectra = power_spectra)
+
+
         #lightcone_analysis.make_run_directory(path_output)                                # Create/clean the directory where we store everything
         #lightcone_analysis.make_and_save_lightcone_directory(path_output, lightcone)      # Save the lightcone in a folder called Lightcone created here
         #lightcone_analysis.make_analysis(path_output, lightcone, n_psbins=24, nchunks=65) # Run a first analysis to have something to plot out of the box
