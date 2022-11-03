@@ -172,7 +172,7 @@ for current_model in input_models :
         # Export the data in human readable format
         z_centers, power_spectra = p21a.compute_powerspectra_1D(lightcone=lightcone, nchunks=15, n_psbins=None, logk=True) # Compute the power spectra
         
-        p21a.export_global_quantities(path = path_output)
+        p21a.export_global_quantities(path = path_output, lightcone = lightcone)
         p21a.export_powerspectra_1D_vs_k(path=path_output, z_centers = z_centers, power_spectra = power_spectra)
         p21a.export_powerspectra_1D_vs_z(path=path_output, z_centers = z_centers, power_spectra = power_spectra)
 

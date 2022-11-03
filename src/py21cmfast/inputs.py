@@ -1183,10 +1183,10 @@ class AstroParams(StructWithDefaults):
     @property
     def DM_LOG10_MASS(self):
         """ Mass of the dark matter particle in eV """
-        if isinstance(self._DM_LOG10_MASS, (int, float)) and self._DM_LOG10_MASS >= 0:
+        if isinstance(self._DM_LOG10_MASS, (int, float)) :
             return float(self._DM_LOG10_MASS)
         else :
-            raise ValueError("DM_LOG10_MASS must be a positive float")
+            raise ValueError("DM_LOG10_MASS must be a float")
 
     @property
     def DM_LOG10_SIGMAV(self):

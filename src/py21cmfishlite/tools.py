@@ -3,7 +3,7 @@
 # 
 # Copyright (c) 2022, Gaétan Facchinetti
 #
-# This code has been taken and modified from 
+# This code has been taken and modified from https://github.com/charlottenosam/21cmfish
 # 
 # # MIT License
 # #
@@ -29,7 +29,8 @@
 ##################################################################################
 
 
-import os
+import numpy as np
+
 
 def read_config_params(config_items, int_type = True):
     """
@@ -49,6 +50,7 @@ def read_config_params(config_items, int_type = True):
 
     for key, value in dict(config_items).items():
 
+  
         try:
             if int_type is True:
                 cast_val = int(value)
@@ -77,6 +79,7 @@ def write_config_params(filename, name, cache_dir, extra_params, user_params, fl
 
         print("[run]", file=f)
         print("name      : " + name, file=f)
+        print("run_id    : " + key, file=f)
         print("cache_dir : " + cache_dir, file=f)
         print('', file=f)
         
@@ -86,7 +89,7 @@ def write_config_params(filename, name, cache_dir, extra_params, user_params, fl
             print(key + " : " + str(value), file=f)
 
         print('', file=f)
-        print("[user_options]", file=f)
+        print("[user_params]", file=f)
 
 
         for key, value in user_params.items():
@@ -104,32 +107,44 @@ def write_config_params(filename, name, cache_dir, extra_params, user_params, fl
         for key, value in astro_params.items():
             print(key + " : " + str(value), file=f)
 
-import os 
-import shutil
 
 
-def make_directory(path: str, clean_existing_dir:bool = True):
+def read_power_spectra(folder_name: str):
+    """ 
+    Read the power spectra from a folder 
+    The folder must contain a redshift array file: folder_name/redshift_chucnks.txt
+    The power spectra must be labelled and organised as folder_name/ps_z_<<"{0:.1f}".format(z)>>.txt
+    The units must be Mpc for k_arr, mK**2 for delta_arr and err_arr
+
+    Parameters
+    ----------
+        folder_name: str
+            path to the folder where the power_spectra_are_stored
     
-    if not os.path.exists(path): 
-        os.mkdir(path)
-    else:
-        if clean_existing_dir is True:
-            clean_directory(path)
+    Returns
+    -------
+        z_arr: list[float]
+            list of redshifts where the power_spectra are evaluated
+        k_arr: list[list[float]] (Mpc^{-1})
+            list of k values for every redshift
+        delta_arr: list[list[float]] (mK^2)
+            list of power_spectrum value for every redshift (in correspondance to k_arr)
+        err_arr: list[list[float]]  (mK^2)
+            list of the error on the power spectrum (in correspondance to k_arr and delta_arr)
+    """
 
+    z_arr     = np.genfromtxt(folder_name + '/power_spectra_vs_k/redshift_chunks.txt')
 
-def clean_directory(path: str):
-    """ Clean the directory at the path: path """
+    k_arr     = []
+    delta_arr = []
+    err_arr   = []
 
-    for filename in os.listdir(path):
-        file_path = os.path.join(path, filename)
-        
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
+    for iz, z in enumerate(z_arr):
+        data = np.genfromtxt(folder_name + '/power_spectra_vs_k/ps_z_' + "{0:.1f}".format(z) + '.txt')
 
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        
-        except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
+        k_arr.append(data[:, 0])
+        delta_arr.append(data[:, 1])
+        err_arr.append(data[:, 2])
+
+    return z_arr, k_arr, delta_arr, err_arr
 

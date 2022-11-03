@@ -29,13 +29,14 @@
 ##################################################################################
 
 import configparser
-import argparse
-from . import input_output 
+
+from py21cmfishlite import tools as p21fl_tools 
+from py21cmanalysis import tools as p21a_tools
 
 import numpy as np
 
 
-def init_fisher(config_file: str, q_scale: float = 3.) -> None :
+def init_fisher_from_fiducial(config_file: str, q_scale: float = 3.) -> None :
 
     """ 
     Initialise the runs for a fisher analysis according to 
@@ -66,10 +67,10 @@ def init_fisher(config_file: str, q_scale: float = 3.) -> None :
     extra_params['max_redshift']    = float(config.get('extra_params','max_redshift'))
     extra_params['coarsen_factor']  = int(config.get('extra_params', 'coarsen_factor'))
 
-    user_params       = input_output.read_config_params(config.items('user_params'))
-    flag_options      = input_output.read_config_params(config.items('flag_options'))
-    astro_params_fid  = input_output.read_config_params(config.items('astro_params'), int_type = False)
-    astro_params_vary = input_output.read_config_params(config.items('astro_params_vary'))
+    user_params       = p21fl_tools.read_config_params(config.items('user_params'))
+    flag_options      = p21fl_tools.read_config_params(config.items('flag_options'))
+    astro_params_fid  = p21fl_tools.read_config_params(config.items('astro_params'), int_type = False)
+    astro_params_vary = p21fl_tools.read_config_params(config.items('astro_params_vary'))
 
     vary_array = np.array([-1, 1])
     astro_params_run_all = {}
@@ -104,13 +105,14 @@ def init_fisher(config_file: str, q_scale: float = 3.) -> None :
 
     # Make the directory corresponding to the run
     output_run_dir = output_dir + "/" + name.upper() + "/"
-    input_output.make_directory(output_run_dir, clean_existing_dir = True)
-    input_output.make_directory(output_run_dir + "run_list/", clean_existing_dir = True)
+    p21a_tools.make_directory(output_run_dir, clean_existing_dir = True)
+    p21a_tools.make_directory(output_run_dir + "run_list/", clean_existing_dir = True)
+    p21a_tools.make_directory(output_run_dir + "output_list/", clean_existing_dir = True)
 
     # Write down the separate config files
     irun = 0
     for key, astro_params in astro_params_run_all.items() : 
-        input_output.write_config_params(output_run_dir + "/run_list/_run_" + str(irun) + ".config", name, cache_dir, extra_params, user_params, flag_options, astro_params, key)
+        p21fl_tools.write_config_params(output_run_dir + "/run_list/_run_" + str(irun) + ".config", name, cache_dir, extra_params, user_params, flag_options, astro_params, key)
         irun = irun + 1
 
     # Save the fiducial configuration somewhere
@@ -120,3 +122,4 @@ def init_fisher(config_file: str, q_scale: float = 3.) -> None :
         print(user_params,  file = f)
         print(flag_options, file = f)
         print(astro_params, file = f)
+

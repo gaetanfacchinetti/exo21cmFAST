@@ -11,3 +11,7 @@ from .global_quantities import(
 from .tools import (
     make_directory,
 )
+
+from .run_analysis import (
+    run_analysis,
+)

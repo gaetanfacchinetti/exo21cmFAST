@@ -1,7 +1,18 @@
-from . import tools as tls
+from py21cmanalysis import tools as tls
 
-def export_global_quantities(path, lightcone, clean_existing_dir = True) -> None:
-    """ Export the global quantities in a human readable txt format """
+def export_global_quantities(path: str, lightcone, clean_existing_dir: bool = True) -> None:
+    """ 
+    Export the global quantities in a human readable txt format
+    
+    Parameters
+    ----------
+        path: str
+            path to the location of the export
+        lightcone: Lightcone object (see 21cmFAST)
+            lightcone of the run saved
+        clean_existing_dir: bool (default True)
+            erase preexisting folder at the same path
+    """
 
     tls.make_directory(path + "/global_quantities", clean_existing_dir)
 
@@ -22,7 +33,7 @@ def export_global_quantities(path, lightcone, clean_existing_dir = True) -> None
 
     with open(save_path_gq, 'w') as f:
         print("# Global quantities evolution with the redshift ", file=f)
-        print("# " + str_keys , file=f)
+        print("# z | " + str_keys , file=f)
 
         for iz, z in enumerate(lc_redshifts):
             print(z, end='', file=f)
