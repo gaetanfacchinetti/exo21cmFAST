@@ -9,6 +9,8 @@ def make_directory(path: str, clean_existing_dir:bool = True):
     else:
         if clean_existing_dir is True:
             clean_directory(path)
+        else:
+            print("The directory "  + path + " already exists")
 
 
 def clean_directory(path: str):

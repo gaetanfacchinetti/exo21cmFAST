@@ -30,7 +30,7 @@
 
 
 import numpy as np
-
+from py21cmanalysis import tools as p21a_tools
 
 def read_config_params(config_items, int_type = True):
     """
@@ -148,3 +148,14 @@ def read_power_spectra(folder_name: str):
 
     return z_arr, k_arr, delta_arr, err_arr
 
+
+
+def create_from_scracth(path_dir:str) -> None : 
+    """ Create the folder that will hold the fisher analysis from scracth """
+
+    p21a_tools.make_directory(path_dir, clean_existing_dir = False)
+    p21a_tools.make_directory(path_dir + "/config_files", clean_existing_dir = False)
+    p21a_tools.make_directory(path_dir + "/runs", clean_existing_dir = False)
+    p21a_tools.make_directory(path_dir + "/exec", clean_existing_dir = False)
+
+    

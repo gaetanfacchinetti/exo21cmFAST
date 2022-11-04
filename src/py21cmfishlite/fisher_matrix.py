@@ -4,7 +4,9 @@ import numpy as np
 from scipy import interpolate
 from astropy import units
 
-import py21cmsense as p21s
+try:
+    import py21cmsense as p21s
+    
 from py21cmfishlite import tools as p21fl_tools
 
 
@@ -162,7 +164,6 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None):
     if observatory is None:
         observatory = 'hera'
     
-
     if observatory.upper() != 'HERA': 
         raise ValueError("This observatory is not preimplemented")
     
