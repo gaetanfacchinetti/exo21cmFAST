@@ -10,6 +10,6 @@ from .tools import (
     create_from_scracth,
 )
 
-#from .fisher_matrix import (
-#    evaluate_fisher_matrix,
-#)
+from .fisher_matrix import (
+    evaluate_fisher_matrix,
+)

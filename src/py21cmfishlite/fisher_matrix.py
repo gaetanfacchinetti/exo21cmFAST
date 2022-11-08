@@ -3,9 +3,12 @@ import os
 import numpy as np
 from scipy import interpolate
 from astropy import units
+import ast
 
 try:
     import py21cmsense as p21s
+except:
+    pass
     
 from py21cmfishlite import tools as p21fl_tools
 
@@ -135,17 +138,25 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None):
     for ikey, key in enumerate(key_arr): 
 
         if val_arr[ikey] > 0 : 
+            
+            # Read power spectra from the file
             z_arr_p[key], k_arr_p[key], delta_arr_p[key], _ = p21fl_tools.read_power_spectra(dir_path + '/output_list/' + dir_arr[ikey])
+            
             delta_func_p[key] = []
             for iz, _ in enumerate(z_arr_p[key]):
+                # Define the power spectra interpolation of the (+) models
                 delta_func_p[key].append(interpolate.interp1d(k_arr_p[key][iz], delta_arr_p[key][iz]))
 
             val_arr_p[key] = val_arr[ikey]
 
         elif val_arr[ikey] < 0 : 
+            
+            # Read power spectra from the file
             z_arr_m[key], k_arr_m[key], delta_arr_m[key], _ = p21fl_tools.read_power_spectra(dir_path + '/output_list/' + dir_arr[ikey])
+            
             delta_func_m[key] = []
             for iz, _ in enumerate(z_arr_m[key]):
+                # Define the power spectra interpolation of the (-) models
                 delta_func_m[key].append(interpolate.interp1d(k_arr_m[key][iz], delta_arr_m[key][iz]))
         
             val_arr_m[key] = val_arr[ikey]
@@ -153,8 +164,20 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None):
     z_arr_fid, k_arr_fid, delta_arr_fid, _ = p21fl_tools.read_power_spectra(dir_path + '/output_list/' + dir_fid)
 
     for iz, _ in enumerate(z_arr_fid):
+        # Define the power spectra interpolation of the fiducial models 
         delta_func_fid.append(interpolate.interp1d(k_arr_fid[iz], delta_arr_fid[iz]))
 
+    ## Getting the fiducial parameters in the fiducial params.txt file
+    ## Note that for now the astro params are put at the end of the file
+    ## If fiducial params modified by hand need to be careful
+    fiducial_params = []
+    with open(dir_path + '/fiducial_params.txt') as f:
+        data_lines = f.readlines()
+        for data in data_lines:
+            if data[0] != '#':
+                fiducial_params.append(ast.literal_eval(data))
+
+    fiducial_params = fiducial_params[-1] ## Only keep the astro params
 
 
     littleh : float = p21s.config.COSMO.h
@@ -175,18 +198,30 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None):
 
     fisher_mat = np.zeros((n_keys, n_keys))
 
+    file_temp = open(dir_path + "/my_temp_file.txt", 'w')
+
     for iz, z in enumerate(z_arr_fid):
         for jk, k in enumerate(k_fish[iz]):
             # Now we are cooking with gaz!
 
             for kkey1, key1 in enumerate(key_arr_unique):
-                dp = delta_func_p[key1][iz](k)
-                dm = delta_func_m[key1][iz](k)
+
+                dp1 = delta_func_p[key1][iz](k)
+                dm1 = delta_func_m[key1][iz](k)
                 
-                deriv_1 = (delta_func_p[key1][iz](k) - delta_func_m[key1][iz](k))/((val_arr_p[key1] - val_arr_m[key1])) # derivative with respect to the first parameter
+                deriv_1 = (dp1 - dm1)/((val_arr_p[key1] - val_arr_m[key1])*fiducial_params[key1]) # derivative with respect to the first parameter
+                
                 for kkey2, key2 in enumerate(key_arr_unique):
-                    deriv_2 = (delta_func_p[key2][iz](k) - delta_func_m[key2][iz](k))/((val_arr_p[key2] - val_arr_m[key2])) # derivative with respect to the first parameter
-                    fisher_mat[kkey1, kkey2] =  fisher_mat[kkey1, kkey2] + deriv_1 * deriv_2 / power_std[iz][jk]
+
+                    dp2 = delta_func_p[key2][iz](k)
+                    dm2 = delta_func_m[key2][iz](k)
+                    
+                    deriv_2 = (dp2 - dm2)/((val_arr_p[key2] - val_arr_m[key2])*fiducial_params[key2]) # derivative with respect to the first parameter
+                    
+                    print(z, k, key1, key2, deriv_1, deriv_2, val_arr_p[key1], val_arr_p[key2], power_std[iz][jk].value, file=file_temp)
+
+                    if not np.isinf(power_std[iz][jk].value):
+                        fisher_mat[kkey1, kkey2] =  fisher_mat[kkey1, kkey2] + deriv_1 * deriv_2 / power_std[iz][jk].value
 
 
     print(fisher_mat)
