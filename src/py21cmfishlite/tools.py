@@ -29,6 +29,12 @@
 ##################################################################################
 
 
+
+from pylab import *
+
+from matplotlib.patches import Ellipse
+import matplotlib.transforms as transforms
+
 import numpy as np
 from py21cmanalysis import tools as p21a_tools
 
@@ -159,3 +165,238 @@ def create_from_scracth(path_dir:str) -> None :
     p21a_tools.make_directory(path_dir + "/exec", clean_existing_dir = False)
 
     
+
+def prepare_sbatch_file(name_run: str, mail_user:str) -> None:
+
+    content = \
+"""#!/bin/bash
+#
+#SBATCH --job-name=fish1
+#SBATCH --output=test_fisher.txt
+#
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --time=01:00:00
+#SBATCH --mem=40000
+#
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=""" + \
+mail_user + \
+"""
+#SBATCH --array=0-15
+
+module load releases/2021b
+module load SciPy-bundle/2021.10-foss-2021b
+module load GSL/2.7-GCC-11.2.0
+module load Pillow/8.3.1-GCCcore-11.2.0
+module load h5py/3.6.0-foss-2021b 
+module load PyYAML/5.4.1-GCCcore-11.2.0
+
+source ~/exo21cmFAST_release/bin/activate
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+FILES=(../runs/"""  + \
+    name_run + \
+"""/run_list/*)
+
+srun python ./run_fisher.py ${FILES[$SLURM_ARRAY_TASK_ID]} -nomp $SLURM_CPUS_PER_TASK"""
+
+    with open("submit_run_fisher_" +  name_run +  ".sh", 'w') as f:
+        print(content, file = f)
+
+
+
+def confidence_ellipse(cov, mean_x, mean_y, ax, n_std=3.0, facecolor='none', **kwargs):
+    """
+    Create a plot of the covariance confidence ellipse of *x* and *y*.
+
+    Parameters
+    ----------
+    x, y : array-like, shape (n, )
+        Input data.
+
+    ax : matplotlib.axes.Axes
+        The axes object to draw the ellipse into.
+
+    n_std : float
+        The number of standard deviations to determine the ellipse's radiuses.
+
+    **kwargs
+        Forwarded to `~matplotlib.patches.Ellipse`
+
+    Returns
+    -------
+    matplotlib.patches.Ellipse
+    """
+
+    pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
+    # Using a special case to obtain the eigenvalues of this
+    # two-dimensionl dataset.
+    ell_radius_x = np.sqrt(1 + pearson)
+    ell_radius_y = np.sqrt(1 - pearson)
+    ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2, facecolor=facecolor, **kwargs)
+
+    # Calculating the stdandard deviation of x from
+    # the squareroot of the variance and multiplying
+    # with the given number of standard deviations.
+    scale_x = np.sqrt(cov[0, 0]) * n_std
+
+    # calculating the stdandard deviation of y ...
+    scale_y = np.sqrt(cov[1, 1]) * n_std
+
+    transf = transforms.Affine2D() \
+        .rotate_deg(45) \
+        .scale(scale_x, scale_y) \
+        .translate(mean_x, mean_y)
+
+    ellipse.set_transform(transf + ax.transData)
+    return ax.add_patch(ellipse)
+
+
+
+def ellipse_from_covariance(cov_matrix, fiducial):
+    """ Returns arrays for drawing the covariance matrix
+        This function is mainly used as a cross-check of confidence_ellipse()"""
+    
+    eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+    theta = np.linspace(0, 2*np.pi, 200)
+    ellipse_x = (np.sqrt(eigenvalues[0])*np.cos(theta)*eigenvectors[0,0] + np.sqrt(eigenvalues[1])*np.sin(theta)*eigenvectors[0,1]) + fiducial[0]
+    ellipse_y = (np.sqrt(eigenvalues[0])*np.cos(theta)*eigenvectors[1,0] + np.sqrt(eigenvalues[1])*np.sin(theta)*eigenvectors[1,1]) + fiducial[1]
+
+    return ellipse_x, ellipse_y
+
+
+
+def make_triangle_plot(covariance_matrix, name_params, fiducial_params) : 
+
+    #####################################
+    ## Choose the data we want to look at
+    cov_matrix      = covariance_matrix
+    fiducial_params = fiducial_params
+    name_params     = name_params
+
+    #####################################
+    ##  Prepare the triangle plot
+
+    fig = plt.figure(constrained_layout=False, figsize=(12,12))
+    fig.subplots_adjust(wspace=0, hspace=0)
+
+    ngrid = len(name_params)
+    gs = GridSpec(ngrid, ngrid, figure=fig)
+    axs = [[None for j in range(ngrid)] for i in range(ngrid)]
+
+
+    ## set the parameter range to plot
+    min_val_arr  = [None] * len(name_params)
+    max_val_arr  = [None] * len(name_params)
+    display_arr  = [None] * len(name_params)
+    ticks_arr    = [None] * len(name_params)
+
+    for iname, name in enumerate(name_params): 
+        if name == 'ALPHA_ESC':
+            min_val_arr[iname] = -1
+            max_val_arr[iname] = 0.5
+            display_arr[iname] = r"$\alpha_{\rm esc}$"
+            ticks_arr[iname]   = [-0.7, -0.25, 0.2]
+        if name == 'ALPHA_STAR': 
+            min_val_arr[iname] = -0.5
+            max_val_arr[iname] = 1
+            display_arr[iname] = r"$\alpha_{\star}$"
+            ticks_arr[iname]   = [-0.2, 0.25, 0.7]
+        if name == 'DM_LOG10_LIFETIME': 
+            min_val_arr[iname] = 25.6
+            max_val_arr[iname] = 26.4
+            display_arr[iname] = r"$\log_{\rm 10}\left[\frac{\tau_{\chi}}{\rm s}\right]$"
+            ticks_arr[iname]   = [25.75, 26, 26.25]
+        if name == 'DM_LOG10_MASS': 
+            min_val_arr[iname] = 3
+            max_val_arr[iname] = 11
+            display_arr[iname] = r"$\log_{10}[\frac{m_{\chi}}{\rm eV}]$"
+            ticks_arr[iname]   = [5, 7, 9]
+        if name == 'F_ESC10':
+            min_val_arr[iname] = -3
+            max_val_arr[iname] = 0
+            display_arr[iname] = r"$\log_{10}[f_{\rm esc, 10}]$"
+            ticks_arr[iname]   = [-2, -1]
+        if name == 'F_STAR10': 
+            min_val_arr[iname] = -3
+            max_val_arr[iname] = 0
+            display_arr[iname] = r"$\log_{10}[f_{\star, 10}]$"
+            ticks_arr[iname]   = [-2, -1]
+        if name == 'L_X' : 
+            min_val_arr[iname] = 38
+            max_val_arr[iname] = 42
+            display_arr[iname] = r"$\log_{10}\left[\frac{L_X}{\rm units}\right]$"
+            ticks_arr[iname]   = [39, 40, 41]
+        if name == 'M_TURN':
+            min_val_arr[iname] = 8
+            max_val_arr[iname] = 10
+            display_arr[iname] = r"$\log_{10}\left[\frac{M_{\rm turn}}{{\rm M}_\odot}\right]$"
+            ticks_arr[iname]   = [8.5, 9, 9.5]
+        if name == 't_STAR': 
+            min_val_arr[iname] = 0
+            max_val_arr[iname] = 1
+            display_arr[iname] = r"$t_{\star}$"
+            ticks_arr[iname]   = [0.25, 0.5, 0.75]
+
+
+    for i in range(0, ngrid) : 
+        for j in range(0, i+1) : 
+            axs[i][j] = fig.add_subplot(gs[i:i+1, j:j+1])
+            #axs[i][j].set_xscale('log')
+            if i != j :
+                None
+                #axs[i][j].set_yscale('log')
+            if i < ngrid -1 :
+                axs[i][j].xaxis.set_ticklabels([])
+            if j > 0 : 
+                axs[i][j].yaxis.set_ticklabels([])
+
+    for i in range(ngrid):
+        axs[-1][i].set_xlabel(display_arr[i])
+        axs[-1][i].set_xticks(ticks_arr[i])
+        for tick in axs[-1][i].get_xticklabels():
+                tick.set_rotation(55)
+
+    for j in range(1, ngrid):
+        axs[j][0].set_ylabel(display_arr[j])
+        axs[j][0].set_yticks(ticks_arr[j])
+
+    axs[0][0].set_yticks([])  
+
+
+    #####################################
+    ## Rearrange the dataset into an array of coordinates
+    for j in range(ngrid) : 
+        for i in range(0, j+1) :
+            ## Here i represents the x axis while j goes along the y axis
+            
+            if i != j : 
+                # Countour plot for the scatter
+                sub_cov = np.zeros((2, 2))
+                sub_cov[0, 0] = cov_matrix[i, i]
+                sub_cov[0, 1] = cov_matrix[i, j]
+                sub_cov[1, 0] = cov_matrix[j, i]
+                sub_cov[1, 1] = cov_matrix[j, j]
+                ellipse_x, ellipse_y = ellipse_from_covariance(sub_cov, [fiducial_params[name_params[i]], fiducial_params[name_params[j]]])
+                axs[j][i].plot(ellipse_x, ellipse_y, linewidth=0.5, color='blue')
+                axs[j][i].set_xlim([min_val_arr[i], max_val_arr[i]])
+                axs[j][i].set_ylim([min_val_arr[j], max_val_arr[j]])
+
+                confidence_ellipse(sub_cov, fiducial_params[name_params[i]], fiducial_params[name_params[j]], axs[j][i],  n_std=2, facecolor='blue', alpha=0.3)
+                confidence_ellipse(sub_cov, fiducial_params[name_params[i]], fiducial_params[name_params[j]], axs[j][i],  n_std=1, facecolor='blue', alpha=0.7)
+
+            if i == j :
+                sigma = np.sqrt(cov_matrix[i, i])
+                mean_val = fiducial_params[name_params[i]]
+                val_arr = np.linspace(mean_val-5*sigma, mean_val+5*sigma, 100)
+                gaussian_approx = exp(-(val_arr - mean_val)**2/2./sigma**2)
+                axs[i][i].plot(val_arr, gaussian_approx, color='blue')
+                axs[i][i].set_xlim([min_val_arr[i], max_val_arr[i]])
+                axs[i][i].set_ylim([0, 1.2])
+
+    return fig
+
+
+

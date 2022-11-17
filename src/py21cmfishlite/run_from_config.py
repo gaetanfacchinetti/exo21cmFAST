@@ -64,13 +64,28 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None) :
 
     print("Treating config file :", config_file)
 
-    min_redshift    = float(config.get('extra_params','min_redshift'))
-    max_redshift    = float(config.get('extra_params','max_redshift'))
-    coarsen_factor  = int(config.get('extra_params', 'coarsen_factor'))
+    try: 
+        min_redshift  = float(config.get('extra_params','min_redshift'))
+    except configparser.NoOptionError: 
+        print("Warning: min_redshift set to 5 by default")
+        min_redshift = 5
+
+    try:
+        max_redshift    = float(config.get('extra_params','max_redshift'))
+    except configparser.NoOptionError:
+        print("Warning: max_redshift set to 35 by default")
+        max_redshift  = 35   
+
+    try:
+        coarsen_factor  = int(config.get('extra_params', 'coarsen_factor'))
+    except configparser.NoOptionError:
+        print("Warning: coarsen factor undifined")
+        coarsen_factor = None 
 
     user_params     = p21fl_tools.read_config_params(config.items('user_params'))
     flag_options    = p21fl_tools.read_config_params(config.items('flag_options'))
     astro_params    = p21fl_tools.read_config_params(config.items('astro_params'), int_type=False)
+
 
     # Manually set the number of threads
     if n_omp is not None: 

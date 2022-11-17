@@ -5,10 +5,10 @@ from scipy import interpolate
 from astropy import units
 import ast
 
-try:
-    import py21cmsense as p21s
-except:
-    pass
+import py21cmsense as p21s
+
+#except:
+ #   pass
     
 from py21cmfishlite import tools as p21fl_tools
 
@@ -75,13 +75,33 @@ def extract_noise_from_fiducial(z_arr, k_arr, delta_arr, observations) :
 
 
 
-def evaluate_fisher_matrix(dir_path: str, observatory: str = None):
+def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float = 0.1, kmax: float = 1.):
+    
     """
     Main function that evaluates the Fisher matrix from the set of power spectra in folder
 
     Parameters:
-        evaluate_fis
+    -----------
+    dir_path: str
+        path to the directory where the data is saved
+    observatory: str (optional)
+        observatory we consider to evaluate the experimental sensitivity
+        by default HERA configuration is used
+    kmin: float (Mpc^{-1}, optional)
+        minimal k mode to sum over in the Fisher matrix
+        by default kmin= 0.1 Mpc^{-1}
+    kmax: float (Mpc^{-1}, optional)
+        maximal k mode to sum over in the Fisher matrix
+        by default kmax= 1 Mpc^{-1}
 
+    Returns:
+    -----------
+    fisher_matrix: (n, n) numpy array
+        Fisher matrix where n is the number of parameters
+    key_arr: list of str (of size n)
+        name of the parameters in the order corresponding to that in the Fisher matrix 
+    fiducial_params: list of float (of size n)
+        list of the fiducial parameters
     """
     
     # Read all the 
@@ -179,8 +199,6 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None):
 
     fiducial_params = fiducial_params[-1] ## Only keep the astro params
 
-
-    littleh : float = p21s.config.COSMO.h
     
     #### Now from the redshift array and the instrument we get the (k, z) arrays and the noise from 21cmSense
       
@@ -193,35 +211,41 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None):
     observations             = define_HERA_observations(z_arr_fid)
     sensitivities, power_std = extract_noise_from_fiducial(z_arr_fid, k_arr_fid, delta_arr_fid, observations)
     
-    k_fish     = [sensitivity.k1d.value * littleh for sensitivity in sensitivities]
+    k_fish     = [sensitivity.k1d.value *  p21s.config.COSMO.h for sensitivity in sensitivities]
 
 
-    fisher_mat = np.zeros((n_keys, n_keys))
+    #### EVALUATE THE FISHER MATRIX
+
+    fisher_matrix = np.zeros((n_keys, n_keys))
 
     file_temp = open(dir_path + "/my_temp_file.txt", 'w')
 
     for iz, z in enumerate(z_arr_fid):
         for jk, k in enumerate(k_fish[iz]):
+
+            if k > kmin and k < kmax: 
+            # Limit the range of k to that between 0.1 and 1 Mpc^{-1}
             # Now we are cooking with gaz!
 
-            for kkey1, key1 in enumerate(key_arr_unique):
+                for kkey1, key1 in enumerate(key_arr_unique):
 
-                dp1 = delta_func_p[key1][iz](k)
-                dm1 = delta_func_m[key1][iz](k)
-                
-                deriv_1 = (dp1 - dm1)/((val_arr_p[key1] - val_arr_m[key1])*fiducial_params[key1]) # derivative with respect to the first parameter
-                
-                for kkey2, key2 in enumerate(key_arr_unique):
-
-                    dp2 = delta_func_p[key2][iz](k)
-                    dm2 = delta_func_m[key2][iz](k)
+                    dp1 = delta_func_p[key1][iz](k)
+                    dm1 = delta_func_m[key1][iz](k)
                     
-                    deriv_2 = (dp2 - dm2)/((val_arr_p[key2] - val_arr_m[key2])*fiducial_params[key2]) # derivative with respect to the first parameter
+                    deriv_1 = (dp1 - dm1)/((val_arr_p[key1] - val_arr_m[key1])*fiducial_params[key1]) # derivative with respect to the first parameter
                     
-                    print(z, k, key1, key2, deriv_1, deriv_2, val_arr_p[key1], val_arr_p[key2], power_std[iz][jk].value, file=file_temp)
+                    for kkey2, key2 in enumerate(key_arr_unique):
 
-                    if not np.isinf(power_std[iz][jk].value):
-                        fisher_mat[kkey1, kkey2] =  fisher_mat[kkey1, kkey2] + deriv_1 * deriv_2 / power_std[iz][jk].value
+                        dp2 = delta_func_p[key2][iz](k)
+                        dm2 = delta_func_m[key2][iz](k)
+                        
+                        deriv_2 = (dp2 - dm2)/((val_arr_p[key2] - val_arr_m[key2])*fiducial_params[key2]) # derivative with respect to the first parameter
+                        
+                        # print(z, k, key1, key2, deriv_1, deriv_2, val_arr_p[key1], val_arr_p[key2], power_std[iz][jk].value, file=file_temp)
+
+                        if not np.isinf(power_std[iz][jk].value):
+                            fisher_matrix[kkey1, kkey2] =  fisher_matrix[kkey1, kkey2] + deriv_1 * deriv_2 / (power_std[iz][jk].value)**2
+
+    return fisher_matrix, key_arr_unique, fiducial_params
 
 
-    print(fisher_mat)

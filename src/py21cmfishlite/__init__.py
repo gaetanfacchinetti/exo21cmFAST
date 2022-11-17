@@ -8,6 +8,8 @@ from .run_from_config import (
 
 from .tools import (
     create_from_scracth,
+    prepare_sbatch_file,
+    make_triangle_plot,
 )
 
 from .fisher_matrix import (

@@ -2637,7 +2637,7 @@ def run_lightcone(
     -------
     lightcone : :class:`~py21cmfast.LightCone`
         The lightcone object.
-    output_exotic_energy°injection : dict
+    output_exotic_energy_injection : dict
         Data related to exotic energy injection
     coeval_callback_output : list
         Only if coeval_callback in not None.

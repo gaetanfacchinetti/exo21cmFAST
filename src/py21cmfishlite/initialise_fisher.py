@@ -63,9 +63,23 @@ def init_fisher_from_fiducial(config_file: str, q_scale: float = 3.) -> None :
     cache_dir       = config.get('run', 'cache_dir')
 
     extra_params = {}
-    extra_params['min_redshift']    = float(config.get('extra_params','min_redshift'))
-    extra_params['max_redshift']    = float(config.get('extra_params','max_redshift'))
-    extra_params['coarsen_factor']  = int(config.get('extra_params', 'coarsen_factor'))
+    
+    try: 
+        extra_params['min_redshift']  = float(config.get('extra_params','min_redshift'))
+    except configparser.NoOptionError: 
+        print("Warning: min_redshift set to 5 by default")
+        extra_params['min_redshift']  = 5
+
+    try:
+        extra_params['max_redshift']    = float(config.get('extra_params','max_redshift'))
+    except configparser.NoOptionError:
+        print("Warning: max_redshift set to 35 by default")
+        extra_params['max_redshift']  = 35   
+
+    try:
+        extra_params['coarsen_factor']  = int(config.get('extra_params', 'coarsen_factor'))
+    except configparser.NoOptionError:
+        print("Warning: coarsen factor undifined")
 
     user_params       = p21fl_tools.read_config_params(config.items('user_params'))
     flag_options      = p21fl_tools.read_config_params(config.items('flag_options'))
@@ -121,5 +135,7 @@ def init_fisher_from_fiducial(config_file: str, q_scale: float = 3.) -> None :
         print(extra_params, file = f)
         print(user_params,  file = f)
         print(flag_options, file = f)
-        print(astro_params, file = f)
+        print(astro_params_fid, file = f)
+
+    return name.upper()
 
