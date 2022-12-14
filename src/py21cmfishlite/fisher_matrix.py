@@ -89,10 +89,10 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float =
         by default HERA configuration is used
     kmin: float (Mpc^{-1}, optional)
         minimal k mode to sum over in the Fisher matrix
-        by default kmin= 0.1 Mpc^{-1}
+        by default kmin = 0.1 Mpc^{-1}
     kmax: float (Mpc^{-1}, optional)
         maximal k mode to sum over in the Fisher matrix
-        by default kmax= 1 Mpc^{-1}
+        by default kmax = 1 Mpc^{-1}
 
     Returns:
     -----------
@@ -211,7 +211,7 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float =
     observations             = define_HERA_observations(z_arr_fid)
     sensitivities, power_std = extract_noise_from_fiducial(z_arr_fid, k_arr_fid, delta_arr_fid, observations)
     
-    k_fish     = [sensitivity.k1d.value *  p21s.config.COSMO.h for sensitivity in sensitivities]
+    k_fish     = [sensitivity.k1d.value * p21s.config.COSMO.h for sensitivity in sensitivities]
 
 
     #### EVALUATE THE FISHER MATRIX
@@ -239,9 +239,9 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float =
                         dp2 = delta_func_p[key2][iz](k)
                         dm2 = delta_func_m[key2][iz](k)
                         
-                        deriv_2 = (dp2 - dm2)/((val_arr_p[key2] - val_arr_m[key2])*fiducial_params[key2]) # derivative with respect to the first parameter
+                        deriv_2 = (dp2 - dm2)/((val_arr_p[key2] - val_arr_m[key2])*fiducial_params[key2]) # derivative with respect to the second parameter
                         
-                        # print(z, k, key1, key2, deriv_1, deriv_2, val_arr_p[key1], val_arr_p[key2], power_std[iz][jk].value, file=file_temp)
+                        print(z, k, key1, key2, deriv_1, deriv_2, val_arr_p[key1], val_arr_p[key2], power_std[iz][jk].value, file=file_temp)
 
                         if not np.isinf(power_std[iz][jk].value):
                             fisher_matrix[kkey1, kkey2] =  fisher_matrix[kkey1, kkey2] + deriv_1 * deriv_2 / (power_std[iz][jk].value)**2

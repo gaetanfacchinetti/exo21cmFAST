@@ -400,3 +400,74 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
 
 
 
+def plot_power_spectra(k_sens, delta_sens, std_sens, redshifts, k_arr = None, delta_arr = None, err_arr = None, show_theoretical_err = False, **kwargs) :
+
+    """ 
+        Function that plots the power spectra with the sensitivity bounds from extract_noise_from_fiducial()
+        We can plot on top more power spectra for comparison
+
+        Params
+        ------
+        k_sens : list of floats
+
+    """
+    fig = plt.figure(constrained_layout=False, figsize=(10,5))
+    fig.subplots_adjust(wspace=0, hspace=0)
+    gs = GridSpec(3, 5, figure=fig)
+    axs = [[None for j in range(0, 5)] for i in range(0, 3)]
+
+    cmap = matplotlib.cm.get_cmap('Spectral')
+    a_lin = (0.99-0.2)/(len(k_arr)-1) if len(k_arr) > 1 else 1
+    b_lin = 0.2 if len(k_arr) > 1 else 0.5
+
+
+    try: 
+        color_list = kwargs['color']
+    except KeyError: 
+        color_list = [cmap(i) for i in np.arange(0, len(k_arr))*a_lin + b_lin]
+    
+    try:
+        linestyle_list = kwargs['linestyle']
+    except KeyError:
+        linestyle_list = ['-' for i in np.arange(0, len(k_arr))]
+
+    k = 0
+    for i in range(0, 3):
+        for j in range(0, 5):
+            axs[i][j] = fig.add_subplot(gs[i:i+1, j:j+1])
+            axs[i][j].errorbar(k_sens[k], delta_sens[k], yerr=std_sens[k], marker='x', linestyle='none', markersize=1, capsize=1.5, capthick=0.5, elinewidth=0.5, ecolor='dimgrey')
+            
+            if k_arr is not None:
+                for i_arr, _ in enumerate(k_arr):
+                    # Plot all the lines that we want on top of the sensitivity limits
+                    axs[i][j].plot(k_arr[i_arr][k], delta_arr[i_arr][k], linewidth=0.5, color=color_list[i_arr], linestyle=linestyle_list[i_arr])
+                    
+                    if show_theoretical_err is True :
+                        axs[i][j].fill_between(k_arr[i_arr][k], delta_arr[i_arr][k] - 5*err_arr[i_arr][k], delta_arr[i_arr][k] + 5*err_arr[i_arr][k], color=color_list[i_arr], linestyle=linestyle_list[i_arr], alpha=0.1)
+            
+            axs[i][j].set_xlim(6e-2, 1.4)
+            axs[i][j].set_ylim(1e-4, 1e+6)
+            axs[i][j].set_xscale('log')
+            axs[i][j].set_yscale('log')
+            axs[i][j].axvspan(6e-2, 1e-1, color='r', alpha=0.2)
+            axs[i][j].axvspan(1, 1.4, color='r', alpha=0.2)
+            
+            if j > 0:
+                axs[i][j].get_yaxis().set_ticks([])
+
+            if i < 2:
+                axs[i][j].get_xaxis().set_ticks([])
+
+            axs[i][j].text(0.12, 5e+4, r'$\rm z = {0:.1f}$'.format(redshifts[k]))
+
+            k = k+1
+
+    axs[1][0].set_ylabel(r'$\Delta_{21}^2 ~{\rm [mK^2]}$')
+    axs[2][2].set_xlabel(r'$k ~{\rm [Mpc^{-1}]}$')
+    
+    try: 
+        axs[0][2].set_title(r'${}$'.format(kwargs['title']))
+    except KeyError:
+        pass
+
+    return fig
