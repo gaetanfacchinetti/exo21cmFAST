@@ -36,7 +36,7 @@ from py21cmanalysis import tools as p21a_tools
 import numpy as np
 
 
-def init_fisher_from_fiducial(config_file: str, q_scale: float = 3.) -> None :
+def init_fisher_from_fiducial(config_file: str, q_scale: float = 3., clean_existing_dir: bool = False) -> None :
 
     """ 
     Initialise the runs for a fisher analysis according to 
@@ -46,9 +46,10 @@ def init_fisher_from_fiducial(config_file: str, q_scale: float = 3.) -> None :
     --------
     config_file : str
         Path to the config file representing the fiducial
-    q_scale : float 
+    q_scale : float, optional
         Gives the points where to compute the derivative in pourcentage of the fiducial parameters
-    
+    erase_fir : bool, optional
+        If True forces the creation of a folder 
     """
 
     config = configparser.ConfigParser(delimiters=':')
@@ -88,7 +89,15 @@ def init_fisher_from_fiducial(config_file: str, q_scale: float = 3.) -> None :
 
     vary_array = np.array([-1, 1])
     astro_params_run_all = {}
-    astro_params_run_all['fid'] = astro_params_fid
+    astro_params_run_all['FIDUCIAL'] = astro_params_fid
+
+    # Make the directory to store the outputs and everything
+    output_run_dir = output_dir + "/" + name.upper() + "/"
+    existing_dir = p21a_tools.make_directory(output_run_dir, clean_existing_dir = clean_existing_dir)
+
+    if existing_dir is True:
+        print('WARNING: Cannot create a clean new folder because clean_existing_dir is False')
+        return 
 
     for param, value in astro_params_vary.items(): 
         
@@ -104,9 +113,9 @@ def init_fisher_from_fiducial(config_file: str, q_scale: float = 3.) -> None :
             p = q
         else:
             if value == 'linear' :
-                p = p_fid - q*p_fid
+                p = p_fid*(1+q)
             elif value == 'log':
-                p = p_fid**(1-q)
+                p = p_fid**(1+q)
             
         astro_params_run = astro_params_fid.copy()
 
@@ -114,28 +123,23 @@ def init_fisher_from_fiducial(config_file: str, q_scale: float = 3.) -> None :
             astro_params_run[param] = pp
             if param == 'L_X': # change L_X and L_X_MINI at the same time
                 astro_params_run['L_X_MINI'] = pp
+
             astro_params_run_all[f'{param}_{q[i]}'] = astro_params_run.copy()
-
-
-    # Make the directory corresponding to the run
-    output_run_dir = output_dir + "/" + name.upper() + "/"
-    p21a_tools.make_directory(output_run_dir, clean_existing_dir = True)
-    p21a_tools.make_directory(output_run_dir + "run_list/", clean_existing_dir = True)
-    p21a_tools.make_directory(output_run_dir + "output_list/", clean_existing_dir = True)
-
+        
+    
     # Write down the separate config files
     irun = 0
     for key, astro_params in astro_params_run_all.items() : 
-        p21fl_tools.write_config_params(output_run_dir + "/run_list/_run_" + str(irun) + ".config", name, cache_dir, extra_params, user_params, flag_options, astro_params, key)
+        p21fl_tools.write_config_params(output_run_dir + '/Config_' + key + ".config", name, cache_dir, extra_params, user_params, flag_options, astro_params, key)
         irun = irun + 1
 
     # Save the fiducial configuration somewhere
-    with open(output_run_dir + "/fiducial_params.txt", 'w') as f:
-        print("# Here we write down the fiductial parameters used to generate the run list", file = f)
-        print(extra_params, file = f)
-        print(user_params,  file = f)
-        print(flag_options, file = f)
-        print(astro_params_fid, file = f)
+    # with open(output_run_dir + "/fiducial_params.txt", 'w') as f:
+    #    print("# Here we write down the fiductial parameters used to generate the run list", file = f)
+    #    print(extra_params, file = f)
+    #    print(user_params,  file = f)
+    #    print(flag_options, file = f)
+    #    print(astro_params_fid, file = f)
 
-    return name.upper()
+    return 
 

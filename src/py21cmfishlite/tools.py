@@ -156,6 +156,7 @@ def read_power_spectra(folder_name: str):
 
 
 
+
 def create_from_scracth(path_dir:str) -> None : 
     """ Create the folder that will hold the fisher analysis from scracth """
 
@@ -280,7 +281,7 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
     ##  Prepare the triangle plot
 
     fig = plt.figure(constrained_layout=False, figsize=(12,12))
-    fig.subplots_adjust(wspace=0, hspace=0)
+    fig.subplots_adjust(wspace=0.05, hspace=0.05)
 
     ngrid = len(name_params)
     gs = GridSpec(ngrid, ngrid, figure=fig)
@@ -355,13 +356,13 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
 
     for i in range(ngrid):
         axs[-1][i].set_xlabel(display_arr[i])
-        axs[-1][i].set_xticks(ticks_arr[i])
+        #axs[-1][i].set_xticks(ticks_arr[i])
         for tick in axs[-1][i].get_xticklabels():
                 tick.set_rotation(55)
 
     for j in range(1, ngrid):
         axs[j][0].set_ylabel(display_arr[j])
-        axs[j][0].set_yticks(ticks_arr[j])
+        #axs[j][0].set_yticks(ticks_arr[j])
 
     axs[0][0].set_yticks([])  
 
@@ -372,6 +373,12 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
         for i in range(0, j+1) :
             ## Here i represents the x axis while j goes along the y axis
             
+         
+            x_min = fiducial_params[name_params[i]] - 4*np.sqrt(cov_matrix[i, i])
+            x_max = fiducial_params[name_params[i]] + 4*np.sqrt(cov_matrix[i, i])
+            axs[j][i].set_xlim([x_min, x_max])
+
+
             if i != j : 
                 # Countour plot for the scatter
                 sub_cov = np.zeros((2, 2))
@@ -381,8 +388,13 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
                 sub_cov[1, 1] = cov_matrix[j, j]
                 ellipse_x, ellipse_y = ellipse_from_covariance(sub_cov, [fiducial_params[name_params[i]], fiducial_params[name_params[j]]])
                 axs[j][i].plot(ellipse_x, ellipse_y, linewidth=0.5, color='blue')
-                axs[j][i].set_xlim([min_val_arr[i], max_val_arr[i]])
-                axs[j][i].set_ylim([min_val_arr[j], max_val_arr[j]])
+    
+                y_min = fiducial_params[name_params[j]] - 4*np.sqrt(cov_matrix[j, j])
+                y_max = fiducial_params[name_params[j]] + 4*np.sqrt(cov_matrix[j, j])
+                axs[j][i].set_ylim([y_min, y_max])
+
+                #axs[j][i].set_xlim([min_val_arr[i], max_val_arr[i]])
+                #axs[j][i].set_ylim([min_val_arr[j], max_val_arr[j]])
 
                 confidence_ellipse(sub_cov, fiducial_params[name_params[i]], fiducial_params[name_params[j]], axs[j][i],  n_std=2, facecolor='blue', alpha=0.3)
                 confidence_ellipse(sub_cov, fiducial_params[name_params[i]], fiducial_params[name_params[j]], axs[j][i],  n_std=1, facecolor='blue', alpha=0.7)
@@ -393,14 +405,15 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
                 val_arr = np.linspace(mean_val-5*sigma, mean_val+5*sigma, 100)
                 gaussian_approx = exp(-(val_arr - mean_val)**2/2./sigma**2)
                 axs[i][i].plot(val_arr, gaussian_approx, color='blue')
-                axs[i][i].set_xlim([min_val_arr[i], max_val_arr[i]])
+                #axs[i][i].set_xlim([min_val_arr[i], max_val_arr[i]])
                 axs[i][i].set_ylim([0, 1.2])
+                axs[i][i].set_title(r'$\sigma = {:.1e}$'.format(np.sqrt(cov_matrix[i, i])), fontsize=10)
 
     return fig
 
 
 
-def plot_power_spectra(k_sens, delta_sens, std_sens, redshifts, k_arr = None, delta_arr = None, err_arr = None, show_theoretical_err = False, **kwargs) :
+def make_figure_power_spectra(k,  ps,  z, std = None, k_arr = None, ps_arr = None, err_arr = None, show_theoretical_err = False, **kwargs) :
 
     """ 
         Function that plots the power spectra with the sensitivity bounds from extract_noise_from_fiducial()
@@ -416,34 +429,42 @@ def plot_power_spectra(k_sens, delta_sens, std_sens, redshifts, k_arr = None, de
     gs = GridSpec(3, 5, figure=fig)
     axs = [[None for j in range(0, 5)] for i in range(0, 3)]
 
-    cmap = matplotlib.cm.get_cmap('Spectral')
-    a_lin = (0.99-0.2)/(len(k_arr)-1) if len(k_arr) > 1 else 1
-    b_lin = 0.2 if len(k_arr) > 1 else 0.5
+    if k_arr is not None:
+        
+        cmap = matplotlib.cm.get_cmap('Spectral')
+        a_lin = (0.99-0.2)/(len(k_arr)-1) if len(k_arr) > 1 else 1
+        b_lin = 0.2 if len(k_arr) > 1 else 0.5
 
+        try: 
+            color_list = kwargs['color']
+        except KeyError: 
+            color_list = [cmap(i) for i in np.arange(0, len(k_arr))*a_lin + b_lin]
+        
+        try:
+            linestyle_list = kwargs['linestyle']
+        except KeyError:
+            linestyle_list = ['-' for i in np.arange(0, len(k_arr))]
 
-    try: 
-        color_list = kwargs['color']
-    except KeyError: 
-        color_list = [cmap(i) for i in np.arange(0, len(k_arr))*a_lin + b_lin]
-    
-    try:
-        linestyle_list = kwargs['linestyle']
-    except KeyError:
-        linestyle_list = ['-' for i in np.arange(0, len(k_arr))]
-
-    k = 0
+    iz = 0
     for i in range(0, 3):
         for j in range(0, 5):
             axs[i][j] = fig.add_subplot(gs[i:i+1, j:j+1])
-            axs[i][j].errorbar(k_sens[k], delta_sens[k], yerr=std_sens[k], marker='x', linestyle='none', markersize=1, capsize=1.5, capthick=0.5, elinewidth=0.5, ecolor='dimgrey')
+
+            # Plot the power spectrum at every redshift
+            axs[i][j].step(k[iz], ps[iz], where='mid', alpha = 1, color='blue')
             
+            # Plot the standard deviation bars if standard deviation is given
+            if std is not None : 
+                axs[i][j].fill_between(k[iz], ps[iz] - std[iz], ps[iz] + std[iz], step='mid', alpha = 0.5, color='cyan')
+            
+            # If we set 
             if k_arr is not None:
                 for i_arr, _ in enumerate(k_arr):
                     # Plot all the lines that we want on top of the sensitivity limits
-                    axs[i][j].plot(k_arr[i_arr][k], delta_arr[i_arr][k], linewidth=0.5, color=color_list[i_arr], linestyle=linestyle_list[i_arr])
+                    axs[i][j].plot(k_arr[i_arr][iz], ps_arr[i_arr][iz], linewidth=0.5, color=color_list[i_arr], linestyle=linestyle_list[i_arr])
                     
                     if show_theoretical_err is True :
-                        axs[i][j].fill_between(k_arr[i_arr][k], delta_arr[i_arr][k] - 5*err_arr[i_arr][k], delta_arr[i_arr][k] + 5*err_arr[i_arr][k], color=color_list[i_arr], linestyle=linestyle_list[i_arr], alpha=0.1)
+                        axs[i][j].fill_between(k_arr[i_arr][iz], ps_arr[i_arr][iz] - 5*err_arr[i_arr][iz], ps_arr[i_arr][iz] + 5*err_arr[i_arr][iz], color=color_list[i_arr], linestyle=linestyle_list[i_arr], alpha=0.1)
             
             axs[i][j].set_xlim(6e-2, 1.4)
             axs[i][j].set_ylim(1e-4, 1e+6)
@@ -458,9 +479,9 @@ def plot_power_spectra(k_sens, delta_sens, std_sens, redshifts, k_arr = None, de
             if i < 2:
                 axs[i][j].get_xaxis().set_ticks([])
 
-            axs[i][j].text(0.12, 5e+4, r'$\rm z = {0:.1f}$'.format(redshifts[k]))
+            axs[i][j].text(0.12, 5e+4, r'$\rm z = {0:.1f}$'.format(z[iz]))
 
-            k = k+1
+            iz = iz+1
 
     axs[1][0].set_ylabel(r'$\Delta_{21}^2 ~{\rm [mK^2]}$')
     axs[2][2].set_xlabel(r'$k ~{\rm [Mpc^{-1}]}$')

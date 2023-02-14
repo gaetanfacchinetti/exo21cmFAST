@@ -34,21 +34,21 @@ from py21cmfishlite import tools as p21fl_tools
 import py21cmfast   as p21f
 
 def run_lightcone_from_config(config_file: str, n_omp: int = None) :
-    """ Run a lightcone from a config file 
+    """ ## Run a lightcone from a config file 
 
     Parameters
     ----------
-        config_file: str
-            path of the configuration file
-        n_omp: int
-            number of threads to use
+    config_file: str
+        path of the configuration file
+    n_omp: int
+        number of threads to use
 
     Returns
     ----------
-        lightcone: Lightcone object (see 21cmFAST)
-            lightcone of the run
-        info: dict
-            some informations about the run
+    lightcone: Lightcone object (see 21cmFAST)
+        lightcone of the run
+    run_id: string
+        identifier of the run
     """
 
 
@@ -93,10 +93,10 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None) :
     
     ####################### Running the lightcone ############################
 
-    lightcone_quantities = ("brightness_temp", 'density')
-    global_quantities    = ("brightness_temp", 'density', 'xH_box')
+    lightcone_quantities = ("brightness_temp", )
+    global_quantities    = ("brightness_temp", )
 
-    lightcone, _ = p21f.run_lightcone(
+    lightcone = p21f.run_lightcone(
             redshift             = min_redshift,
             max_redshift         = max_redshift, 
             user_params          = user_params,
@@ -109,5 +109,5 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None) :
             direc                = cache_dir + name.upper() + "/", 
         )
 
-    return lightcone, {'name' : name, 'run_id' : run_id}
+    return lightcone, run_id
  

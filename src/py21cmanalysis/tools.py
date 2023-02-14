@@ -11,7 +11,9 @@ def make_directory(path: str, clean_existing_dir:bool = True):
             clean_directory(path)
         else:
             print("The directory "  + path + " already exists")
+            return True
 
+    return False
 
 def clean_directory(path: str):
     """ Clean the directory at the path: path """

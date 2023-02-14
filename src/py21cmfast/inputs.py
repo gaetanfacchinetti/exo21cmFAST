@@ -18,6 +18,7 @@ import warnings
 from astropy.cosmology import Planck15
 from os import path
 from pathlib import Path
+import numpy as np
 
 from ._cfg import config
 from ._data import DATA_PATH
@@ -696,6 +697,10 @@ class FlagOptions(StructWithDefaults):
         
         "USE_CUSTOM_INIT_COND"       : False,
         "FORCE_DEFAULT_INIT_COND"    : False,
+
+        ## For compatibility with 21cmFish
+        "USE_ETHOS" : False,
+        "FILTER"    : 0,
     }
 
     # This checks if relative velocities are off to complain if minihaloes are on
@@ -833,7 +838,7 @@ class FlagOptions(StructWithDefaults):
         if self._DM_FHEAT_APPROX_SHAPE == None:
             return self._DM_FHEAT_APPROX_SHAPE
 
-        if isinstance(self._DM_FHEAT_APPROX_SHAPE, int):
+        if isinstance(self._DM_FHEAT_APPROX_SHAPE, (int, np.int64)):
             if self._DM_FHEAT_APPROX_SHAPE < len(self._fheat_shapes):
                 return self._DM_FHEAT_APPROX_SHAPE
             else:
@@ -852,7 +857,7 @@ class FlagOptions(StructWithDefaults):
     @property
     def DM_BACKREACTION(self):
         """ Include the backreaction of the ionization history on the injected energy """
-        if isinstance(self._DM_BACKREACTION, bool):
+        if isinstance(self._DM_BACKREACTION, (bool, np.bool_)):
             return self._DM_BACKREACTION
         else : 
             raise ValueError("DM_BACKREACTION must be a boolean")
@@ -860,7 +865,7 @@ class FlagOptions(StructWithDefaults):
     @property
     def USE_DM_ENERGY_INJECTION(self):
         """ Specify if we account for DM energy injection """
-        if isinstance(self._USE_DM_ENERGY_INJECTION, bool): 
+        if isinstance(self._USE_DM_ENERGY_INJECTION, (bool, np.bool_)): 
             return self._USE_DM_ENERGY_INJECTION
         else:
             raise ValueError("USE_DM_ENERGY_INJECTION must be a bool")
@@ -868,7 +873,7 @@ class FlagOptions(StructWithDefaults):
     @property
     def USE_DM_EFFECTIVE_DEP_FUNCS(self):
         """ Specify if we treat DM energy injection at the effective level or with DarkHistory """
-        if isinstance(self._USE_DM_EFFECTIVE_DEP_FUNCS, bool):
+        if isinstance(self._USE_DM_EFFECTIVE_DEP_FUNCS, (bool, np.bool_)):
             if self._USE_DM_ENERGY_INJECTION is False and self._USE_DM_EFFECTIVE_DEP_FUNCS is True :  
                 raise ValueError("USE_DM_ENERGY_INJECTION must be True to set USE_DM_EFFECTIVE_DEP_FUNCS to True")
             else:
@@ -879,7 +884,7 @@ class FlagOptions(StructWithDefaults):
     @property
     def USE_DM_CUSTOM_F_RATIOS(self):
         """ Use custom ratios of f_ion/f_heat, f_exc/f_heat, etc. """
-        if isinstance(self._USE_DM_CUSTOM_F_RATIOS, bool):
+        if isinstance(self._USE_DM_CUSTOM_F_RATIOS, (bool, np.bool_)):
             return self._USE_DM_CUSTOM_F_RATIOS
         else:
             return ValueError("USE_DM_CUSTOM_F_RATIOS must be a bool")
@@ -888,7 +893,7 @@ class FlagOptions(StructWithDefaults):
     @property
     def USE_CUSTOM_INIT_COND(self):
         """ Force init condition to that set in AstroParams """
-        if isinstance(self._USE_CUSTOM_INIT_COND, bool):
+        if isinstance(self._USE_CUSTOM_INIT_COND, (bool, np.bool_)):
             return self._USE_CUSTOM_INIT_COND
         else:
             raise ValueError("USE_CUSTOM_INIT_COND must be a bool")
@@ -897,7 +902,7 @@ class FlagOptions(StructWithDefaults):
     @property
     def FORCE_DEFAULT_INIT_COND(self):
         """ Force init condition to that obtained without DM (whether we included DM energy injection of not) """
-        if isinstance(self._FORCE_DEFAULT_INIT_COND, bool):
+        if isinstance(self._FORCE_DEFAULT_INIT_COND, (bool, np.bool_)):
             if self._USE_CUSTOM_INIT_COND == True and self._FORCE_DEFAULT_INIT_COND == True:
                 return ValueError("FORCE_DEFAULT_INIT_COND and USE_CUSTOM_INIT_COND cannot be both set to True")
             elif self._USE_CUSTOM_INIT_COND == False and self._USE_DM_ENERGY_INJECTION == False and self._FORCE_DEFAULT_INIT_COND == False:
@@ -915,6 +920,25 @@ class FlagOptions(StructWithDefaults):
     def dm_fheat_approx_shape_str(self):
         """ String representation of the template shape """
         return self._fheat_shapes[self.DM_FHEAT_APPROX_SHAPE]
+
+
+    @property
+    def USE_ETHOS(self):
+        """ No use here / for compatibility with 21cmFish """
+        if isinstance(self._USE_ETHOS, (bool, np.bool_)): 
+            return self._USE_ETHOS
+        else:
+            raise ValueError("USE_ETHOS must be a bool")
+
+    @property
+    def FILTER(self): 
+        """ No use here / for compatibility with 21cmFish """
+        if isinstance(self._FILTER, (float, int, np.int64, np.float64)): 
+            return int(self._FILTER)
+        else:
+            print(type(self._FILTER))
+            raise ValueError("FILTER must be a int")
+
     ######################################################################################
 
 
@@ -1183,7 +1207,7 @@ class AstroParams(StructWithDefaults):
     @property
     def DM_LOG10_MASS(self):
         """ Mass of the dark matter particle in eV """
-        if isinstance(self._DM_LOG10_MASS, (int, float)) :
+        if isinstance(self._DM_LOG10_MASS, (float, int, np.int64, np.float64)) :
             return float(self._DM_LOG10_MASS)
         else :
             raise ValueError("DM_LOG10_MASS must be a float")
@@ -1191,7 +1215,7 @@ class AstroParams(StructWithDefaults):
     @property
     def DM_LOG10_SIGMAV(self):
         """ Annihilation cross section in cm^3 s^{-1} """
-        if isinstance(self._DM_LOG10_SIGMAV, (int, float)) :
+        if isinstance(self._DM_LOG10_SIGMAV, (float, int, np.int64, np.float64)) :
             return float(self._DM_LOG10_SIGMAV)
         else:
             raise ValueError("DM_LOG10_SIGMAV must be a float")
@@ -1199,7 +1223,7 @@ class AstroParams(StructWithDefaults):
     @property
     def DM_LOG10_LIFETIME(self):
         """ Lifetime of decaying dark matter in s """
-        if isinstance(self._DM_LOG10_LIFETIME, (int, float)) :
+        if isinstance(self._DM_LOG10_LIFETIME, (float, int, np.int64, np.float64)) :
             return float(self._DM_LOG10_LIFETIME)
         else:
             raise ValueError("DM_LOG10_LIFETIME must be a float")
@@ -1207,7 +1231,7 @@ class AstroParams(StructWithDefaults):
     @property
     def DM_FHEAT_APPROX_PARAM_LOG10_F0(self):
         """ parameters of the DM_FHEAT_APPROX """
-        if isinstance(self._DM_FHEAT_APPROX_PARAM_LOG10_F0, (int, float)):
+        if isinstance(self._DM_FHEAT_APPROX_PARAM_LOG10_F0, (float, int, np.int64, np.float64)):
             return float(self._DM_FHEAT_APPROX_PARAM_LOG10_F0)
         else :
             raise ValueError("DM_FHEAT_APPROX_PARAM_LOG10_F0 must be a float")
@@ -1215,7 +1239,7 @@ class AstroParams(StructWithDefaults):
     @property
     def DM_FHEAT_APPROX_PARAM_A(self):
         """ parameters of the DM_FHEAT_APPROX """
-        if isinstance(self._DM_FHEAT_APPROX_PARAM_A, (int, float)):
+        if isinstance(self._DM_FHEAT_APPROX_PARAM_A, (float, int, np.int64, np.float64)):
             return float(self._DM_FHEAT_APPROX_PARAM_A)
         else :
             raise ValueError("DM_FHEAT_APPROX_PARAM_A must be a float")
@@ -1223,7 +1247,7 @@ class AstroParams(StructWithDefaults):
     @property
     def DM_FHEAT_APPROX_PARAM_B(self):
         """ parameters of the DM_FHEAT_APPROX """
-        if isinstance(self._DM_FHEAT_APPROX_PARAM_B, (int, float)):
+        if isinstance(self._DM_FHEAT_APPROX_PARAM_B, (float, int, np.int64, np.float64)):
             return float(self._DM_FHEAT_APPROX_PARAM_B)
         else :
             raise ValueError("DM_FHEAT_APPROX_PARAM_B must be a float")
@@ -1234,7 +1258,7 @@ class AstroParams(StructWithDefaults):
         if self._DM_LOG10_FION_H_OVER_FHEAT is None :
             return None
 
-        if isinstance(self._DM_LOG10_FION_H_OVER_FHEAT, (int, float)):
+        if isinstance(self._DM_LOG10_FION_H_OVER_FHEAT, (float, int, np.int64, np.float64)):
             return float(self._DM_LOG10_FION_H_OVER_FHEAT)
         else :
             raise ValueError("DM_LOG10_FION_H_OVER_FHEAT must be a float")
@@ -1245,7 +1269,7 @@ class AstroParams(StructWithDefaults):
         if self._DM_LOG10_FION_HE_OVER_FHEAT is None :
             return None
 
-        if isinstance(self._DM_LOG10_FION_HE_OVER_FHEAT, (int, float)):
+        if isinstance(self._DM_LOG10_FION_HE_OVER_FHEAT, (float, int, np.int64, np.float64)):
             return float(self._DM_LOG10_FION_HE_OVER_FHEAT)
         else :
             raise ValueError("DM_LOG10_FION_HE_OVER_FHEAT must be a float")
@@ -1256,7 +1280,7 @@ class AstroParams(StructWithDefaults):
         if self._DM_LOG10_FEXC_OVER_FHEAT is None :
             return None
 
-        if isinstance(self._DM_LOG10_FEXC_OVER_FHEAT, (int, float)):
+        if isinstance(self._DM_LOG10_FEXC_OVER_FHEAT, (float, int, np.int64, np.float64)):
             return float(self._DM_LOG10_FEXC_OVER_FHEAT)
         else :
             raise ValueError("DM_LOG10_FEXC_OVER_FHEAT must be a float")
@@ -1264,7 +1288,7 @@ class AstroParams(StructWithDefaults):
     @property
     def LOG10_TK_at_Z_HEAT_MAX(self):
         """ Value of the IGM temperature at Z_HEAT_MAX """
-        if isinstance(self._LOG10_TK_at_Z_HEAT_MAX, (int, float)):
+        if isinstance(self._LOG10_TK_at_Z_HEAT_MAX, (float, int, np.int64, np.float64)):
             return float(self._LOG10_TK_at_Z_HEAT_MAX)
         else :
             raise ValueError("LOG10_TK_at_Z_HEAT_MAX must be a float")
@@ -1272,7 +1296,7 @@ class AstroParams(StructWithDefaults):
     @property
     def LOG10_XION_at_Z_HEAT_MAX(self):
         """ Value of the IGM temperature at Z_HEAT_MAX """
-        if isinstance(self._LOG10_XION_at_Z_HEAT_MAX, (int, float)):
+        if isinstance(self._LOG10_XION_at_Z_HEAT_MAX, (float, int, np.int64, np.float64)):
             return float(self._LOG10_XION_at_Z_HEAT_MAX)
         else :
             raise ValueError("LOG10_XION_at_Z_HEAT_MAX must be a float")

@@ -69,11 +69,14 @@ def compute_power(box,
     # Define k bins
     if (k_min is None and k_max is None) or n_psbins is None:
         bins = n_psbins
-    else:
+    elif isinstance(n_psbins, int): 
+        # In the case where n_psbins is just an integer
         if log_bins:
             bins = np.logspace(np.log10(k_min), np.log10(k_max), n_psbins)
         else:
             bins = np.linspace(k_min, k_max, n_psbins)
+    else:
+        bins = n_psbins
 
     res = pb_tools.get_power(
         box,
@@ -99,7 +102,7 @@ def compute_power(box,
 
 def compute_powerspectra_1D(lightcone, nchunks=15,
                     chunk_indices=None,
-                    n_psbins=40,
+                    n_psbins=None,
                     k_min=0.1,
                     k_max=1.0,
                     logk=True,
@@ -127,7 +130,7 @@ def compute_powerspectra_1D(lightcone, nchunks=15,
     else:
         nchunks = len(chunk_indices) - 1
 
-    #chunk_redshift = np.zeros(nchunks)
+    chunk_redshift = np.zeros(nchunks)
     z_centers      = np.zeros(nchunks)
 
     lc_redshifts = lightcone.lightcone_redshifts
@@ -143,7 +146,7 @@ def compute_powerspectra_1D(lightcone, nchunks=15,
         end      = chunk_indices[i + 1]
         chunklen = (end - start) * lightcone.cell_size
 
-        #chunk_redshift[i] = np.median(lc_redshifts[start:end])
+        chunk_redshift[i] = np.median(lc_redshifts[start:end])
 
 
         #####

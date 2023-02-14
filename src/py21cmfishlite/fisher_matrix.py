@@ -1,11 +1,19 @@
 import os
+import glob
 
 import numpy as np
 from scipy import interpolate
+from scipy import optimize
 from astropy import units
 import ast
 
-import py21cmsense as p21s
+import py21cmsense    as p21s
+import py21cmfast     as p21f
+import py21cmanalysis as p21a
+
+from astropy.cosmology import Planck18 as cosmo
+from astropy import units
+from astropy import constants
 
 #except:
  #   pass
@@ -13,7 +21,7 @@ import py21cmsense as p21s
 from py21cmfishlite import tools as p21fl_tools
 
 
-def define_HERA_observations(z_arr):
+def define_HERA_observation(z):
     """ 
     Define a set of HERA observation objects (see 21cmSense) 
     according to an array of observation redshifts 
@@ -33,49 +41,270 @@ def define_HERA_observations(z_arr):
 
     hera = []
 
-    for iz, z in enumerate(z_arr):
-        beam = p21s.beam.GaussianBeam(
-            frequency = 1427.5831 * units.MHz / (1+z),  # just a reference frequency
-            dish_size = 14 * units.m
-        )
 
-        hera.append(p21s.Observatory(
-            antpos = hera_layout,
-            beam = beam,
-            latitude = 0.536189 * units.radian,
-            Trcv = 100 * units.K
-        ))
+    beam = p21s.beam.GaussianBeam(
+        frequency = 1420.40575177 * units.MHz / (1+z),  # just a reference frequency
+        dish_size = 14 * units.m
+    )
 
-    observations = []
+    hera = p21s.Observatory(
+        antpos = hera_layout,
+        beam = beam,
+        latitude = 0.536189 * units.radian,
+        Trcv = 100 * units.K
+    )
 
-    for iz, z in enumerate(z_arr):
-        observations.append(p21s.Observation(
-            observatory   = hera[iz],
-            n_channels    = 80, 
-            bandwidth     = 8 * units.MHz,
-            time_per_day  = 6 * units.hour,   # Number of hours of observation per day
-            n_days        = 166.6667,         # Number of days of observation
-        ))
+    observation = p21s.Observation(
+        observatory   = hera,
+        n_channels    = 80, 
+        bandwidth     = 8 * units.MHz,
+        time_per_day  = 6 * units.hour,   # Number of hours of observation per day
+        n_days        = 166.6667,         # Number of days of observation
+    )
 
-    return observations
-
-
-def extract_noise_from_fiducial(z_arr, k_arr, delta_arr, observations) :
-
-    #folder_name = '/home/ulb/physth_fi/gfacchin/exo21cmFAST_release/output/test_database/darkhistory/BrightnessTemp_12/power_spectra/'
-
-    sensitivities = []
-    power_std     = []
-
-    for iz, z in enumerate(z_arr):
-        sensitivities.append(p21s.PowerSpectrum(observation=observations[iz], k_21 = k_arr[iz] / units.Mpc, delta_21 = delta_arr[iz] * (units.mK**2), foreground_model='moderate')) # Use the default power spectrum here
-        power_std.append(sensitivities[iz].calculate_sensitivity_1d())
-
-    return sensitivities, power_std
+    return observation
 
 
 
-def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float = 0.1, kmax: float = 1.):
+def extract_noise_from_fiducial(k, dsqr, observation) :
+    """
+    Give the noise associated to power spectra delta_arr
+
+    Params:
+    -------
+    k       : list of floats 
+        array of modes k in [Mpc^{-1}]
+    dsqr    : list of floats 
+        Power spectrum in [mK^2] ordered with the modes k in 
+    observation : Observation object (c.f. 21cmSense)
+
+    Returns:
+    --------
+    k_sens       : list of list of floats
+    std_sens     : the standard deviation of the sensitivity [mK]
+
+    """
+
+
+    sensitivity       = p21s.PowerSpectrum(observation=observation, k_21 = k / units.Mpc, delta_21 = dsqr * (units.mK**2), foreground_model='moderate') # Use the default power spectrum here
+    k_sens            = sensitivity.k1d.value * p21s.config.COSMO.h
+    std_21cmSense     = sensitivity.calculate_sensitivity_1d().value
+
+    std = interpolate.interp1d(k_sens, std_21cmSense, bounds_error=False, fill_value=np.nan)(k)
+
+    return std 
+
+
+
+
+def define_grid_modes_redshifts(z_min: float, B: float, k_min = 0.1 / units.Mpc, k_max = 1 / units.Mpc, z_max: float = 19, logk=False) : 
+    """
+    Defines a grid of modes and redshift on which to define the noise and on which the Fisher matrix will be evaluated
+    
+    Params:
+    ------
+    z_min : float
+        Minimal redshift on the grid
+    B     : float
+        Bandwidth of the instrument
+
+    """
+
+    # Definition of the 21 cm frequency (same as in 21cmSense)
+    f21 = 1420.40575177 * units.MHz
+
+    def deltak_zB(z, B) : 
+        return 2*np.pi * f21 * cosmo.H(z) / constants.c / (1+z)**2 / B * 1000 * units.m / units.km
+
+    def generate_z_bins(z_min, z_max, B):
+        fmax = int(f21.value/(1+z_min))*f21.unit
+        fmin = f21/(1+z_max)
+        f_bins    = np.arange(fmax.value, fmin.value, -B.value) * f21.unit
+        f_centers = f_bins[:-1] - B/2
+        z_bins    = (f21/f_bins).value - 1
+        z_centers = (f21/f_centers).value -1
+        return z_bins, z_centers
+    
+    def generate_k_bins(z_min, k_min, k_max, B):
+        
+        dk = deltak_zB(z_min, B) 
+        _k_min = dk
+        n = 1
+
+        while _k_min < k_min:
+            _k_min = n*dk
+            n = n+1
+        
+        _k_min = (n-1)*dk
+
+        if logk is False:
+            return np.arange(_k_min.value, k_max.value, dk.value) * k_min.unit
+        else:
+            return np.logspace(np.log10((n-1)*dk.value), )
+
+    # Get the redshift bin edges and centers
+    z_bins, _ = generate_z_bins(z_min, z_max, B)
+    
+    # Get the k-bins edges
+    k_bins = generate_k_bins(z_min, k_min, k_max, B)
+
+    return z_bins, k_bins
+
+
+
+def compute_power_spectrum_from_bins(lightcone, z_bins, k_bins, logk): 
+    """
+    ## Generic function to evaluate the powe spectrum from precomputed bins
+    """
+    # Define the chunck indices according to the definition of the bins
+    lc_redshifts = lightcone.lightcone_redshifts
+    chunk_indices = [np.argmin(np.abs(lc_redshifts - z)) for z in z_bins]
+
+    # Compute the power spectrum on the redshift chuncks
+    z_arr, ps = p21a.compute_powerspectra_1D(lightcone, chunk_indices = chunk_indices, n_psbins=k_bins.value, logk=logk, remove_nans=False, vb=False)
+    
+    return z_arr, ps
+
+
+
+
+    
+
+
+class Run:
+
+    def __init__(self, lightcone, z_bins, k_bins, logk): 
+        
+        self._z_bins    = z_bins
+        self._k_bins    = k_bins
+        self._logk      = logk
+
+        # Get the power spectrum from the Lightcone
+        self._lightcone       = lightcone
+        self._z_arr, self._ps = compute_power_spectrum_from_bins(self._lightcone, self._z_bins, self._k_bins, logk=logk)
+
+    @property
+    def power_spectrum(self):
+        return [data['delta'] for data in self._ps]
+
+    @property
+    def power_spectrum_errors(self):
+        return [data['err_delta'] for data in self._ps]
+
+    @property
+    def z_bins(self):
+        return self._z_bins
+
+    @property
+    def k_bins(self): 
+        return self._k_bins
+
+    @property
+    def z_array(self):
+        return self._z_arr
+
+    @property
+    def k_array(self):
+        return [data['k'] for data in self._ps]
+
+    @property
+    def logk(self): 
+        return self._logk
+
+
+
+class Fiducial(Run): 
+
+    def __init__(self, dir_path, z_bins, k_bins, logk, observation = None):
+
+        self._dir_path     = dir_path
+        self._lightcone    = p21f.LightCone.read(self._dir_path + "/Lightcone_FIDUCIAL.h5")
+        self._astro_params = self._lightcone.astro_params.pystruct
+        self._observation  = observation
+
+        super().__init__(self._lightcone, z_bins, k_bins, logk)
+        self.compute_sensitivity()
+    
+    @property
+    def dir_path(self):
+        return self._dir_path
+
+    @property
+    def astro_params(self):
+        return self._astro_params
+
+    @property
+    def observation(self):
+        return self._observation
+
+    @observation.setter
+    def observation(self, value):
+        _old_value = self._observation
+        if _old_value != value : 
+            self._observation = value
+            self.compute_sensitivity()
+
+    @property
+    def ps_std(self):
+        return self._ps_std
+
+    def compute_sensitivity(self):
+
+        _std = None
+
+        if self._observation == 'HERA':
+            _std = [None] * len(self.z_array)
+            for iz, z in enumerate(self.z_array): 
+                _hera     = define_HERA_observation(z)
+                _std[iz]  = extract_noise_from_fiducial(self.k_array[iz], self.power_spectrum[iz], _hera)
+
+        self._ps_std = _std
+
+
+    def plot_power_spectrum(self, obs = None):
+    
+        fig = p21fl_tools.make_figure_power_spectra(self.k_array,  self.power_spectrum,  self.z_array, std = self._ps_std)
+        fig.savefig(self._dir_path + "/power_spectrum.pdf", tight_layout=True)
+
+
+class Parameter:
+
+    def __init__(self, fiducial, name):
+        
+        self._fiducial = fiducial
+        self._name     = name
+        
+        self._dir_path     = self._fiducial.dir_path
+        self._astro_params = self._fiducial.astro_params
+        self._z_bins       = self._fiducial.z_bins
+        self._k_bins       = self._fiducial.k_bins
+        self._logk         = self._fiducial.logk
+
+        if name not in self._astro_params:
+            ValueError("ERROR: the name does not corresponds to any varied parameters")
+
+        # get the lightcones from the filenames
+        _lightcone_file_name = glob.glob(self._dir_path + "/Lightcone_" + self._name + "_*.h5")
+        
+        q_value = []
+        for file_name in _lightcone_file_name:
+            q_value.append(float(file_name.split("_")[-1].split(".")[0]))
+
+        # We get the lightcones and then create the corresponding runs objects
+        self._lightcones =  [p21f.LightCone.read(self._dir_path + "/Lightcone_" + self._name + "_" + str(q) + ".h5") for q in q_value]
+        self._runs       =  [Run(lightcone, self._z_bins, self._k_bins, self._logk) for lightcone in self._lightcones]
+
+
+    def compute_derivative():
+        ...
+
+    def plot_power_spectra():
+        ...
+
+
+
+
+def evaluate_fisher_matrix(dir_path: str, observatory: str = None, k_min: float = 0.1, k_max: float = 1., z_min = 5, z_max = 35):
     
     """
     Main function that evaluates the Fisher matrix from the set of power spectra in folder
@@ -144,16 +373,16 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float =
     delta_arr_m = dict()
     delta_arr_p = dict()
 
-    z_arr_fid     = []
-    k_arr_fid     = []
-    delta_arr_fid = []
-
     delta_func_p   = dict()
     delta_func_m   = dict()
     delta_func_fid = []
+    err_func_fid   = []
 
     val_arr_m     = dict()
     val_arr_p     = dict()
+
+
+    ## Need to change this part to read the lightcones directly
 
     for ikey, key in enumerate(key_arr): 
 
@@ -181,11 +410,12 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float =
         
             val_arr_m[key] = val_arr[ikey]
     
-    z_arr_fid, k_arr_fid, delta_arr_fid, _ = p21fl_tools.read_power_spectra(dir_path + '/output_list/' + dir_fid)
+    z_arr_fid, k_arr_fid, delta_arr_fid, err_arr_fid = p21fl_tools.read_power_spectra(dir_path + '/output_list/' + dir_fid)
 
     for iz, _ in enumerate(z_arr_fid):
         # Define the power spectra interpolation of the fiducial models 
         delta_func_fid.append(interpolate.interp1d(k_arr_fid[iz], delta_arr_fid[iz]))
+        err_func_fid.append(interpolate.interp1d(k_arr_fid[iz], err_arr_fid[iz])) # Apparently a bad idea as stated in 21cmFish to interpolate
 
     ## Getting the fiducial parameters in the fiducial params.txt file
     ## Note that for now the astro params are put at the end of the file
@@ -208,10 +438,35 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float =
     if observatory.upper() != 'HERA': 
         raise ValueError("This observatory is not preimplemented")
     
-    observations             = define_HERA_observations(z_arr_fid)
-    sensitivities, power_std = extract_noise_from_fiducial(z_arr_fid, k_arr_fid, delta_arr_fid, observations)
+    k_sens     = [None] * len(z_arr_fid)
+    dsqr_sens  = [None] * len(z_arr_fid)
+    std_sens   = [None] * len(z_arr_fid)
+   
+    for iz, z in enumerate(z_arr_fid) : 
+        observation                              = define_HERA_observation(z)
+        k_sens[iz], dsqr_sens[iz], std_sens[iz]  = extract_noise_from_fiducial(k_arr_fid[iz], delta_arr_fid[iz], observation)
     
-    k_fish     = [sensitivity.k1d.value * p21s.config.COSMO.h for sensitivity in sensitivities]
+
+
+
+    # list to store files
+    key_arr = []
+    val_arr = []
+    dir_arr = []
+    dir_fid = ""
+
+    path_arr = sorted(os.listdir(dir_path + '/output_list'))
+    #print(path_arr)
+
+    # Iterate directory
+    for path in path_arr:
+        bit = path.split('_')[3:]
+        if bit[-1] == 'fid':
+            dir_fid = path
+        else:
+            dir_arr.append(path)
+            key_arr.append('_'.join(bit[:-1]))
+            val_arr.append(float(bit[-1]))
 
 
     #### EVALUATE THE FISHER MATRIX
@@ -221,9 +476,9 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float =
     file_temp = open(dir_path + "/my_temp_file.txt", 'w')
 
     for iz, z in enumerate(z_arr_fid):
-        for jk, k in enumerate(k_fish[iz]):
+        for jk, k in enumerate(k_sens[iz]):
 
-            if k > kmin and k < kmax: 
+            if k > k_min and k < k_max and z > z_min and z < z_max: 
             # Limit the range of k to that between 0.1 and 1 Mpc^{-1}
             # Now we are cooking with gaz!
 
@@ -241,11 +496,13 @@ def evaluate_fisher_matrix(dir_path: str, observatory: str = None, kmin: float =
                         
                         deriv_2 = (dp2 - dm2)/((val_arr_p[key2] - val_arr_m[key2])*fiducial_params[key2]) # derivative with respect to the second parameter
                         
-                        print(z, k, key1, key2, deriv_1, deriv_2, val_arr_p[key1], val_arr_p[key2], power_std[iz][jk].value, file=file_temp)
+                        #print(z, k, key1, key2, deriv_1, deriv_2, val_arr_p[key1], val_arr_p[key2], std_sens[iz][jk], file=file_temp)
 
-                        if not np.isinf(power_std[iz][jk].value):
-                            fisher_matrix[kkey1, kkey2] =  fisher_matrix[kkey1, kkey2] + deriv_1 * deriv_2 / (power_std[iz][jk].value)**2
+                        if not np.isinf(std_sens[iz][jk]):
+                            sigma2 = (std_sens[iz][jk])**2 + (err_func_fid[iz](k))**2 # sum the errors in quadrature
+                            fisher_matrix[kkey1, kkey2] =  fisher_matrix[kkey1, kkey2] + deriv_1 * deriv_2 / sigma2
 
     return fisher_matrix, key_arr_unique, fiducial_params
 
 
+ 

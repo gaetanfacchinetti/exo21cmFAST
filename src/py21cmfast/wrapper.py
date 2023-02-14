@@ -2552,6 +2552,7 @@ def run_lightcone(
     cleanup=True,
     hooks=None,
     always_purge: bool = False,
+    output_exotic_data = False,
     **global_kwargs,
 ):
     r"""
@@ -3375,9 +3376,15 @@ def run_lightcone(
             coeval_callback_output,
         )
         if coeval_callback is None:
-            return out[0:2]
+            if output_exotic_data is True : 
+                return out[0:2]
+            else : 
+                return out[0]
         else:
-            return out
+            if output_exotic_data is True : 
+                return out
+            else : 
+                return (out[0], out[2])
 
         
 

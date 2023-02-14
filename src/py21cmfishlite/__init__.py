@@ -11,11 +11,15 @@ from .tools import (
     prepare_sbatch_file,
     read_power_spectra,
     make_triangle_plot,
-    plot_power_spectra,
+    make_figure_power_spectra,
 )
 
 from .fisher_matrix import (
-    define_HERA_observations,
+    define_HERA_observation,
     extract_noise_from_fiducial,
     evaluate_fisher_matrix,
+    define_grid_modes_redshifts,
+    Fiducial,
+    Run,
+    Parameter,
 )
