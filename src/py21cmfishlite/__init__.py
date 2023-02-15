@@ -11,7 +11,7 @@ from .tools import (
     prepare_sbatch_file,
     read_power_spectra,
     make_triangle_plot,
-    make_figure_power_spectra,
+    plot_func_vs_z_and_k,
 )
 
 from .fisher_matrix import (

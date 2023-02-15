@@ -413,7 +413,7 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
 
 
 
-def make_figure_power_spectra(k,  ps,  z, std = None, k_arr = None, ps_arr = None, err_arr = None, show_theoretical_err = False, **kwargs) :
+def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, **kwargs) :
 
     """ 
         Function that plots the power spectra with the sensitivity bounds from extract_noise_from_fiducial()
@@ -421,29 +421,41 @@ def make_figure_power_spectra(k,  ps,  z, std = None, k_arr = None, ps_arr = Non
 
         Params
         ------
-        k_sens : list of floats
-
+        k : 1D array of floats
+            modes 
+        z : 1D array of floats
+            redshifts
+        func : (list of) 2D arrays of floats
+            function(s) to plot in terms of the redshift and modes
+        std : 1D array of floats
+            standard deviation associated to func (or func[0])
     """
+
     fig = plt.figure(constrained_layout=False, figsize=(10,5))
     fig.subplots_adjust(wspace=0, hspace=0)
     gs = GridSpec(3, 5, figure=fig)
     axs = [[None for j in range(0, 5)] for i in range(0, 3)]
 
-    if k_arr is not None:
+    if not isinstance(func[0], list) : 
+        func = [func]
+
+    if func_err is None:
+        func_err = [None] * len(func)
+
+    
+
+    if len(func) > 1:
         
         cmap = matplotlib.cm.get_cmap('Spectral')
-        a_lin = (0.99-0.2)/(len(k_arr)-1) if len(k_arr) > 1 else 1
-        b_lin = 0.2 if len(k_arr) > 1 else 0.5
+        a_lin = (0.99-0.2)/(len(func)-1) if len(func) > 1 else 1
+        b_lin = 0.2 if len(func) > 1 else 0.5
 
-        try: 
-            color_list = kwargs['color']
-        except KeyError: 
-            color_list = [cmap(i) for i in np.arange(0, len(k_arr))*a_lin + b_lin]
-        
-        try:
-            linestyle_list = kwargs['linestyle']
-        except KeyError:
-            linestyle_list = ['-' for i in np.arange(0, len(k_arr))]
+        color_list = kwargs.get('color', [cmap(i) for i in np.arange(0, len(k))*a_lin + b_lin])
+        linestyle_list = kwargs.get('linestyle', ['-' for i in np.arange(0, len(k))])
+    
+    else:
+        color_list    = ['b']
+        linestyle_list = ['-']
 
     iz = 0
     for i in range(0, 3):
@@ -451,20 +463,17 @@ def make_figure_power_spectra(k,  ps,  z, std = None, k_arr = None, ps_arr = Non
             axs[i][j] = fig.add_subplot(gs[i:i+1, j:j+1])
 
             # Plot the power spectrum at every redshift
-            axs[i][j].step(k[iz], ps[iz], where='mid', alpha = 1, color='blue')
+            for jf, f in enumerate(func) : 
+                axs[i][j].step(k, f[iz], where='mid', alpha = 1, color=color_list[jf], linestyle = linestyle_list[jf])
+                
+                if func_err[jf] is not None:
+                    axs[i][j].fill_between(k, f[iz] - 5*func_err[jf][iz], f[iz] + 5*func_err[jf][iz], color=color_list[jf], linestyle=linestyle_list[jf], alpha=0.1)
             
+
             # Plot the standard deviation bars if standard deviation is given
             if std is not None : 
-                axs[i][j].fill_between(k[iz], ps[iz] - std[iz], ps[iz] + std[iz], step='mid', alpha = 0.5, color='cyan')
+                axs[i][j].fill_between(k, func[0][iz] - std[iz], func[0][iz] + std[iz], step='mid', alpha = 0.5, color='cyan')
             
-            # If we set 
-            if k_arr is not None:
-                for i_arr, _ in enumerate(k_arr):
-                    # Plot all the lines that we want on top of the sensitivity limits
-                    axs[i][j].plot(k_arr[i_arr][iz], ps_arr[i_arr][iz], linewidth=0.5, color=color_list[i_arr], linestyle=linestyle_list[i_arr])
-                    
-                    if show_theoretical_err is True :
-                        axs[i][j].fill_between(k_arr[i_arr][iz], ps_arr[i_arr][iz] - 5*err_arr[i_arr][iz], ps_arr[i_arr][iz] + 5*err_arr[i_arr][iz], color=color_list[i_arr], linestyle=linestyle_list[i_arr], alpha=0.1)
             
             axs[i][j].set_xlim(6e-2, 1.4)
             axs[i][j].set_ylim(1e-4, 1e+6)
@@ -483,12 +492,14 @@ def make_figure_power_spectra(k,  ps,  z, std = None, k_arr = None, ps_arr = Non
 
             iz = iz+1
 
-    axs[1][0].set_ylabel(r'$\Delta_{21}^2 ~{\rm [mK^2]}$')
+    ylabel = kwargs.get('ylabel', None)
+    title  = kwargs.get('title', None)
+
     axs[2][2].set_xlabel(r'$k ~{\rm [Mpc^{-1}]}$')
-    
-    try: 
-        axs[0][2].set_title(r'${}$'.format(kwargs['title']))
-    except KeyError:
-        pass
+    if ylabel is not None:
+        axs[1][0].set_ylabel(r'${}$'.format(ylabel))
+    if title is not None: 
+        axs[0][2].set_title(r'${}$'.format(title))
+
 
     return fig

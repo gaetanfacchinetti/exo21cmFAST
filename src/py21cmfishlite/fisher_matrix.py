@@ -151,23 +151,6 @@ def define_grid_modes_redshifts(z_min: float, B: float, k_min = 0.1 / units.Mpc,
     return z_bins, k_bins
 
 
-
-def compute_power_spectrum_from_bins(lightcone, z_bins, k_bins, logk): 
-    """
-    ## Generic function to evaluate the powe spectrum from precomputed bins
-    """
-    # Define the chunck indices according to the definition of the bins
-    lc_redshifts = lightcone.lightcone_redshifts
-    chunk_indices = [np.argmin(np.abs(lc_redshifts - z)) for z in z_bins]
-
-    # Compute the power spectrum on the redshift chuncks
-    z_arr, ps = p21a.compute_powerspectra_1D(lightcone, chunk_indices = chunk_indices, n_psbins=k_bins.value, logk=logk, remove_nans=False, vb=False)
-    
-    return z_arr, ps
-
-
-
-
     
 
 
@@ -181,15 +164,22 @@ class Run:
 
         # Get the power spectrum from the Lightcone
         self._lightcone       = lightcone
-        self._z_arr, self._ps = compute_power_spectrum_from_bins(self._lightcone, self._z_bins, self._k_bins, logk=logk)
+        self._lc_redshifts    = lightcone.lightcone_redshifts
+        self._chunk_indices   = [np.argmin(np.abs(self._lc_redshifts - z)) for z in z_bins]
+        self._z_arr, self._ps = p21a.compute_powerspectra_1D(lightcone, chunk_indices = self._chunk_indices, n_psbins=self._k_bins.value, logk=logk, remove_nans=False, vb=False)
+
+        _k_arr = np.array([data['k'] for data in self._ps])
+        assert np.any(np.diff(_k_arr, axis=0)[0]/_k_arr <= 1e-3)
+        self._k_arr = _k_arr[0]
+
 
     @property
     def power_spectrum(self):
-        return [data['delta'] for data in self._ps]
+        return np.array([data['delta'] for data in self._ps])
 
     @property
     def power_spectrum_errors(self):
-        return [data['err_delta'] for data in self._ps]
+        return np.array([data['err_delta'] for data in self._ps])
 
     @property
     def z_bins(self):
@@ -205,17 +195,22 @@ class Run:
 
     @property
     def k_array(self):
-        return [data['k'] for data in self._ps]
+        return self._k_arr
 
     @property
     def logk(self): 
         return self._logk
 
+    @property
+    def chunk_indices(self):
+        return self._chunk_indices
+
+
 
 
 class Fiducial(Run): 
 
-    def __init__(self, dir_path, z_bins, k_bins, logk, observation = None):
+    def __init__(self, dir_path, z_bins, k_bins, logk, observation = ""):
 
         self._dir_path     = dir_path
         self._lightcone    = p21f.LightCone.read(self._dir_path + "/Lightcone_FIDUCIAL.h5")
@@ -246,7 +241,7 @@ class Fiducial(Run):
 
     @property
     def ps_std(self):
-        return self._ps_std
+        return np.array(self._ps_std)
 
     def compute_sensitivity(self):
 
@@ -256,15 +251,18 @@ class Fiducial(Run):
             _std = [None] * len(self.z_array)
             for iz, z in enumerate(self.z_array): 
                 _hera     = define_HERA_observation(z)
-                _std[iz]  = extract_noise_from_fiducial(self.k_array[iz], self.power_spectrum[iz], _hera)
+                _std[iz]  = extract_noise_from_fiducial(self.k_array, self.power_spectrum[iz], _hera)
 
         self._ps_std = _std
 
 
     def plot_power_spectrum(self, obs = None):
     
-        fig = p21fl_tools.make_figure_power_spectra(self.k_array,  self.power_spectrum,  self.z_array, std = self._ps_std)
+        fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, self.power_spectrum, func_err = self.power_spectrum_errors, std = self._ps_std)
         fig.savefig(self._dir_path + "/power_spectrum.pdf", tight_layout=True)
+        return fig
+
+
 
 
 class Parameter:
@@ -280,229 +278,155 @@ class Parameter:
         self._k_bins       = self._fiducial.k_bins
         self._logk         = self._fiducial.logk
 
+
         if name not in self._astro_params:
             ValueError("ERROR: the name does not corresponds to any varied parameters")
 
         # get the lightcones from the filenames
         _lightcone_file_name = glob.glob(self._dir_path + "/Lightcone_" + self._name + "_*.h5")
         
-        q_value = []
+        self._q_value = []
         for file_name in _lightcone_file_name:
-            q_value.append(float(file_name.split("_")[-1].split(".")[0]))
+            # Get the value of q from the thing
+            self._q_value.append(float(file_name.split("_")[-1][:-3]))
+
+        # Sort the q_values from the smallest to the largest
+        self._q_value = np.sort(self._q_value)
+
+        # Check that the q_values are consistant
+        assert (len(self._q_value) == 2 and (self._q_value[0] * self._q_value[1]) < 0) or len(self._q_value) == 1
+
+        print(self._name  + " has been varied with q = " + str(self._q_value))
+        print("Loading the lightcones and computing the power spectra")
 
         # We get the lightcones and then create the corresponding runs objects
-        self._lightcones =  [p21f.LightCone.read(self._dir_path + "/Lightcone_" + self._name + "_" + str(q) + ".h5") for q in q_value]
+        self._lightcones =  [p21f.LightCone.read(self._dir_path + "/Lightcone_" + self._name + "_" + str(q) + ".h5") for q in self._q_value]
         self._runs       =  [Run(lightcone, self._z_bins, self._k_bins, self._logk) for lightcone in self._lightcones]
 
-
-    def compute_derivative():
-        ...
-
-    def plot_power_spectra():
-        ...
-
-
-
-
-def evaluate_fisher_matrix(dir_path: str, observatory: str = None, k_min: float = 0.1, k_max: float = 1., z_min = 5, z_max = 35):
-    
-    """
-    Main function that evaluates the Fisher matrix from the set of power spectra in folder
-
-    Parameters:
-    -----------
-    dir_path: str
-        path to the directory where the data is saved
-    observatory: str (optional)
-        observatory we consider to evaluate the experimental sensitivity
-        by default HERA configuration is used
-    kmin: float (Mpc^{-1}, optional)
-        minimal k mode to sum over in the Fisher matrix
-        by default kmin = 0.1 Mpc^{-1}
-    kmax: float (Mpc^{-1}, optional)
-        maximal k mode to sum over in the Fisher matrix
-        by default kmax = 1 Mpc^{-1}
-
-    Returns:
-    -----------
-    fisher_matrix: (n, n) numpy array
-        Fisher matrix where n is the number of parameters
-    key_arr: list of str (of size n)
-        name of the parameters in the order corresponding to that in the Fisher matrix 
-    fiducial_params: list of float (of size n)
-        list of the fiducial parameters
-    """
-    
-    # Read all the 
-    # list to store files
-    key_arr = []
-    val_arr = []
-    dir_arr = []
-    dir_fid = ""
-
-    path_arr = sorted(os.listdir(dir_path + '/output_list'))
-    #print(path_arr)
-
-    # Iterate directory
-    for path in path_arr:
-        bit = path.split('_')[3:]
-        if bit[-1] == 'fid':
-            dir_fid = path
-        else:
-            dir_arr.append(path)
-            key_arr.append('_'.join(bit[:-1]))
-            val_arr.append(float(bit[-1]))
-
-    
-    #print(key_arr, val_arr, dir_arr)
-      # initialize a null list
-    key_arr_unique = []
-  
-    # traverse for all elements
-    for x in key_arr:
-        # check if exists in unique_list or not
-        if x not in key_arr_unique:
-            key_arr_unique.append(x)
-    
-    n_keys = len(key_arr_unique)
-
-    z_arr_m     = dict()
-    z_arr_p     = dict()
-    k_arr_m     = dict() 
-    k_arr_p     = dict()
-    delta_arr_m = dict()
-    delta_arr_p = dict()
-
-    delta_func_p   = dict()
-    delta_func_m   = dict()
-    delta_func_fid = []
-    err_func_fid   = []
-
-    val_arr_m     = dict()
-    val_arr_p     = dict()
-
-
-    ## Need to change this part to read the lightcones directly
-
-    for ikey, key in enumerate(key_arr): 
-
-        if val_arr[ikey] > 0 : 
-            
-            # Read power spectra from the file
-            z_arr_p[key], k_arr_p[key], delta_arr_p[key], _ = p21fl_tools.read_power_spectra(dir_path + '/output_list/' + dir_arr[ikey])
-            
-            delta_func_p[key] = []
-            for iz, _ in enumerate(z_arr_p[key]):
-                # Define the power spectra interpolation of the (+) models
-                delta_func_p[key].append(interpolate.interp1d(k_arr_p[key][iz], delta_arr_p[key][iz]))
-
-            val_arr_p[key] = val_arr[ikey]
-
-        elif val_arr[ikey] < 0 : 
-            
-            # Read power spectra from the file
-            z_arr_m[key], k_arr_m[key], delta_arr_m[key], _ = p21fl_tools.read_power_spectra(dir_path + '/output_list/' + dir_arr[ikey])
-            
-            delta_func_m[key] = []
-            for iz, _ in enumerate(z_arr_m[key]):
-                # Define the power spectra interpolation of the (-) models
-                delta_func_m[key].append(interpolate.interp1d(k_arr_m[key][iz], delta_arr_m[key][iz]))
-        
-            val_arr_m[key] = val_arr[ikey]
-    
-    z_arr_fid, k_arr_fid, delta_arr_fid, err_arr_fid = p21fl_tools.read_power_spectra(dir_path + '/output_list/' + dir_fid)
-
-    for iz, _ in enumerate(z_arr_fid):
-        # Define the power spectra interpolation of the fiducial models 
-        delta_func_fid.append(interpolate.interp1d(k_arr_fid[iz], delta_arr_fid[iz]))
-        err_func_fid.append(interpolate.interp1d(k_arr_fid[iz], err_arr_fid[iz])) # Apparently a bad idea as stated in 21cmFish to interpolate
-
-    ## Getting the fiducial parameters in the fiducial params.txt file
-    ## Note that for now the astro params are put at the end of the file
-    ## If fiducial params modified by hand need to be careful
-    fiducial_params = []
-    with open(dir_path + '/fiducial_params.txt') as f:
-        data_lines = f.readlines()
-        for data in data_lines:
-            if data[0] != '#':
-                fiducial_params.append(ast.literal_eval(data))
-
-    fiducial_params = fiducial_params[-1] ## Only keep the astro params
-
-    
-    #### Now from the redshift array and the instrument we get the (k, z) arrays and the noise from 21cmSense
+        print("Power spectra computed")
       
-    if observatory is None:
-        observatory = 'hera'
+        ## Check that the k-arrays and z-arrays correspond 
+        for run in self._runs:
+            assert np.all(2* np.abs(run.z_array - self._fiducial.z_array)/(run.z_array + self._fiducial.z_array) < 1e-5)
+            assert np.all(2* np.abs(run.k_array - self._fiducial.k_array)/(run.k_array + self._fiducial.k_array) < 1e-5)
+
+        ## Define unique k and z arrays
+        self._k_array = self._fiducial.k_array
+        self._z_array = self._fiducial.z_array
+
+        print("Computing the derivatives")
+
+        self.compute_derivative()
+        self.plot_derivatives()
+
+
+    @property
+    def derivative(self):
+        return self._derivative
+
+    @property
+    def k_array(self):
+        return self._k_array
+
+    @property
+    def z_array(self):
+        return self._z_array
+
+    @property
+    def fiducial(self):
+        return self._fiducial
+
+    @property
+    def name(self):
+        return self._name
+
+
+    def compute_derivative(self):
+        
+        _der = [None] * len(self._z_array)
+        
+        _param_fid      = self._astro_params[self._name]
+        _params         = np.array([(1+q) * _param_fid for q in self._q_value])
+        _params         = np.append(_params, _param_fid)
+        _params_sorted  = np.sort(_params)
+        _mixing_params  = np.argsort(_params)
+       
+        for iz, z in enumerate(self._z_array) :   
+
+            _power_spectra        = [run.power_spectrum[iz] for run in self._runs]
+            _power_spectra.append(self._fiducial.power_spectrum[iz])
+            
+            # Rearrange the power spectra in the same order of the parameters
+            _power_spectra_sorted = np.array(_power_spectra)[_mixing_params]        
+            
+            # Evaluate the derivative as a gradient
+            _der[iz] = np.gradient(_power_spectra_sorted, _params_sorted, axis=0)
+
+        # Arrange the derivative according to their number
+        self._derivative  = {'one_sided_m' : None, 'one_sided_p' : None, 'two_sided' : None}
+
+        if len(self._q_value) == 2:
+            self._derivative['one_sided_m'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+            self._derivative['two_sided']   = [_der[iz][1] for iz, _ in enumerate(self._z_array)]
+            self._derivative['one_sided_p'] = [_der[iz][2] for iz, _ in enumerate(self._z_array)]
+
+        if len(self._q_value) == 1 and self._q_value[0] < 0 :
+            self._derivative['one_sided_m'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+        
+        if len(self._q_value) == 1 and self._q_value[0] > 0 :
+            self._derivative['one_sided_p'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+
     
-    if observatory.upper() != 'HERA': 
-        raise ValueError("This observatory is not preimplemented")
+    def weighted_derivative(self):
+        
+        ps_std = self._fiducial.ps_std  
+        
+        # if fiducial as no standard deviation defined yet, return None
+        if ps_std is None:
+            return None
+
+        der = self._derivative.get('two_sided', None)
+        
+        # If there is no two_sided derivative
+        if der is None:
+            print("Weighted derivative computed from the one_sided derivative")
+            der = self._derivative.get('one_sided_m', None)
+        if der is None:
+            der = self._derivative.get('one_sided_p', None)
+
+        return der / ps_std  
+
+
+
+    def plot_derivatives(self):
+
+        der_array = [self._derivative[key] for key in self._derivative.keys()]
+        fig = p21fl_tools.plot_func_vs_z_and_k(self._z_array, self._k_array, der_array)
+        fig.savefig(self._dir_path + "/derivatives_" + self._name + ".pdf", tight_layout=True)
+        return fig
+
+
+def evaluate_fisher_matrix(parameters):
     
-    k_sens     = [None] * len(z_arr_fid)
-    dsqr_sens  = [None] * len(z_arr_fid)
-    std_sens   = [None] * len(z_arr_fid)
+    # Get the standard deviation
+    n_params = len(parameters)
+    fisher_matrix = np.zeros((n_params, n_params))
+
+    name_arr     = [''] * n_params
+    weighted_der = [None] * n_params
+
+    for ip, param in enumerate(parameters):
+        name_arr[ip]      = param.name
+        weighted_der[ip]  = param.weighted_derivative()
+
+    for i in range(0, n_params) :
+        for j in range(0, n_params) :        
+            fisher_matrix[i][j] = np.nansum(weighted_der[i] * weighted_der[j])
+            
+    return {'matrix' : fisher_matrix, 'name' : name_arr}
+    
    
-    for iz, z in enumerate(z_arr_fid) : 
-        observation                              = define_HERA_observation(z)
-        k_sens[iz], dsqr_sens[iz], std_sens[iz]  = extract_noise_from_fiducial(k_arr_fid[iz], delta_arr_fid[iz], observation)
     
-
-
-
-    # list to store files
-    key_arr = []
-    val_arr = []
-    dir_arr = []
-    dir_fid = ""
-
-    path_arr = sorted(os.listdir(dir_path + '/output_list'))
-    #print(path_arr)
-
-    # Iterate directory
-    for path in path_arr:
-        bit = path.split('_')[3:]
-        if bit[-1] == 'fid':
-            dir_fid = path
-        else:
-            dir_arr.append(path)
-            key_arr.append('_'.join(bit[:-1]))
-            val_arr.append(float(bit[-1]))
-
-
-    #### EVALUATE THE FISHER MATRIX
-
-    fisher_matrix = np.zeros((n_keys, n_keys))
-
-    file_temp = open(dir_path + "/my_temp_file.txt", 'w')
-
-    for iz, z in enumerate(z_arr_fid):
-        for jk, k in enumerate(k_sens[iz]):
-
-            if k > k_min and k < k_max and z > z_min and z < z_max: 
-            # Limit the range of k to that between 0.1 and 1 Mpc^{-1}
-            # Now we are cooking with gaz!
-
-                for kkey1, key1 in enumerate(key_arr_unique):
-
-                    dp1 = delta_func_p[key1][iz](k)
-                    dm1 = delta_func_m[key1][iz](k)
-                    
-                    deriv_1 = (dp1 - dm1)/((val_arr_p[key1] - val_arr_m[key1])*fiducial_params[key1]) # derivative with respect to the first parameter
-                    
-                    for kkey2, key2 in enumerate(key_arr_unique):
-
-                        dp2 = delta_func_p[key2][iz](k)
-                        dm2 = delta_func_m[key2][iz](k)
-                        
-                        deriv_2 = (dp2 - dm2)/((val_arr_p[key2] - val_arr_m[key2])*fiducial_params[key2]) # derivative with respect to the second parameter
-                        
-                        #print(z, k, key1, key2, deriv_1, deriv_2, val_arr_p[key1], val_arr_p[key2], std_sens[iz][jk], file=file_temp)
-
-                        if not np.isinf(std_sens[iz][jk]):
-                            sigma2 = (std_sens[iz][jk])**2 + (err_func_fid[iz](k))**2 # sum the errors in quadrature
-                            fisher_matrix[kkey1, kkey2] =  fisher_matrix[kkey1, kkey2] + deriv_1 * deriv_2 / sigma2
-
-    return fisher_matrix, key_arr_unique, fiducial_params
 
 
  
