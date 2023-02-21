@@ -12,6 +12,7 @@ from .tools import (
     read_power_spectra,
     make_triangle_plot,
     plot_func_vs_z_and_k,
+    display_matrix,
 )
 
 from .fisher_matrix import (

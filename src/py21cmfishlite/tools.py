@@ -36,6 +36,7 @@ from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 
 import numpy as np
+import copy
 from py21cmanalysis import tools as p21a_tools
 
 def read_config_params(config_items, int_type = True):
@@ -274,8 +275,12 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
     #####################################
     ## Choose the data we want to look at
     cov_matrix      = covariance_matrix
-    fiducial_params = fiducial_params
+    fiducial_params = copy.deepcopy(fiducial_params)
     name_params     = name_params
+
+    for iname, name in enumerate(name_params): 
+        if name in ['M_TURN', 'L_X', 'F_STAR10', 'F_ESC10']: 
+            fiducial_params[name] = np.log10(fiducial_params[name])
 
     #####################################
     ##  Prepare the triangle plot
@@ -340,6 +345,11 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
             max_val_arr[iname] = 1
             display_arr[iname] = r"$t_{\star}$"
             ticks_arr[iname]   = [0.25, 0.5, 0.75]
+        if name == 'NU_X_THRESH': 
+            min_val_arr[iname] = 0
+            max_val_arr[iname] = 1
+            display_arr[iname] = r"$E_0~[\rm eV]$"
+            #ticks_arr[iname]   = [0.25, 0.5, 0.75]
 
 
     for i in range(0, ngrid) : 
@@ -407,7 +417,7 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
                 axs[i][i].plot(val_arr, gaussian_approx, color='blue')
                 #axs[i][i].set_xlim([min_val_arr[i], max_val_arr[i]])
                 axs[i][i].set_ylim([0, 1.2])
-                axs[i][i].set_title(r'$\sigma = {:.1e}$'.format(np.sqrt(cov_matrix[i, i])), fontsize=10)
+                axs[i][i].set_title(r'${} \pm {:.2}$'.format(mean_val, np.sqrt(cov_matrix[i, i])), fontsize=10)
 
     return fig
 
@@ -430,19 +440,27 @@ def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, **kwargs) :
         std : 1D array of floats
             standard deviation associated to func (or func[0])
     """
+    n_lines = int(len(z) / 5)
 
-    fig = plt.figure(constrained_layout=False, figsize=(10,5))
-    fig.subplots_adjust(wspace=0, hspace=0)
-    gs = GridSpec(3, 5, figure=fig)
-    axs = [[None for j in range(0, 5)] for i in range(0, 3)]
+    if len(z) / 5 > n_lines:
+        n_lines = n_lines + 1
+    
+    fig = plt.figure(constrained_layout=False, figsize=(10, n_lines*2))
+    #fig.subplots_adjust()
 
-    if not isinstance(func[0], list) : 
+
+    gs = GridSpec(n_lines, 5, figure=fig, wspace=0.5, hspace = 0.5)
+    axs = [[None for j in range(0, 5)] for i in range(0, n_lines)]
+
+    if not isinstance(func[0][0], (list, np.ndarray)) :
         func = [func]
 
     if func_err is None:
         func_err = [None] * len(func)
+    else:
+        if not isinstance(func_err[0][0], (list, np.ndarray)) : 
+            func_err = [func_err]
 
-    
 
     if len(func) > 1:
         
@@ -450,56 +468,111 @@ def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, **kwargs) :
         a_lin = (0.99-0.2)/(len(func)-1) if len(func) > 1 else 1
         b_lin = 0.2 if len(func) > 1 else 0.5
 
-        color_list = kwargs.get('color', [cmap(i) for i in np.arange(0, len(k))*a_lin + b_lin])
-        linestyle_list = kwargs.get('linestyle', ['-' for i in np.arange(0, len(k))])
+        _default_color_list     = [cmap(i) for i in np.arange(0, len(k))*a_lin + b_lin]
+        _default_linestyle_list = ['-' for i in np.arange(0, len(k))]
     
     else:
-        color_list    = ['b']
-        linestyle_list = ['-']
+
+        _default_color_list     = ['b']
+        _default_linestyle_list = ['-']
+
+
+    
+    color_list     = kwargs.get('color', _default_color_list)
+    linestyle_list = kwargs.get('linestyle', _default_linestyle_list)
+    ylabel         = kwargs.get('ylabel', None)
+    title          = kwargs.get('title', None)
+    marker         = kwargs.get('marker', None)
+    markersize     = kwargs.get('markersize', None)
+    
+    no_line = Line2D([],[],color='k',linestyle='-',linewidth=0, alpha = 0) 
+  
 
     iz = 0
-    for i in range(0, 3):
+    for i in range(0, n_lines):
         for j in range(0, 5):
-            axs[i][j] = fig.add_subplot(gs[i:i+1, j:j+1])
+            
+            if iz < len(z): 
 
-            # Plot the power spectrum at every redshift
-            for jf, f in enumerate(func) : 
-                axs[i][j].step(k, f[iz], where='mid', alpha = 1, color=color_list[jf], linestyle = linestyle_list[jf])
+                axs[i][j] = fig.add_subplot(gs[i:i+1, j:j+1])
+
+                # Plot the power spectrum at every redshift
+                for jf, f in enumerate(func) : 
+                    if marker is None : 
+                        # By default we plot steps
+                        axs[i][j].step(k, f[iz], where='mid', alpha = 1, color=color_list[jf], 
+                                        linestyle = linestyle_list[jf], linewidth=0.5)
+                    else: 
+                        # Otherwise we use markers
+                        axs[i][j].plot(k, f[iz], alpha = 1, color=color_list[jf], linestyle = linestyle_list[jf], 
+                                        marker=marker, markersize=markersize, markerfacecolor=color_list[jf], 
+                                        linewidth=0.8)
+                    
+                    if func_err[jf] is not None:
+                        axs[i][j].fill_between(k, f[iz] - 5*func_err[jf][iz], f[iz] + 5*func_err[jf][iz], 
+                                                color=color_list[jf], linestyle=linestyle_list[jf], 
+                                                step='mid', alpha=0.1)
                 
-                if func_err[jf] is not None:
-                    axs[i][j].fill_between(k, f[iz] - 5*func_err[jf][iz], f[iz] + 5*func_err[jf][iz], color=color_list[jf], linestyle=linestyle_list[jf], alpha=0.1)
-            
 
-            # Plot the standard deviation bars if standard deviation is given
-            if std is not None : 
-                axs[i][j].fill_between(k, func[0][iz] - std[iz], func[0][iz] + std[iz], step='mid', alpha = 0.5, color='cyan')
-            
-            
-            axs[i][j].set_xlim(6e-2, 1.4)
-            axs[i][j].set_ylim(1e-4, 1e+6)
-            axs[i][j].set_xscale('log')
-            axs[i][j].set_yscale('log')
-            axs[i][j].axvspan(6e-2, 1e-1, color='r', alpha=0.2)
-            axs[i][j].axvspan(1, 1.4, color='r', alpha=0.2)
-            
-            if j > 0:
-                axs[i][j].get_yaxis().set_ticks([])
+                # Plot the standard deviation bars if standard deviation is given
+                if std is not None : 
+                    axs[i][j].fill_between(k, func[0][iz] - std[iz], func[0][iz] + std[iz], step='mid', alpha = 0.2, color='blue')
+                
+                
+                xlim = kwargs.get('xlim', None)
+                ylim = kwargs.get('ylim', None)
 
-            if i < 2:
-                axs[i][j].get_xaxis().set_ticks([])
+                if xlim is not None: 
+                    axs[i][j].set_xlim(xlim)
+                if ylim is not None: 
+                    axs[i][j].set_ylim(ylim)
 
-            axs[i][j].text(0.12, 5e+4, r'$\rm z = {0:.1f}$'.format(z[iz]))
+                logx = kwargs.get('logx', False)
+                logy = kwargs.get('logy', False)
+
+                if logx is True:
+                    axs[i][j].set_xscale('log')
+                if logy is True:
+                    axs[i][j].set_yscale('log')
+                
+
+                axs[i][j].legend([no_line], [r'$\rm z = {0:.1f}$'.format(z[iz])], loc='lower right', handlelength=0, handletextpad=0, 
+                                    bbox_to_anchor=(0.98, 1), fontsize=8, frameon=False,
+                                    borderpad = 0, borderaxespad = 0, framealpha=0)
 
             iz = iz+1
 
-    ylabel = kwargs.get('ylabel', None)
-    title  = kwargs.get('title', None)
-
-    axs[2][2].set_xlabel(r'$k ~{\rm [Mpc^{-1}]}$')
     if ylabel is not None:
-        axs[1][0].set_ylabel(r'${}$'.format(ylabel))
+        axs[int(n_lines/2)-1][0].set_ylabel('{}'.format(ylabel))
+
+    axs[n_lines-1][0].set_xlabel(r'$k ~{\rm [Mpc^{-1}]}$')
+
+
     if title is not None: 
-        axs[0][2].set_title(r'${}$'.format(title))
+        fig.suptitle('{}'.format(title), fontsize=14)
 
 
     return fig
+
+
+
+
+
+def display_matrix(matrix, names = None):
+
+    if names is not None:
+        print('            ', end='')
+        for name in names:
+            print(name.ljust(10)[:10] + ' | ', end = '')
+
+    print('')
+    
+    for i in range(0, len(matrix)):
+        if names is not None:
+            print(names[i].ljust(10)[:10] + ' | ', end='')
+        for j in range(0, len(matrix)):
+            add = ''
+            if matrix[i][j] > 0:
+                add = ' '
+            print(add + "{:.1e}".format(matrix[i][j]) + '  |  ', end='')
+        print('')

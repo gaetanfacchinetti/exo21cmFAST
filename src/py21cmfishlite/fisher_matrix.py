@@ -1,11 +1,9 @@
-import os
 import glob
 
 import numpy as np
 from scipy import interpolate
-from scipy import optimize
 from astropy import units
-import ast
+import copy
 
 import py21cmsense    as p21s
 import py21cmfast     as p21f
@@ -15,10 +13,11 @@ from astropy.cosmology import Planck18 as cosmo
 from astropy import units
 from astropy import constants
 
-#except:
- #   pass
-    
 from py21cmfishlite import tools as p21fl_tools
+
+
+import warnings
+warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 
 def define_HERA_observation(z):
@@ -86,9 +85,10 @@ def extract_noise_from_fiducial(k, dsqr, observation) :
     """
 
 
-    sensitivity       = p21s.PowerSpectrum(observation=observation, k_21 = k / units.Mpc, delta_21 = dsqr * (units.mK**2), foreground_model='moderate') # Use the default power spectrum here
+    sensitivity       = p21s.PowerSpectrum(observation=observation, k_21 = k / units.Mpc, 
+                                            delta_21 = dsqr * (units.mK**2), foreground_model='moderate') 
     k_sens            = sensitivity.k1d.value * p21s.config.COSMO.h
-    std_21cmSense     = sensitivity.calculate_sensitivity_1d().value
+    std_21cmSense     = sensitivity.calculate_sensitivity_1d(thermal = True, sample = True).value
 
     std = interpolate.interp1d(k_sens, std_21cmSense, bounds_error=False, fill_value=np.nan)(k)
 
@@ -129,18 +129,14 @@ def define_grid_modes_redshifts(z_min: float, B: float, k_min = 0.1 / units.Mpc,
         
         dk = deltak_zB(z_min, B) 
         _k_min = dk
-        n = 1
 
-        while _k_min < k_min:
-            _k_min = n*dk
-            n = n+1
-        
-        _k_min = (n-1)*dk
+        if _k_min < k_min :
+            _k_min = k_min
 
         if logk is False:
             return np.arange(_k_min.value, k_max.value, dk.value) * k_min.unit
         else:
-            return np.logspace(np.log10((n-1)*dk.value), )
+            ValueError("logarithmic k-bins not implemented yet")
 
     # Get the redshift bin edges and centers
     z_bins, _ = generate_z_bins(z_min, z_max, B)
@@ -151,22 +147,24 @@ def define_grid_modes_redshifts(z_min: float, B: float, k_min = 0.1 / units.Mpc,
     return z_bins, k_bins
 
 
-    
 
 
 class Run:
 
-    def __init__(self, lightcone, z_bins, k_bins, logk): 
+    def __init__(self, lightcone, z_bins, k_bins, logk, q: float = 0.): 
         
         self._z_bins    = z_bins
         self._k_bins    = k_bins
         self._logk      = logk
+        self._q         = q
 
         # Get the power spectrum from the Lightcone
         self._lightcone       = lightcone
         self._lc_redshifts    = lightcone.lightcone_redshifts
         self._chunk_indices   = [np.argmin(np.abs(self._lc_redshifts - z)) for z in z_bins]
-        self._z_arr, self._ps = p21a.compute_powerspectra_1D(lightcone, chunk_indices = self._chunk_indices, n_psbins=self._k_bins.value, logk=logk, remove_nans=False, vb=False)
+        self._z_arr, self._ps = p21a.compute_powerspectra_1D(lightcone, chunk_indices = self._chunk_indices, 
+                                                                n_psbins=self._k_bins.value, logk=logk, 
+                                                                remove_nans=False, vb=False)
 
         _k_arr = np.array([data['k'] for data in self._ps])
         assert np.any(np.diff(_k_arr, axis=0)[0]/_k_arr <= 1e-3)
@@ -205,7 +203,9 @@ class Run:
     def chunk_indices(self):
         return self._chunk_indices
 
-
+    @property
+    def q(self):
+        return self._q
 
 
 class Fiducial(Run): 
@@ -219,6 +219,7 @@ class Fiducial(Run):
 
         super().__init__(self._lightcone, z_bins, k_bins, logk)
         self.compute_sensitivity()
+
     
     @property
     def dir_path(self):
@@ -256,27 +257,43 @@ class Fiducial(Run):
         self._ps_std = _std
 
 
-    def plot_power_spectrum(self, obs = None):
-    
-        fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, self.power_spectrum, func_err = self.power_spectrum_errors, std = self._ps_std)
-        fig.savefig(self._dir_path + "/power_spectrum.pdf", tight_layout=True)
+    def plot_power_spectrum(self):
+        
+        fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, self.power_spectrum, 
+                                                #func_err = self.power_spectrum_errors,
+                                                std = self._ps_std, 
+                                                title=r'$\Delta_{21}^2 ~{\rm [mK^2]}$', 
+                                                xlim = [0.1, 1], logx=self._logk, logy=True)
+        fig.savefig(self._dir_path + "/power_spectrum.pdf", bbox_layout='tight')
         return fig
 
 
+parameters_tex_name = {'F_STAR10' : r'\log_{10} f_{\star, 10}', 
+                        'ALPHA_STAR' : r'\alpha_{\star}',
+                        'F_ESC10' : r'\log_{10} f_{\rm esc, 10}', 
+                        'ALPHA_ESC' : r'\alpha_{\rm esc}',
+                        'L_X' : r'\log_{10} L_X',
+                        'NU_X_THRESH' : r'E_0',
+                        't_STAR': r't_\star',
+                        'M_TURN': r'\log_{10} M_{\rm turn}'}
 
 
 class Parameter:
 
-    def __init__(self, fiducial, name):
+    def __init__(self, fiducial, name, sigma_mod_frac = 0, plot = True):
         
-        self._fiducial = fiducial
-        self._name     = name
-        
-        self._dir_path     = self._fiducial.dir_path
-        self._astro_params = self._fiducial.astro_params
-        self._z_bins       = self._fiducial.z_bins
-        self._k_bins       = self._fiducial.k_bins
-        self._logk         = self._fiducial.logk
+        self._fiducial       = fiducial
+        self._name           = name
+        self._plot           = plot
+        self._sigma_mod_frac = sigma_mod_frac
+
+        self._dir_path       = self._fiducial.dir_path
+        self._astro_params   = self._fiducial.astro_params
+        self._z_bins         = self._fiducial.z_bins
+        self._k_bins         = self._fiducial.k_bins
+        self._logk           = self._fiducial.logk
+
+        self._tex_name       = parameters_tex_name.get(self._name, r'\theta')
 
 
         if name not in self._astro_params:
@@ -285,6 +302,7 @@ class Parameter:
         # get the lightcones from the filenames
         _lightcone_file_name = glob.glob(self._dir_path + "/Lightcone_" + self._name + "_*.h5")
         
+        # get (from the filenames) the quantity by which the parameter has been varies from the fiducial
         self._q_value = []
         for file_name in _lightcone_file_name:
             # Get the value of q from the thing
@@ -296,28 +314,41 @@ class Parameter:
         # Check that the q_values are consistant
         assert (len(self._q_value) == 2 and (self._q_value[0] * self._q_value[1]) < 0) or len(self._q_value) == 1
 
+        print("------------------------------------------")
         print(self._name  + " has been varied with q = " + str(self._q_value))
         print("Loading the lightcones and computing the power spectra")
 
         # We get the lightcones and then create the corresponding runs objects
-        self._lightcones =  [p21f.LightCone.read(self._dir_path + "/Lightcone_" + self._name + "_" + str(q) + ".h5") for q in self._q_value]
-        self._runs       =  [Run(lightcone, self._z_bins, self._k_bins, self._logk) for lightcone in self._lightcones]
+        self._runs =  [Run(p21f.LightCone.read(self._dir_path + "/Lightcone_" + self._name + "_" + str(q) + ".h5"),  self._z_bins, self._k_bins, self._logk, q = q) for q in self._q_value]
 
-        print("Power spectra computed")
+        print("Power spectra of " + self._name  + " computed")
       
-        ## Check that the k-arrays and z-arrays correspond 
+        ## Check that the k-arrays, z-arrays, k-bins and z-bins correspond 
         for run in self._runs:
             assert np.all(2* np.abs(run.z_array - self._fiducial.z_array)/(run.z_array + self._fiducial.z_array) < 1e-5)
             assert np.all(2* np.abs(run.k_array - self._fiducial.k_array)/(run.k_array + self._fiducial.k_array) < 1e-5)
+            assert np.all(2* np.abs(run.k_bins - self._fiducial.k_bins)/(run.k_bins + self._fiducial.k_bins) < 1e-5)
+            assert np.all(2* np.abs(run.z_bins - self._fiducial.z_bins)/(run.z_bins + self._fiducial.z_bins) < 1e-5)
 
         ## Define unique k and z arrays
         self._k_array = self._fiducial.k_array
         self._z_array = self._fiducial.z_array
+        self._k_bins  = self._fiducial.k_bins
+        self._z_bins  = self._fiducial.z_bins
 
-        print("Computing the derivatives")
+        print("Computing the derivatives of " + self._name)
 
         self.compute_derivative()
-        self.plot_derivatives()
+
+        print("Derivative of " + self._name  + " computed")
+
+        # Plotting the derivatives
+        if self._plot is True:
+            self.plot_derivative()
+            self.plot_weighted_derivative()
+
+        print("------------------------------------------")
+
 
 
     @property
@@ -333,6 +364,14 @@ class Parameter:
         return self._z_array
 
     @property
+    def k_bins(self):
+        return self._k_bins
+
+    @property
+    def z_bins(self):
+        return self._z_bins
+
+    @property
     def fiducial(self):
         return self._fiducial
 
@@ -340,73 +379,193 @@ class Parameter:
     def name(self):
         return self._name
 
+    @property
+    def sigma_mod_frac(self):
+        return self._sigma_mod_frac
+    
+    @sigma_mod_frac.setter
+    def sigma_mod_frac(self, value):
+        self._sigma_mod_frac = value
+
 
     def compute_derivative(self):
         
         _der = [None] * len(self._z_array)
         
-        _param_fid      = self._astro_params[self._name]
-        _params         = np.array([(1+q) * _param_fid for q in self._q_value])
+        # For convinience some parameters in 21cmFAST have to be defined by their log value
+        # HOWEVER astro_params contains the true value which makes things not confusing at ALL
+        # For these parameters we need to get the log again
+
+        if self._name in ['M_TURN', 'L_X', 'F_STAR10', 'F_ESC10']:
+            _param_fid = copy.deepcopy(np.log10(self._astro_params[self._name]))
+        else:
+            _param_fid = copy.deepcopy(self._astro_params[self._name])
+
+       
+        # get all the parameters and sort them
+        _params         = np.array([(1+run.q) * _param_fid for run in self._runs])
         _params         = np.append(_params, _param_fid)
         _params_sorted  = np.sort(_params)
         _mixing_params  = np.argsort(_params)
-       
+
+
+        # loop over all the redshift bins
         for iz, z in enumerate(self._z_array) :   
 
-            _power_spectra        = [run.power_spectrum[iz] for run in self._runs]
+            # get an array of power spectra in the same order as the parameters
+            _power_spectra = [run.power_spectrum[iz] for run in self._runs]
             _power_spectra.append(self._fiducial.power_spectrum[iz])
-            
-            # Rearrange the power spectra in the same order of the parameters
+
+            # rearrange the power spectra in the same order of the parameters
             _power_spectra_sorted = np.array(_power_spectra)[_mixing_params]        
-            
-            # Evaluate the derivative as a gradient
+
+            # evaluate the derivative as a gradient
             _der[iz] = np.gradient(_power_spectra_sorted, _params_sorted, axis=0)
 
-        # Arrange the derivative according to their number
-        self._derivative  = {'one_sided_m' : None, 'one_sided_p' : None, 'two_sided' : None}
+
+        # arrange the derivative whether they are left, right or centred
+        self._derivative  = {'left' : None, 'right' : None, 'centred' : None}
 
         if len(self._q_value) == 2:
-            self._derivative['one_sided_m'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
-            self._derivative['two_sided']   = [_der[iz][1] for iz, _ in enumerate(self._z_array)]
-            self._derivative['one_sided_p'] = [_der[iz][2] for iz, _ in enumerate(self._z_array)]
+            self._derivative['left'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+            self._derivative['centred']   = [_der[iz][1] for iz, _ in enumerate(self._z_array)]
+            self._derivative['right'] = [_der[iz][2] for iz, _ in enumerate(self._z_array)]
 
         if len(self._q_value) == 1 and self._q_value[0] < 0 :
-            self._derivative['one_sided_m'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+            self._derivative['left'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
         
         if len(self._q_value) == 1 and self._q_value[0] > 0 :
-            self._derivative['one_sided_p'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+            self._derivative['right'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
 
-    
-    def weighted_derivative(self):
         
-        ps_std = self._fiducial.ps_std  
+
+    def weighted_derivative(self, kind: str ='centred'):
+       
+        """
+        ## Weighted derivative of the power spectrum with respect to the parameter
+        
+        Params:
+        -------
+        kind : str, optional
+            choice of derivative ('left', 'right', or 'centred')
+
+        Returns:
+        --------
+        The value of the derivative devided by the error
+        """
+        
+        # experimental error
+        ps_std   = self._fiducial.ps_std   
+        # theoretical uncertainty from the simulation              
+        ps_error = self._fiducial.power_spectrum_errors 
+
+        # add another source of modelling error if asked
+        _sigma_mod = 0
+        if self._sigma_mod_frac > 0 : 
+            _sigma_mod = self._sigma_mod_frac * self._fiducial.power_spectrum
         
         # if fiducial as no standard deviation defined yet, return None
         if ps_std is None:
             return None
 
-        der = self._derivative.get('two_sided', None)
+        # Initialize the derivative array to None
+        der = None
+
+        # If two sided derivative is asked then we are good here
+        if kind == 'centred' :
+            der = self._derivative.get('centred', None)
         
-        # If there is no two_sided derivative
-        if der is None:
+        # Value to check if we use the one sided derivative 
+        # by choice or because we cannot use the two-sided one
+        _force_to_one_side = False
+
+        # If there is no centred derivative
+        if der is None or kind == 'left':
+            if der is None and kind != 'left': 
+                # Means that we could not read a value yet 
+                # but not that we chose to use the left
+                _force_to_one_side = True
+            der = self._derivative.get('left', None)
+        
+        if der is None or kind == 'right':
+            if der is None and kind != 'right': 
+                # Means that we could not read a value yet 
+                # but not that we chose to use the right
+                _force_to_one_side = True
+            der = self._derivative.get('right', None)
+
+        if _force_to_one_side is True:
             print("Weighted derivative computed from the one_sided derivative")
-            der = self._derivative.get('one_sided_m', None)
-        if der is None:
-            der = self._derivative.get('one_sided_p', None)
 
-        return der / ps_std  
+        # We sum (quadratically) the two errors
+        return der / np.sqrt(ps_std**2 + ps_error**2 + _sigma_mod**2)  
 
 
-
-    def plot_derivatives(self):
+    def plot_derivative(self):
 
         der_array = [self._derivative[key] for key in self._derivative.keys()]
-        fig = p21fl_tools.plot_func_vs_z_and_k(self._z_array, self._k_array, der_array)
-        fig.savefig(self._dir_path + "/derivatives_" + self._name + ".pdf", tight_layout=True)
+        fig = p21fl_tools.plot_func_vs_z_and_k(self._z_array, self._k_array, der_array, marker='.', markersize=2, 
+                                                title=r'$\frac{\partial \Delta_{21}^2}{\partial ' + self._tex_name + r'}$', 
+                                                xlim = [0.1, 1], logx=self._logk, logy=False)
+        fig.savefig(self._dir_path + "/derivatives_" + self._name + ".pdf")
         return fig
 
 
+    def plot_power_spectra(self, **kwargs):
+
+        _ps        = [self._fiducial.power_spectrum]
+        _ps_errors = [self._fiducial.power_spectrum_errors]
+        _q_vals    = [0]
+
+        for run in self._runs:
+            _ps.append(run.power_spectrum)
+            _ps_errors.append(run.power_spectrum_errors)
+            _q_vals.append(run.q)
+
+        _order  = np.argsort(_q_vals)
+        _ps        = np.array(_ps)[_order]
+        _ps_errors = np.array(_ps_errors)[_order]
+
+        fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, _ps, func_err = _ps_errors, 
+                                                std = self._fiducial.ps_std, 
+                                                title=r'$\Delta_{21}^2 ~ {\rm [mK^2]}$', 
+                                                logx=self._logk, logy=True, **kwargs)
+
+        fig.savefig(self._dir_path + "/power_spectra_" + self.name + ".pdf")
+        return fig
+
+
+    def plot_weighted_derivative(self):
+
+        if self.fiducial.ps_std is None:
+            ValueError("Error: cannot plot the weighted derivatives if the error \
+                        if the experimental error is not defined in the fiducial")
+
+
+        der_array = [self.weighted_derivative(kind=key) for key in self._derivative.keys()]
+        fig = p21fl_tools.plot_func_vs_z_and_k(self._z_array, self._k_array, der_array, marker='.', markersize=2, 
+                                                title=r'$\frac{1}{\sigma}\frac{\partial \Delta_{21}^2}{\partial ' + self._tex_name + r'}$', 
+                                                xlim = [0.1, 1], logx=self._logk, logy=False)
+        fig.savefig(self._dir_path + "/weighted_derivatives_" + self._name + ".pdf")
+        return fig
+
+
+
+
 def evaluate_fisher_matrix(parameters):
+    """
+    ## Fisher matrix evaluator
+
+    Parameters:
+    -----------
+    parameters: array of Parameters objects
+        parameters on which to compute the Fisher matrix
+    
+    Return:
+    -------
+    dictionnary with keys: 'matrix' for the matrix itself and 'name' for 
+    the parameter names associated to the matrix in the same order
+    """
     
     # Get the standard deviation
     n_params = len(parameters)
