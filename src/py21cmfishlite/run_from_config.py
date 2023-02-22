@@ -33,7 +33,7 @@ import configparser
 from py21cmfishlite import tools as p21fl_tools
 import py21cmfast   as p21f
 
-def run_lightcone_from_config(config_file: str, n_omp: int = None) :
+def run_lightcone_from_config(config_file: str, n_omp: int = None, random_seed: int = None) :
     """ ## Run a lightcone from a config file 
 
     Parameters
@@ -42,6 +42,8 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None) :
         path of the configuration file
     n_omp: int
         number of threads to use
+    random_seed : int
+        random_seed with which to run 21cmFAST
 
     Returns
     ----------
@@ -107,7 +109,11 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None) :
             global_quantities    = global_quantities,
             verbose_ntbk         = False,
             direc                = cache_dir + name.upper() + "/", 
+            random_seed          = random_seed,
         )
 
+    # At the end, we clear the cache
+    p21f.cache_tools.clear_cache(direc=cache_dir + name.upper() + "/")
+    
     return lightcone, run_id
  

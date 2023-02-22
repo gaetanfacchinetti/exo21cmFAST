@@ -149,6 +149,7 @@ def define_grid_modes_redshifts(z_min: float, B: float, k_min = 0.1 / units.Mpc,
 
 
 
+
 class Run:
 
     def __init__(self, lightcone, z_bins, k_bins, logk, q: float = 0.): 
@@ -207,6 +208,23 @@ class Run:
     def q(self):
         return self._q
 
+    def plot_power_spectrum(self, std = None, figname = None, plot=True):
+        
+        fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, self.power_spectrum, 
+                                                func_err = self.power_spectrum_errors,
+                                                std = std, title=r'$\Delta_{21}^2 ~{\rm [mK^2]}$', 
+                                                xlim = [self.k_bins[0].value, self.k_bins[-1].value], logx=self._logk, logy=True)
+        
+        if plot is True : 
+
+            if figname is None:
+                figname = self._dir_path + "/power_spectrum.pdf"
+        
+            fig.savefig(figname, bbox_layout='tight')
+
+        return fig
+
+
 
 class Fiducial(Run): 
 
@@ -258,14 +276,7 @@ class Fiducial(Run):
 
 
     def plot_power_spectrum(self):
-        
-        fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, self.power_spectrum, 
-                                                #func_err = self.power_spectrum_errors,
-                                                std = self._ps_std, 
-                                                title=r'$\Delta_{21}^2 ~{\rm [mK^2]}$', 
-                                                xlim = [0.1, 1], logx=self._logk, logy=True)
-        fig.savefig(self._dir_path + "/power_spectrum.pdf", bbox_layout='tight')
-        return fig
+        super().plot_power_spectrum(std=self._ps_std)
 
 
 parameters_tex_name = {'F_STAR10' : r'\log_{10} f_{\star, 10}', 
@@ -300,7 +311,7 @@ class Parameter:
             ValueError("ERROR: the name does not corresponds to any varied parameters")
 
         # get the lightcones from the filenames
-        _lightcone_file_name = glob.glob(self._dir_path + "/Lightcone_" + self._name + "_*.h5")
+        _lightcone_file_name = glob.glob(self._dir_path + "/Lightcone_*" + self._name + "_*.h5")
         
         # get (from the filenames) the quantity by which the parameter has been varies from the fiducial
         self._q_value = []
@@ -522,14 +533,14 @@ class Parameter:
             _ps_errors.append(run.power_spectrum_errors)
             _q_vals.append(run.q)
 
-        _order  = np.argsort(_q_vals)
+        _order     = np.argsort(_q_vals)
         _ps        = np.array(_ps)[_order]
         _ps_errors = np.array(_ps_errors)[_order]
 
         fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, _ps, func_err = _ps_errors, 
                                                 std = self._fiducial.ps_std, 
                                                 title=r'$\Delta_{21}^2 ~ {\rm [mK^2]}$', 
-                                                logx=self._logk, logy=True, **kwargs)
+                                                logx=self._logk, logy=True, istd = _order[0], **kwargs)
 
         fig.savefig(self._dir_path + "/power_spectra_" + self.name + ".pdf")
         return fig

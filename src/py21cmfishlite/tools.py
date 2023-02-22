@@ -423,7 +423,7 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
 
 
 
-def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, **kwargs) :
+def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, istd  : float = 0, **kwargs) :
 
     """ 
         Function that plots the power spectra with the sensitivity bounds from extract_noise_from_fiducial()
@@ -438,7 +438,9 @@ def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, **kwargs) :
         func : (list of) 2D arrays of floats
             function(s) to plot in terms of the redshift and modes
         std : 1D array of floats
-            standard deviation associated to func (or func[0])
+            standard deviation associated to func (or func[istd])
+        istd : float, optional
+            index of the func array where to attach the standard deviation
     """
     n_lines = int(len(z) / 5)
 
@@ -516,7 +518,7 @@ def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, **kwargs) :
 
                 # Plot the standard deviation bars if standard deviation is given
                 if std is not None : 
-                    axs[i][j].fill_between(k, func[0][iz] - std[iz], func[0][iz] + std[iz], step='mid', alpha = 0.2, color='blue')
+                    axs[i][j].fill_between(k, func[istd][iz] - std[iz], func[istd][iz] + std[iz], step='mid', alpha = 0.2, color='blue')
                 
                 
                 xlim = kwargs.get('xlim', None)
