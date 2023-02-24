@@ -1,6 +1,7 @@
 import glob
 
 import numpy as np
+import pickle
 from scipy import interpolate
 from astropy import units
 import copy
@@ -177,7 +178,7 @@ class Run:
         return np.array([data['delta'] for data in self._ps])
 
     @property
-    def power_spectrum_errors(self):
+    def poisson_noise(self):
         return np.array([data['err_delta'] for data in self._ps])
 
     @property
@@ -208,12 +209,201 @@ class Run:
     def q(self):
         return self._q
 
-    def plot_power_spectrum(self, std = None, figname = None, plot=True):
+    @property
+    def astro_params(self):
+        return self._lightcone.astro_params.pystruct
+
+
+
+
+def compare_arrays(array_1, array_2, eps : float):
+    return np.all(2* np.abs((array_1 - array_2)/(array_1 + array_2)) < eps)
+
+
+
+class CombinedRuns:
+    """
+    Smart collection of the same runs with different random seeds
+    """
+
+    def __init__(self, dir_path, name, z_bins = None, k_bins = None, logk=False, q : float = 0, save=True, load=True) -> None:
         
+        self._name            = name
+        self._dir_path        = dir_path
+        self._filename_data   = self._dir_path + '/Table_' + self._name + '.npz'    
+        self._filename_params = self._dir_path + '/Param_' + self._name + '.pkl' 
+
+        if load is True : 
+            _load_successfull = self._load()
+
+            # If we load the file correctly and if the input parameter correspond
+            # then we don't need to go further and can skip the full computation again
+            if _load_successfull is True:
+                if z_bins is not None:
+                    if np.all(self._z_bins == z_bins):
+                        return None
+                    else:
+                        raise ValueError("z-bins in input are different than the one used to precompute the tables")
+                if k_bins is not None:
+                    if np.all(self._k_bins == k_bins):
+                        return None
+                    else:
+                        raise ValueError("z-bins in input are different than the one used to precompute the tables")
+
+            if (z_bins is None or k_bins is None) and _load_successfull is False:
+                raise ValueError("Need to pass z_bins and k_bins as inputs")
+
+        self._z_bins         = z_bins
+        self._k_bins         = k_bins
+        self._logk           = logk
+        self._q              = q
+
+        # fetch all the lightcone files that correspond to runs the same parameters but different seed
+        _lightcone_file_name = glob.glob(self._dir_path + "/Lightcone_*" + self._name + ".h5")
+        print("For " + self._name + ": grouping a total of " + str(len(_lightcone_file_name)) + " runs")
+        
+        # Create the array of runs
+        self._runs =  [Run(p21f.LightCone.read(file_name), self._z_bins, self._k_bins, logk, q) for file_name in _lightcone_file_name]
+
+        assert len(self._runs) > 0, "ERROR when searching for lightcones with a given name" 
+
+        ## check that there is no problem and all z- and k- arrays have the same properties
+        for irun in range(1, len(self._runs)) :
+
+            # check that all with the same q-value have the same bins 
+            assert compare_arrays(self._runs[0].k_array, self._runs[irun].k_array, 1e-5) 
+            assert compare_arrays(self._runs[0].z_array, self._runs[irun].z_array, 1e-5) 
+            assert compare_arrays(self._runs[0].k_bins,  self._runs[irun].k_bins,  1e-5) 
+            assert compare_arrays(self._runs[0].z_bins,  self._runs[irun].z_bins,  1e-5) 
+            
+            # check that all with the same q-value have the same astro_params
+            assert self._runs[0].astro_params == self._runs[irun].astro_params
+
+        self._z_array = self._runs[0].z_array
+        self._k_array = self._runs[0].k_array
+
+        self._average_quantities()
+
+        if save is True:
+            self._save()
+
+
+    def _average_quantities(self):
+        
+        ## compute the average values and the spread 
+        self._power_spectrum = np.average([run.power_spectrum for run in self._runs], axis=0)
+        self._poisson_noise  = np.average([run.poisson_noise for run in self._runs], axis=0)
+        self._modeling_noise = np.std([run.power_spectrum for run in self._runs], axis=0)
+        self._astro_params   = self._runs[0].astro_params 
+
+
+    def _save(self):
+        """
+        ##  Saves all the attributes of the class to be easily reload later if necessary
+
+        numpy arrays are saved in an .npz format
+        scalar parameters / attributes are saved in a dictionnary in a .pkl format
+        """
+
+        with open(self._filename_data, 'wb') as file: 
+            np.savez(file, power_spectrum = self.power_spectrum,
+                                poisson_noise = self.poisson_noise,
+                                modeling_noise = self.modeling_noise,
+                                z_array = self.z_array,
+                                k_array = self.k_array,
+                                z_bins = self.z_bins,
+                                k_bins = self.k_bins)
+        
+        # Prepare the dictionnary of parameters
+        param_dict = {'logk' : self.logk, 'q' : self.q, 'astro_params': self.astro_params}
+        
+        with open(self._filename_params, 'wb') as file:
+            pickle.dump(param_dict, file)
+        
+
+    def _load(self):
+        """
+        ##  Loads all the attributes of the class
+        """
+
+        data   = None
+        params = None
+
+        try:
+
+            with open(self._filename_data, 'rb') as file: 
+                data = np.load(file)
+                
+                self._power_spectrum = data['power_spectrum']
+                self._poisson_noise  = data['poisson_noise']
+                self._modeling_noise = data['modeling_noise']
+                self._z_array        = data['z_array']
+                self._k_array        = data['k_array']
+                self._z_bins         = data['z_bins']
+                self._k_bins         = data['k_bins']  / units.Mpc
+
+            with open(self._filename_params, 'rb') as file:
+                params = pickle.load(file)
+
+                self._logk         = params['logk']
+                self._q            = params['q']
+                self._astro_params = params['astro_params']
+
+            return True
+
+        except FileNotFoundError:
+            print("No existing data found for " + self._name)
+            
+            return False
+    
+
+    @property
+    def power_spectrum(self):
+        return self._power_spectrum
+    
+    @property
+    def poisson_noise(self):
+        return self._poisson_noise
+
+    @property
+    def modeling_noise(self):
+        return self._modeling_noise
+
+    @property
+    def z_array(self):
+        return self._z_array
+
+    @property
+    def k_array(self): 
+        return self._k_array
+    
+    @property
+    def z_bins(self):
+        return self._z_bins
+
+    @property
+    def k_bins(self): 
+        return self._k_bins
+ 
+    @property
+    def logk(self): 
+        return self._logk
+
+    @property
+    def q(self):
+        return self._q
+
+    @property
+    def astro_params(self): 
+        return self._astro_params
+
+
+    def plot_power_spectrum(self, std = None, figname = None, plot=True) :  
+
         fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, self.power_spectrum, 
-                                                func_err = self.power_spectrum_errors,
+                                                func_err = np.sqrt(self.poisson_noise**2 + self.modeling_noise**2),
                                                 std = std, title=r'$\Delta_{21}^2 ~{\rm [mK^2]}$', 
-                                                xlim = [self.k_bins[0].value, self.k_bins[-1].value], logx=self._logk, logy=True)
+                                                xlim = [self._k_bins[0].value, self._k_bins[-1].value], logx=self._logk, logy=True)
         
         if plot is True : 
 
@@ -226,16 +416,17 @@ class Run:
 
 
 
-class Fiducial(Run): 
+class Fiducial(CombinedRuns): 
 
-    def __init__(self, dir_path, z_bins, k_bins, logk, observation = ""):
+    def __init__(self, dir_path, z_bins, k_bins, logk, observation = "", frac_noise = 0., **kwargs):
 
         self._dir_path     = dir_path
-        self._lightcone    = p21f.LightCone.read(self._dir_path + "/Lightcone_FIDUCIAL.h5")
-        self._astro_params = self._lightcone.astro_params.pystruct
-        self._observation  = observation
+        super().__init__(self._dir_path, "FIDUCIAL", z_bins, k_bins, logk, **kwargs)
+    
 
-        super().__init__(self._lightcone, z_bins, k_bins, logk)
+        self._frac_noise = frac_noise
+        self._astro_params       = self._astro_params
+        self._observation        = observation
         self.compute_sensitivity()
 
     
@@ -259,8 +450,18 @@ class Fiducial(Run):
             self.compute_sensitivity()
 
     @property
+    def frac_noise(self):
+        return self._frac_noise
+
+    @frac_noise.setter
+    def frac_noise(self, value):
+        print("Warning: frac noise has been changed, all related quantities should be recomputed")
+        self._frac_noise = value
+
+    @property
     def ps_std(self):
         return np.array(self._ps_std)
+    
 
     def compute_sensitivity(self):
 
@@ -289,14 +490,14 @@ parameters_tex_name = {'F_STAR10' : r'\log_{10} f_{\star, 10}',
                         'M_TURN': r'\log_{10} M_{\rm turn}'}
 
 
+
 class Parameter:
 
-    def __init__(self, fiducial, name, sigma_mod_frac = 0, plot = True):
+    def __init__(self, fiducial, name, plot = True):
         
         self._fiducial       = fiducial
         self._name           = name
         self._plot           = plot
-        self._sigma_mod_frac = sigma_mod_frac
 
         self._dir_path       = self._fiducial.dir_path
         self._astro_params   = self._fiducial.astro_params
@@ -319,6 +520,9 @@ class Parameter:
             # Get the value of q from the thing
             self._q_value.append(float(file_name.split("_")[-1][:-3]))
 
+        # If more than one file with the same q_values we remove all identical numbers
+        self._q_value = list(set(self._q_value))
+
         # Sort the q_values from the smallest to the largest
         self._q_value = np.sort(self._q_value)
 
@@ -330,16 +534,16 @@ class Parameter:
         print("Loading the lightcones and computing the power spectra")
 
         # We get the lightcones and then create the corresponding runs objects
-        self._runs =  [Run(p21f.LightCone.read(self._dir_path + "/Lightcone_" + self._name + "_" + str(q) + ".h5"),  self._z_bins, self._k_bins, self._logk, q = q) for q in self._q_value]
+        self._runs =  [CombinedRuns(self._dir_path, self._name + "_" + str(q), self._z_bins, self._k_bins, self._logk, q) for q in self._q_value]
 
         print("Power spectra of " + self._name  + " computed")
       
         ## Check that the k-arrays, z-arrays, k-bins and z-bins correspond 
         for run in self._runs:
-            assert np.all(2* np.abs(run.z_array - self._fiducial.z_array)/(run.z_array + self._fiducial.z_array) < 1e-5)
-            assert np.all(2* np.abs(run.k_array - self._fiducial.k_array)/(run.k_array + self._fiducial.k_array) < 1e-5)
-            assert np.all(2* np.abs(run.k_bins - self._fiducial.k_bins)/(run.k_bins + self._fiducial.k_bins) < 1e-5)
-            assert np.all(2* np.abs(run.z_bins - self._fiducial.z_bins)/(run.z_bins + self._fiducial.z_bins) < 1e-5)
+            assert compare_arrays(run.z_array, self._fiducial.z_array, 1e-5)
+            assert compare_arrays(run.k_array, self._fiducial.k_array, 1e-5)
+            assert compare_arrays(run.z_bins,  self._fiducial.z_bins,  1e-5)
+            assert compare_arrays(run.k_bins,  self._fiducial.k_bins,  1e-5)
 
         ## Define unique k and z arrays
         self._k_array = self._fiducial.k_array
@@ -389,14 +593,6 @@ class Parameter:
     @property
     def name(self):
         return self._name
-
-    @property
-    def sigma_mod_frac(self):
-        return self._sigma_mod_frac
-    
-    @sigma_mod_frac.setter
-    def sigma_mod_frac(self, value):
-        self._sigma_mod_frac = value
 
 
     def compute_derivative(self):
@@ -466,14 +662,12 @@ class Parameter:
         """
         
         # experimental error
-        ps_std   = self._fiducial.ps_std   
-        # theoretical uncertainty from the simulation              
-        ps_error = self._fiducial.power_spectrum_errors 
+        ps_std   = self._fiducial.ps_std  
 
-        # add another source of modelling error if asked
-        _sigma_mod = 0
-        if self._sigma_mod_frac > 0 : 
-            _sigma_mod = self._sigma_mod_frac * self._fiducial.power_spectrum
+        # theoretical uncertainty from the simulation              
+        poisson_noise  = self._fiducial.poisson_noise 
+        modeling_noise = np.sqrt(self._fiducial.modeling_noise**2 + (self._fiducial.frac_noise * self._fiducial.power_spectrum)**2)
+    
         
         # if fiducial as no standard deviation defined yet, return None
         if ps_std is None:
@@ -492,14 +686,14 @@ class Parameter:
 
         # If there is no centred derivative
         if der is None or kind == 'left':
-            if der is None and kind != 'left': 
+            if der is None and kind != 'left' and kind != 'right': 
                 # Means that we could not read a value yet 
                 # but not that we chose to use the left
                 _force_to_one_side = True
             der = self._derivative.get('left', None)
         
         if der is None or kind == 'right':
-            if der is None and kind != 'right': 
+            if der is None and kind != 'right' and kind != 'left': 
                 # Means that we could not read a value yet 
                 # but not that we chose to use the right
                 _force_to_one_side = True
@@ -509,7 +703,7 @@ class Parameter:
             print("Weighted derivative computed from the one_sided derivative")
 
         # We sum (quadratically) the two errors
-        return der / np.sqrt(ps_std**2 + ps_error**2 + _sigma_mod**2)  
+        return der / np.sqrt(ps_std**2 + poisson_noise**2 + modeling_noise**2)  
 
 
     def plot_derivative(self):
@@ -525,12 +719,12 @@ class Parameter:
     def plot_power_spectra(self, **kwargs):
 
         _ps        = [self._fiducial.power_spectrum]
-        _ps_errors = [self._fiducial.power_spectrum_errors]
+        _ps_errors = [np.sqrt(self._fiducial.poisson_noise**2 + self._fiducial.modeling_noise**2)]
         _q_vals    = [0]
 
         for run in self._runs:
             _ps.append(run.power_spectrum)
-            _ps_errors.append(run.power_spectrum_errors)
+            _ps_errors.append(np.sqrt(run.poisson_noise**2 + run.modeling_noise**2))
             _q_vals.append(run.q)
 
         _order     = np.argsort(_q_vals)
@@ -595,7 +789,7 @@ def evaluate_fisher_matrix(parameters):
             
     return {'matrix' : fisher_matrix, 'name' : name_arr}
     
-   
+
     
 
 

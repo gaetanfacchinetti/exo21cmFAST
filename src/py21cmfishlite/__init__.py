@@ -22,5 +22,6 @@ from .fisher_matrix import (
     define_grid_modes_redshifts,
     Fiducial,
     Run,
+    CombinedRuns,
     Parameter,
 )

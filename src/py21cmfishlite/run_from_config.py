@@ -29,6 +29,7 @@
 ##################################################################################
 
 import configparser
+import os
 
 from py21cmfishlite import tools as p21fl_tools
 import py21cmfast   as p21f
@@ -42,6 +43,8 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None, random_seed: 
         path of the configuration file
     n_omp: int
         number of threads to use
+    run_id : str, optional
+        id of the run we are currently looking at
     random_seed : int
         random_seed with which to run 21cmFAST
 
@@ -89,31 +92,48 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None, random_seed: 
     astro_params    = p21fl_tools.read_config_params(config.items('astro_params'), int_type=False)
 
 
-    # Manually set the number of threads
+    # manually set the number of threads
     if n_omp is not None: 
         user_params['N_THREADS'] = int(n_omp)
+
+    seed_str : str = ''
+    if random_seed is not None:
+        seed_str = 'rs' + str(random_seed) + '_'
+
+    cache_path = cache_dir + name.upper() + '/run_' + seed_str + run_id + '/'
     
     ####################### Running the lightcone ############################
 
     lightcone_quantities = ("brightness_temp", )
     global_quantities    = ("brightness_temp", )
 
-    lightcone = p21f.run_lightcone(
-            redshift             = min_redshift,
-            max_redshift         = max_redshift, 
-            user_params          = user_params,
-            astro_params         = astro_params,
-            flag_options         = flag_options,
-            coarsen_factor       = coarsen_factor, 
-            lightcone_quantities = lightcone_quantities,
-            global_quantities    = global_quantities,
-            verbose_ntbk         = False,
-            direc                = cache_dir + name.upper() + "/", 
-            random_seed          = random_seed,
-        )
+    try: 
 
-    # At the end, we clear the cache
-    p21f.cache_tools.clear_cache(direc=cache_dir + name.upper() + "/")
+        lightcone = p21f.run_lightcone(
+                redshift             = min_redshift,
+                max_redshift         = max_redshift, 
+                user_params          = user_params,
+                astro_params         = astro_params,
+                flag_options         = flag_options,
+                coarsen_factor       = coarsen_factor, 
+                lightcone_quantities = lightcone_quantities,
+                global_quantities    = global_quantities,
+                verbose_ntbk         = False,
+                direc                = cache_path, 
+                random_seed          = random_seed,
+            )
+
+        return lightcone, run_id
     
-    return lightcone, run_id
+    except :
+        
+        # at the end, we clear the cache if the run did not work
+        p21f.cache_tools.clear_cache(direc=cache_path)
+        # delete the directory once it has been emptied
+        os.rmdir(cache_path) 
+
+        return None, None
+
+
+    
  

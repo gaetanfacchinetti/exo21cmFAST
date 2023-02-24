@@ -75,9 +75,9 @@ for current_model in input_models :
             redshift = 5,        # Minimal value of redshift -> Here we will go slightly lower (cannot go below z = 4 for DarkHistory)
             max_redshift = None, # Maximal value of redshift -- By default Z_HEAT_MAX for None of when USE_TS_FLUCT = True
             user_params = {
-                "BOX_LEN":                  500,   # Default value: 300 (Box length Mpc) 1000
+                "BOX_LEN":                  100,   # Default value: 300 (Box length Mpc) 1000 / 500
                 "DIM":                      None,  # Default value: None / gives DIM=3*HII_DIM (High resolution) None
-                "HII_DIM":                  256,   # Default value: 200  (HII cell resolution) 350
+                "HII_DIM":                  10,    # Default value: 200  (HII cell resolution) 350 / 256
                 "USE_FFTW_WISDOM":          False, # Default value: False (Speed up FFT)
                 "HMF":                      1,     # Default value: 1 (Halo mass function)
                 "USE_RELATIVE_VELOCITIES":  False, # Default value: False (Turn on relative velocites)  -> Attention if USE_RELATIVE_VELOCITIES: True, POWER_SPECTRUM: 5 (CLASS) necessarily

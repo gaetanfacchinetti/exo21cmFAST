@@ -301,15 +301,15 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
 
     for iname, name in enumerate(name_params): 
         if name == 'ALPHA_ESC':
-            min_val_arr[iname] = -1
-            max_val_arr[iname] = 0.5
+            min_val_arr[iname] = -1.4
+            max_val_arr[iname] = 0.6
             display_arr[iname] = r"$\alpha_{\rm esc}$"
-            ticks_arr[iname]   = [-0.7, -0.25, 0.2]
+            ticks_arr[iname]   = [-1, -0.5, 0.0, 0.5]
         if name == 'ALPHA_STAR': 
-            min_val_arr[iname] = -0.5
-            max_val_arr[iname] = 1
+            min_val_arr[iname] = -0.7
+            max_val_arr[iname] = 1.7
             display_arr[iname] = r"$\alpha_{\star}$"
-            ticks_arr[iname]   = [-0.2, 0.25, 0.7]
+            ticks_arr[iname]   = [-0.5, 0, 0.5, 1.0, 1.5]
         if name == 'DM_LOG10_LIFETIME': 
             min_val_arr[iname] = 25.6
             max_val_arr[iname] = 26.4
@@ -321,35 +321,35 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
             display_arr[iname] = r"$\log_{10}[\frac{m_{\chi}}{\rm eV}]$"
             ticks_arr[iname]   = [5, 7, 9]
         if name == 'F_ESC10':
-            min_val_arr[iname] = -3
-            max_val_arr[iname] = 0
+            min_val_arr[iname] = -2
+            max_val_arr[iname] = 0.1
             display_arr[iname] = r"$\log_{10}[f_{\rm esc, 10}]$"
             ticks_arr[iname]   = [-2, -1]
         if name == 'F_STAR10': 
-            min_val_arr[iname] = -3
-            max_val_arr[iname] = 0
+            min_val_arr[iname] = -2.2
+            max_val_arr[iname] = -0.5
             display_arr[iname] = r"$\log_{10}[f_{\star, 10}]$"
             ticks_arr[iname]   = [-2, -1]
         if name == 'L_X' : 
-            min_val_arr[iname] = 38
-            max_val_arr[iname] = 42
+            min_val_arr[iname] = 40
+            max_val_arr[iname] = 41
             display_arr[iname] = r"$\log_{10}\left[\frac{L_X}{\rm units}\right]$"
-            ticks_arr[iname]   = [39, 40, 41]
+            ticks_arr[iname]   = [40, 40.5, 41]
         if name == 'M_TURN':
-            min_val_arr[iname] = 8
-            max_val_arr[iname] = 10
+            min_val_arr[iname] = 7.6
+            max_val_arr[iname] = 9.8
             display_arr[iname] = r"$\log_{10}\left[\frac{M_{\rm turn}}{{\rm M}_\odot}\right]$"
             ticks_arr[iname]   = [8.5, 9, 9.5]
         if name == 't_STAR': 
-            min_val_arr[iname] = 0
-            max_val_arr[iname] = 1
+            min_val_arr[iname] = -0.3
+            max_val_arr[iname] = 1.3
             display_arr[iname] = r"$t_{\star}$"
-            ticks_arr[iname]   = [0.25, 0.5, 0.75]
+            ticks_arr[iname]   = [0, 0.4, 0.8, 1.2]
         if name == 'NU_X_THRESH': 
-            min_val_arr[iname] = 0
-            max_val_arr[iname] = 1
+            min_val_arr[iname] = 300
+            max_val_arr[iname] = 700
             display_arr[iname] = r"$E_0~[\rm eV]$"
-            #ticks_arr[iname]   = [0.25, 0.5, 0.75]
+            ticks_arr[iname]   = [300, 500, 700]
 
 
     for i in range(0, ngrid) : 
@@ -366,14 +366,16 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
 
     for i in range(ngrid):
         axs[-1][i].set_xlabel(display_arr[i])
-        #axs[-1][i].set_xticks(ticks_arr[i])
+        axs[-1][i].set_xticks(ticks_arr[i])
+        axs[-1][i].tick_params(axis='x', labelsize=8)
         for tick in axs[-1][i].get_xticklabels():
                 tick.set_rotation(55)
 
     for j in range(1, ngrid):
         axs[j][0].set_ylabel(display_arr[j])
-        #axs[j][0].set_yticks(ticks_arr[j])
-
+        axs[j][0].set_yticks(ticks_arr[j])
+        axs[j][0].tick_params(axis='y', labelsize=8)
+    
     axs[0][0].set_yticks([])  
 
 
@@ -399,12 +401,13 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
                 ellipse_x, ellipse_y = ellipse_from_covariance(sub_cov, [fiducial_params[name_params[i]], fiducial_params[name_params[j]]])
                 axs[j][i].plot(ellipse_x, ellipse_y, linewidth=0.5, color='blue')
     
-                y_min = fiducial_params[name_params[j]] - 4*np.sqrt(cov_matrix[j, j])
-                y_max = fiducial_params[name_params[j]] + 4*np.sqrt(cov_matrix[j, j])
-                axs[j][i].set_ylim([y_min, y_max])
+                #y_min = fiducial_params[name_params[j]] - 4*np.sqrt(cov_matrix[j, j])
+                #y_max = fiducial_params[name_params[j]] + 4*np.sqrt(cov_matrix[j, j])
+                
+                #axs[j][i].set_ylim([y_min, y_max])
 
-                #axs[j][i].set_xlim([min_val_arr[i], max_val_arr[i]])
-                #axs[j][i].set_ylim([min_val_arr[j], max_val_arr[j]])
+                axs[j][i].set_xlim([min_val_arr[i], max_val_arr[i]])
+                axs[j][i].set_ylim([min_val_arr[j], max_val_arr[j]])
 
                 confidence_ellipse(sub_cov, fiducial_params[name_params[i]], fiducial_params[name_params[j]], axs[j][i],  n_std=2, facecolor='blue', alpha=0.3)
                 confidence_ellipse(sub_cov, fiducial_params[name_params[i]], fiducial_params[name_params[j]], axs[j][i],  n_std=1, facecolor='blue', alpha=0.7)
@@ -415,7 +418,7 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
                 val_arr = np.linspace(mean_val-5*sigma, mean_val+5*sigma, 100)
                 gaussian_approx = exp(-(val_arr - mean_val)**2/2./sigma**2)
                 axs[i][i].plot(val_arr, gaussian_approx, color='blue')
-                #axs[i][i].set_xlim([min_val_arr[i], max_val_arr[i]])
+                axs[i][i].set_xlim([min_val_arr[i], max_val_arr[i]])
                 axs[i][i].set_ylim([0, 1.2])
                 axs[i][i].set_title(r'${} \pm {:.2}$'.format(mean_val, np.sqrt(cov_matrix[i, i])), fontsize=10)
 
@@ -511,7 +514,7 @@ def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, istd  : float 
                                         linewidth=0.8)
                     
                     if func_err[jf] is not None:
-                        axs[i][j].fill_between(k, f[iz] - 5*func_err[jf][iz], f[iz] + 5*func_err[jf][iz], 
+                        axs[i][j].fill_between(k, f[iz] - func_err[jf][iz], f[iz] + func_err[jf][iz], 
                                                 color=color_list[jf], linestyle=linestyle_list[jf], 
                                                 step='mid', alpha=0.1)
                 
