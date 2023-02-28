@@ -37,6 +37,8 @@ import matplotlib.transforms as transforms
 
 import numpy as np
 import copy
+import os
+
 from py21cmanalysis import tools as p21a_tools
 
 def read_config_params(config_items, int_type = True):
@@ -561,8 +563,6 @@ def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, istd  : float 
 
 
 
-
-
 def display_matrix(matrix, names = None):
 
     if names is not None:
@@ -581,3 +581,32 @@ def display_matrix(matrix, names = None):
                 add = ' '
             print(add + "{:.1e}".format(matrix[i][j]) + '  |  ', end='')
         print('')
+
+
+
+
+def load_uv_luminosity_functions(data_set = 'Bouwens21'):
+
+    file_name = os.path.dirname(os.path.abspath(__file__)) + '/_data/' + data_set + '.npz'
+
+    with open(file_name, 'rb') as file:  
+        data = np.load(file, allow_pickle = True)   
+       
+        l_uv       = data['l_uv']
+        sigma_l_uv = data['sigma_l_uv']
+
+    return l_uv, sigma_l_uv
+
+
+
+def load_uv_bins(data_set = 'Bouwens21'):
+
+    file_name = os.path.dirname(os.path.abspath(__file__)) + '/_data/' + data_set + '.npz'
+
+    with open(file_name, 'rb') as file:  
+        data = np.load(file, allow_pickle = True)   
+       
+        redshift   = data['redshifts']
+        M_uv       = data['M_uv']
+
+    return redshift, M_uv

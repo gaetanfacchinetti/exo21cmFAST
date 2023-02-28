@@ -85,7 +85,7 @@ def init_fisher_from_fiducial(config_file: str, q_scale: float = 3., clean_exist
     user_params       = p21fl_tools.read_config_params(config.items('user_params'))
     flag_options      = p21fl_tools.read_config_params(config.items('flag_options'))
     astro_params_fid  = p21fl_tools.read_config_params(config.items('astro_params'), int_type = False)
-    astro_params_vary = p21fl_tools.read_config_params(config.items('astro_params_vary'))
+    astro_params_vary = p21fl_tools.read_config_params(config.items('astro_params_vary'), int_type = False)
 
     vary_array = np.array([-1, 1])
     astro_params_run_all = {}
@@ -103,19 +103,17 @@ def init_fisher_from_fiducial(config_file: str, q_scale: float = 3., clean_exist
         
         p_fid = astro_params_fid[param]
 
-        # Make smaller for L_X
-        if param == "L_X":
-            q = 0.001*vary_array
-        else:
+
+        if isinstance(value, float) and value > 0:
+            q = value/100*vary_array
+        else : 
             q = q_scale/100*vary_array
 
         if p_fid == 0.:
             p = q
         else:
-            if value == 'linear' :
-                p = p_fid*(1+q)
-            elif value == 'log':
-                p = p_fid**(1+q)
+            p = p_fid*(1+q)
+
             
         astro_params_run = astro_params_fid.copy()
 

@@ -100,10 +100,10 @@ def extract_noise_from_fiducial(k, dsqr, observation) :
 
 def define_grid_modes_redshifts(z_min: float, B: float, k_min = 0.1 / units.Mpc, k_max = 1 / units.Mpc, z_max: float = 19, logk=False) : 
     """
-    Defines a grid of modes and redshift on which to define the noise and on which the Fisher matrix will be evaluated
+    ## Defines a grid of modes and redshift on which to define the noise and on which the Fisher matrix will be evaluated
     
     Params:
-    ------
+    -------
     z_min : float
         Minimal redshift on the grid
     B     : float
@@ -118,7 +118,7 @@ def define_grid_modes_redshifts(z_min: float, B: float, k_min = 0.1 / units.Mpc,
         return 2*np.pi * f21 * cosmo.H(z) / constants.c / (1+z)**2 / B * 1000 * units.m / units.km
 
     def generate_z_bins(z_min, z_max, B):
-        fmax = int(f21.value/(1+z_min))*f21.unit
+        fmax = f21/(1+z_min)
         fmin = f21/(1+z_max)
         f_bins    = np.arange(fmax.value, fmin.value, -B.value) * f21.unit
         f_centers = f_bins[:-1] - B/2
@@ -160,6 +160,7 @@ class Run:
         self._logk      = logk
         self._q         = q
 
+
         # Get the power spectrum from the Lightcone
         self._lightcone       = lightcone
         self._lc_redshifts    = lightcone.lightcone_redshifts
@@ -178,7 +179,7 @@ class Run:
         return np.array([data['delta'] for data in self._ps])
 
     @property
-    def poisson_noise(self):
+    def ps_poisson_noise(self):
         return np.array([data['err_delta'] for data in self._ps])
 
     @property
@@ -209,10 +210,18 @@ class Run:
     def q(self):
         return self._q
 
+    ## Lighcone properties
     @property
     def astro_params(self):
-        return self._lightcone.astro_params.pystruct
+        return dict(self._lightcone.astro_params.pystruct)
 
+    @property
+    def user_params(self):
+        return dict(self._lightcone.user_params.pystruct)
+
+    @property
+    def flag_options(self):
+        return dict(self._lightcone.flag_options.pystruct)
 
 
 
@@ -223,7 +232,7 @@ def compare_arrays(array_1, array_2, eps : float):
 
 class CombinedRuns:
     """
-    Smart collection of the same runs with different random seeds
+    ## Smart collection of the same runs with different random seeds
     """
 
     def __init__(self, dir_path, name, z_bins = None, k_bins = None, logk=False, q : float = 0, save=True, load=True) -> None:
@@ -236,27 +245,32 @@ class CombinedRuns:
         if load is True : 
             _load_successfull = self._load()
 
+            _params_match = True
+
             # If we load the file correctly and if the input parameter correspond
             # then we don't need to go further and can skip the full computation again
             if _load_successfull is True:
                 if z_bins is not None:
-                    if np.all(self._z_bins == z_bins):
-                        return None
-                    else:
+                    if compare_arrays(self._z_bins, z_bins, 1e-5) is False:
+                        _params_match = False
                         raise ValueError("z-bins in input are different than the one used to precompute the tables")
                 if k_bins is not None:
-                    if np.all(self._k_bins == k_bins):
-                        return None
-                    else:
+                    if compare_arrays(self._k_bins, k_bins, 1e-5) is False:
+                        _params_match = False
                         raise ValueError("z-bins in input are different than the one used to precompute the tables")
+
+                if _params_match is True:
+                    return None
 
             if (z_bins is None or k_bins is None) and _load_successfull is False:
                 raise ValueError("Need to pass z_bins and k_bins as inputs")
 
-        self._z_bins         = z_bins
-        self._k_bins         = k_bins
-        self._logk           = logk
-        self._q              = q
+
+        self._z_bins  = z_bins
+        self._k_bins  = k_bins
+        self._logk    = logk
+        self._q       = q
+
 
         # fetch all the lightcone files that correspond to runs the same parameters but different seed
         _lightcone_file_name = glob.glob(self._dir_path + "/Lightcone_*" + self._name + ".h5")
@@ -277,7 +291,9 @@ class CombinedRuns:
             assert compare_arrays(self._runs[0].z_bins,  self._runs[irun].z_bins,  1e-5) 
             
             # check that all with the same q-value have the same astro_params
-            assert self._runs[0].astro_params == self._runs[irun].astro_params
+            assert self._runs[0].astro_params  == self._runs[irun].astro_params
+            assert self._runs[0].user_params   == self._runs[irun].user_params
+            assert self._runs[0].flag_options  == self._runs[irun].flag_options
 
         self._z_array = self._runs[0].z_array
         self._k_array = self._runs[0].k_array
@@ -292,9 +308,11 @@ class CombinedRuns:
         
         ## compute the average values and the spread 
         self._power_spectrum = np.average([run.power_spectrum for run in self._runs], axis=0)
-        self._poisson_noise  = np.average([run.poisson_noise for run in self._runs], axis=0)
-        self._modeling_noise = np.std([run.power_spectrum for run in self._runs], axis=0)
+        self._ps_poisson_noise  = np.average([run.ps_poisson_noise for run in self._runs], axis=0)
+        self._ps_modeling_noise = np.std([run.power_spectrum for run in self._runs], axis=0)
         self._astro_params   = self._runs[0].astro_params 
+        self._user_params    = self._runs[0].user_params
+        self._flag_options   = self._runs[0].flag_options
 
 
     def _save(self):
@@ -307,15 +325,18 @@ class CombinedRuns:
 
         with open(self._filename_data, 'wb') as file: 
             np.savez(file, power_spectrum = self.power_spectrum,
-                                poisson_noise = self.poisson_noise,
-                                modeling_noise = self.modeling_noise,
+                                ps_poisson_noise = self.ps_poisson_noise,
+                                ps_modeling_noise = self.ps_modeling_noise,
                                 z_array = self.z_array,
                                 k_array = self.k_array,
                                 z_bins = self.z_bins,
                                 k_bins = self.k_bins)
         
         # Prepare the dictionnary of parameters
-        param_dict = {'logk' : self.logk, 'q' : self.q, 'astro_params': self.astro_params}
+        param_dict = {'logk' : self.logk, 'q' : self.q, 
+                    'astro_params': self.astro_params, 
+                    'user_params': self.user_params,
+                    'flag_options': self.flag_options}
         
         with open(self._filename_params, 'wb') as file:
             pickle.dump(param_dict, file)
@@ -334,9 +355,9 @@ class CombinedRuns:
             with open(self._filename_data, 'rb') as file: 
                 data = np.load(file)
                 
-                self._power_spectrum = data['power_spectrum']
-                self._poisson_noise  = data['poisson_noise']
-                self._modeling_noise = data['modeling_noise']
+                self._power_spectrum    = data['power_spectrum']
+                self._ps_poisson_noise  = data['ps_poisson_noise']
+                self._ps_modeling_noise = data['ps_modeling_noise']
                 self._z_array        = data['z_array']
                 self._k_array        = data['k_array']
                 self._z_bins         = data['z_bins']
@@ -345,9 +366,11 @@ class CombinedRuns:
             with open(self._filename_params, 'rb') as file:
                 params = pickle.load(file)
 
-                self._logk         = params['logk']
-                self._q            = params['q']
-                self._astro_params = params['astro_params']
+                self._logk          = params['logk']
+                self._q             = params['q']
+                self._astro_params  = params['astro_params']
+                self._user_params   = params['user_params']
+                self._flag_options  = params['flag_options']  
 
             return True
 
@@ -362,12 +385,12 @@ class CombinedRuns:
         return self._power_spectrum
     
     @property
-    def poisson_noise(self):
-        return self._poisson_noise
+    def ps_poisson_noise(self):
+        return self._ps_poisson_noise
 
     @property
-    def modeling_noise(self):
-        return self._modeling_noise
+    def ps_modeling_noise(self):
+        return self._ps_modeling_noise
 
     @property
     def z_array(self):
@@ -393,15 +416,25 @@ class CombinedRuns:
     def q(self):
         return self._q
 
+    # lightcone properties
     @property
     def astro_params(self): 
         return self._astro_params
+    
+    @property
+    def user_params(self):
+        return self._user_params
+
+    @property
+    def flag_options(self):
+        return self._flag_options
+
 
 
     def plot_power_spectrum(self, std = None, figname = None, plot=True) :  
 
         fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, self.power_spectrum, 
-                                                func_err = np.sqrt(self.poisson_noise**2 + self.modeling_noise**2),
+                                                func_err = np.sqrt(self.ps_poisson_noise**2 + self.ps_modeling_noise**2),
                                                 std = std, title=r'$\Delta_{21}^2 ~{\rm [mK^2]}$', 
                                                 xlim = [self._k_bins[0].value, self._k_bins[-1].value], logx=self._logk, logy=True)
         
@@ -459,8 +492,8 @@ class Fiducial(CombinedRuns):
         self._frac_noise = value
 
     @property
-    def ps_std(self):
-        return np.array(self._ps_std)
+    def ps_exp_noise(self):
+        return np.array(self._ps_exp_noise)
     
 
     def compute_sensitivity(self):
@@ -473,11 +506,11 @@ class Fiducial(CombinedRuns):
                 _hera     = define_HERA_observation(z)
                 _std[iz]  = extract_noise_from_fiducial(self.k_array, self.power_spectrum[iz], _hera)
 
-        self._ps_std = _std
+        self._ps_exp_noise = _std
 
 
     def plot_power_spectrum(self):
-        super().plot_power_spectrum(std=self._ps_std)
+        super().plot_power_spectrum(std=self._ps_exp_noise)
 
 
 parameters_tex_name = {'F_STAR10' : r'\log_{10} f_{\star, 10}', 
@@ -493,7 +526,7 @@ parameters_tex_name = {'F_STAR10' : r'\log_{10} f_{\star, 10}',
 
 class Parameter:
 
-    def __init__(self, fiducial, name, plot = True):
+    def __init__(self, fiducial, name, plot = True, **kwargs):
         
         self._fiducial       = fiducial
         self._name           = name
@@ -534,7 +567,8 @@ class Parameter:
         print("Loading the lightcones and computing the power spectra")
 
         # We get the lightcones and then create the corresponding runs objects
-        self._runs =  [CombinedRuns(self._dir_path, self._name + "_" + str(q), self._z_bins, self._k_bins, self._logk, q) for q in self._q_value]
+        self._runs =  [CombinedRuns(self._dir_path, self._name + "_" + str(q), self._z_bins, self._k_bins, 
+                                    self._logk, q, **kwargs) for q in self._q_value]
 
         print("Power spectra of " + self._name  + " computed")
       
@@ -553,22 +587,22 @@ class Parameter:
 
         print("Computing the derivatives of " + self._name)
 
-        self.compute_derivative()
+        self.compute_ps_derivative()
 
         print("Derivative of " + self._name  + " computed")
 
         # Plotting the derivatives
         if self._plot is True:
-            self.plot_derivative()
-            self.plot_weighted_derivative()
+            self.plot_ps_derivative()
+            self.plot_weighted_ps_derivative()
 
         print("------------------------------------------")
 
 
 
     @property
-    def derivative(self):
-        return self._derivative
+    def ps_derivative(self):
+        return self._ps_derivative
 
     @property
     def k_array(self):
@@ -595,7 +629,7 @@ class Parameter:
         return self._name
 
 
-    def compute_derivative(self):
+    def compute_ps_derivative(self):
         
         _der = [None] * len(self._z_array)
         
@@ -631,22 +665,22 @@ class Parameter:
 
 
         # arrange the derivative whether they are left, right or centred
-        self._derivative  = {'left' : None, 'right' : None, 'centred' : None}
+        self._ps_derivative  = {'left' : None, 'right' : None, 'centred' : None}
 
         if len(self._q_value) == 2:
-            self._derivative['left'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
-            self._derivative['centred']   = [_der[iz][1] for iz, _ in enumerate(self._z_array)]
-            self._derivative['right'] = [_der[iz][2] for iz, _ in enumerate(self._z_array)]
+            self._ps_derivative['left']    = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+            self._ps_derivative['centred'] = [_der[iz][1] for iz, _ in enumerate(self._z_array)]
+            self._ps_derivative['right']   = [_der[iz][2] for iz, _ in enumerate(self._z_array)]
 
         if len(self._q_value) == 1 and self._q_value[0] < 0 :
-            self._derivative['left'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+            self._ps_derivative['left'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
         
         if len(self._q_value) == 1 and self._q_value[0] > 0 :
-            self._derivative['right'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
+            self._ps_derivative['right'] = [_der[iz][0] for iz, _ in enumerate(self._z_array)]
 
         
 
-    def weighted_derivative(self, kind: str ='centred'):
+    def weighted_ps_derivative(self, kind: str ='centred'):
        
         """
         ## Weighted derivative of the power spectrum with respect to the parameter
@@ -662,15 +696,15 @@ class Parameter:
         """
         
         # experimental error
-        ps_std   = self._fiducial.ps_std  
+        ps_exp_noise   = self._fiducial.ps_exp_noise  
 
         # theoretical uncertainty from the simulation              
-        poisson_noise  = self._fiducial.poisson_noise 
-        modeling_noise = np.sqrt(self._fiducial.modeling_noise**2 + (self._fiducial.frac_noise * self._fiducial.power_spectrum)**2)
+        ps_poisson_noise  = self._fiducial.ps_poisson_noise 
+        ps_modeling_noise = np.sqrt(self._fiducial.ps_modeling_noise**2 + (self._fiducial.frac_noise * self._fiducial.power_spectrum)**2)
     
         
         # if fiducial as no standard deviation defined yet, return None
-        if ps_std is None:
+        if ps_exp_noise is None:
             return None
 
         # Initialize the derivative array to None
@@ -678,7 +712,7 @@ class Parameter:
 
         # If two sided derivative is asked then we are good here
         if kind == 'centred' :
-            der = self._derivative.get('centred', None)
+            der = self._ps_derivative.get('centred', None)
         
         # Value to check if we use the one sided derivative 
         # by choice or because we cannot use the two-sided one
@@ -690,25 +724,25 @@ class Parameter:
                 # Means that we could not read a value yet 
                 # but not that we chose to use the left
                 _force_to_one_side = True
-            der = self._derivative.get('left', None)
+            der = self._ps_derivative.get('left', None)
         
         if der is None or kind == 'right':
             if der is None and kind != 'right' and kind != 'left': 
                 # Means that we could not read a value yet 
                 # but not that we chose to use the right
                 _force_to_one_side = True
-            der = self._derivative.get('right', None)
+            der = self._ps_derivative.get('right', None)
 
         if _force_to_one_side is True:
             print("Weighted derivative computed from the one_sided derivative")
 
         # We sum (quadratically) the two errors
-        return der / np.sqrt(ps_std**2 + poisson_noise**2 + modeling_noise**2)  
+        return der / np.sqrt(ps_exp_noise**2 + ps_poisson_noise**2 + ps_modeling_noise**2)  
 
 
-    def plot_derivative(self):
+    def plot_ps_derivative(self):
 
-        der_array = [self._derivative[key] for key in self._derivative.keys()]
+        der_array = [self._ps_derivative[key] for key in self._ps_derivative.keys()]
         fig = p21fl_tools.plot_func_vs_z_and_k(self._z_array, self._k_array, der_array, marker='.', markersize=2, 
                                                 title=r'$\frac{\partial \Delta_{21}^2}{\partial ' + self._tex_name + r'}$', 
                                                 xlim = [0.1, 1], logx=self._logk, logy=False)
@@ -719,12 +753,12 @@ class Parameter:
     def plot_power_spectra(self, **kwargs):
 
         _ps        = [self._fiducial.power_spectrum]
-        _ps_errors = [np.sqrt(self._fiducial.poisson_noise**2 + self._fiducial.modeling_noise**2)]
+        _ps_errors = [np.sqrt(self._fiducial.ps_poisson_noise**2 + self._fiducial.ps_modeling_noise**2)]
         _q_vals    = [0]
 
         for run in self._runs:
             _ps.append(run.power_spectrum)
-            _ps_errors.append(np.sqrt(run.poisson_noise**2 + run.modeling_noise**2))
+            _ps_errors.append(np.sqrt(run.ps_poisson_noise**2 + run.ps_modeling_noise**2))
             _q_vals.append(run.q)
 
         _order     = np.argsort(_q_vals)
@@ -732,7 +766,7 @@ class Parameter:
         _ps_errors = np.array(_ps_errors)[_order]
 
         fig = p21fl_tools.plot_func_vs_z_and_k(self.z_array, self.k_array, _ps, func_err = _ps_errors, 
-                                                std = self._fiducial.ps_std, 
+                                                std = self._fiducial.ps_exp_noise, 
                                                 title=r'$\Delta_{21}^2 ~ {\rm [mK^2]}$', 
                                                 logx=self._logk, logy=True, istd = _order[0], **kwargs)
 
@@ -740,20 +774,37 @@ class Parameter:
         return fig
 
 
-    def plot_weighted_derivative(self):
+    def plot_weighted_ps_derivative(self):
 
-        if self.fiducial.ps_std is None:
+        if self.fiducial.ps_exp_noise is None:
             ValueError("Error: cannot plot the weighted derivatives if the error \
                         if the experimental error is not defined in the fiducial")
 
 
-        der_array = [self.weighted_derivative(kind=key) for key in self._derivative.keys()]
+        der_array = [self.weighted_ps_derivative(kind=key) for key in self._ps_derivative.keys()]
         fig = p21fl_tools.plot_func_vs_z_and_k(self._z_array, self._k_array, der_array, marker='.', markersize=2, 
                                                 title=r'$\frac{1}{\sigma}\frac{\partial \Delta_{21}^2}{\partial ' + self._tex_name + r'}$', 
                                                 xlim = [0.1, 1], logx=self._logk, logy=False)
         fig.savefig(self._dir_path + "/weighted_derivatives_" + self._name + ".pdf")
         return fig
 
+
+
+    def compute_UV_luminosity_functions(self, z_uv, m_uv):
+
+        _l_uv = [None]*len(self._runs)
+            
+        for irun, run in enumerate(self._runs):
+            
+            m_uv_sim , _ ,l_uv_sim = p21f.compute_luminosity_function(redshifts = z_uv, 
+                                                    user_params  = run.user_params, 
+                                                    astro_params = run.astro_params, 
+                                                    flag_options = run.flag_options,
+                                                    mturnovers= run.astro_params['M_TURN'])
+        
+            _l_uv[irun] = [interpolate.interp1d(m_uv_sim[iz], l_uv_sim[iz])(m_uv[iz]) for iz, z in enumerate(z_uv)]
+
+        return _l_uv
 
 
 
