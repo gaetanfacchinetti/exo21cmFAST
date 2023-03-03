@@ -59,7 +59,6 @@ def read_config_params(config_items, int_type = True):
 
     for key, value in dict(config_items).items():
 
-  
         try:
             if int_type is True:
                 cast_val = int(value)
@@ -279,18 +278,13 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
     cov_matrix      = covariance_matrix
     fiducial_params = copy.deepcopy(fiducial_params)
     name_params     = name_params
-
-    for iname, name in enumerate(name_params): 
-        if name in ['M_TURN', 'L_X', 'F_STAR10', 'F_ESC10']: 
-            fiducial_params[name] = np.log10(fiducial_params[name])
+    ngrid           = len(name_params)
 
     #####################################
     ##  Prepare the triangle plot
-
-    fig = plt.figure(constrained_layout=False, figsize=(12,12))
+    fig = plt.figure(constrained_layout=False, figsize=(1.2*ngrid, 1.2*ngrid))
     fig.subplots_adjust(wspace=0.05, hspace=0.05)
 
-    ngrid = len(name_params)
     gs = GridSpec(ngrid, ngrid, figure=fig)
     axs = [[None for j in range(ngrid)] for i in range(ngrid)]
 
@@ -301,128 +295,123 @@ def make_triangle_plot(covariance_matrix, name_params, fiducial_params) :
     display_arr  = [None] * len(name_params)
     ticks_arr    = [None] * len(name_params)
 
-    for iname, name in enumerate(name_params): 
-        if name == 'ALPHA_ESC':
-            min_val_arr[iname] = -1.4
-            max_val_arr[iname] = 0.6
-            display_arr[iname] = r"$\alpha_{\rm esc}$"
-            ticks_arr[iname]   = [-1, -0.5, 0.0, 0.5]
-        if name == 'ALPHA_STAR': 
-            min_val_arr[iname] = -0.7
-            max_val_arr[iname] = 1.7
-            display_arr[iname] = r"$\alpha_{\star}$"
-            ticks_arr[iname]   = [-0.5, 0, 0.5, 1.0, 1.5]
-        if name == 'DM_LOG10_LIFETIME': 
-            min_val_arr[iname] = 25.6
-            max_val_arr[iname] = 26.4
-            display_arr[iname] = r"$\log_{\rm 10}\left[\frac{\tau_{\chi}}{\rm s}\right]$"
-            ticks_arr[iname]   = [25.75, 26, 26.25]
-        if name == 'DM_LOG10_MASS': 
-            min_val_arr[iname] = 3
-            max_val_arr[iname] = 11
-            display_arr[iname] = r"$\log_{10}[\frac{m_{\chi}}{\rm eV}]$"
-            ticks_arr[iname]   = [5, 7, 9]
-        if name == 'F_ESC10':
-            min_val_arr[iname] = -2
-            max_val_arr[iname] = 0.1
-            display_arr[iname] = r"$\log_{10}[f_{\rm esc, 10}]$"
-            ticks_arr[iname]   = [-2, -1]
-        if name == 'F_STAR10': 
-            min_val_arr[iname] = -2.2
-            max_val_arr[iname] = -0.5
-            display_arr[iname] = r"$\log_{10}[f_{\star, 10}]$"
-            ticks_arr[iname]   = [-2, -1]
-        if name == 'L_X' : 
-            min_val_arr[iname] = 40
-            max_val_arr[iname] = 41
-            display_arr[iname] = r"$\log_{10}\left[\frac{L_X}{\rm units}\right]$"
-            ticks_arr[iname]   = [40, 40.5, 41]
-        if name == 'M_TURN':
-            min_val_arr[iname] = 7.6
-            max_val_arr[iname] = 9.8
-            display_arr[iname] = r"$\log_{10}\left[\frac{M_{\rm turn}}{{\rm M}_\odot}\right]$"
-            ticks_arr[iname]   = [8.5, 9, 9.5]
-        if name == 't_STAR': 
-            min_val_arr[iname] = -0.3
-            max_val_arr[iname] = 1.3
-            display_arr[iname] = r"$t_{\star}$"
-            ticks_arr[iname]   = [0, 0.4, 0.8, 1.2]
-        if name == 'NU_X_THRESH': 
-            min_val_arr[iname] = 300
-            max_val_arr[iname] = 700
-            display_arr[iname] = r"$E_0~[\rm eV]$"
-            ticks_arr[iname]   = [300, 500, 700]
-
-
-    for i in range(0, ngrid) : 
-        for j in range(0, i+1) : 
-            axs[i][j] = fig.add_subplot(gs[i:i+1, j:j+1])
-            #axs[i][j].set_xscale('log')
-            if i != j :
-                None
-                #axs[i][j].set_yscale('log')
-            if i < ngrid -1 :
-                axs[i][j].xaxis.set_ticklabels([])
-            if j > 0 : 
-                axs[i][j].yaxis.set_ticklabels([])
-
-    for i in range(ngrid):
-        axs[-1][i].set_xlabel(display_arr[i])
-        axs[-1][i].set_xticks(ticks_arr[i])
-        axs[-1][i].tick_params(axis='x', labelsize=8)
-        for tick in axs[-1][i].get_xticklabels():
-                tick.set_rotation(55)
-
-    for j in range(1, ngrid):
-        axs[j][0].set_ylabel(display_arr[j])
-        axs[j][0].set_yticks(ticks_arr[j])
-        axs[j][0].tick_params(axis='y', labelsize=8)
+    ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI',  't_STAR', 'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 
+                   'DM_LOG10_LIFETIME', 'DM_FHEAT_APPROX_PARAM_LOG10_F0', 'DM_FHEAT_APPROX_PARAM_A', 'DM_FHEAT_APPROX_PARAM_B', 
+                   'LOG10_XION_at_Z_HEAT_MAX', 'LOG10_TK_at_Z_HEAT_MAX']
     
-    axs[0][0].set_yticks([])  
+    
+    _parameters_plot = {
+        'F_STAR10'          : {'tex_name' : r"$\log_{10}[f_{\star, 10}]$"},
+        'F_STAR7_MINI'      : {'tex_name' : r"$\log_{10}[f_{\star, 7}^{\rm mini}]$"},
+        'ALPHA_STAR'        : {'tex_name' : r"$\alpha_{\star}$", 'min': -0.7, 'max' : 1.7, 'ticks' : []},
+        'ALPHA_STAR_MINI'   : {'tex_name' : r"$\alpha_{\star}^{\rm mini}$", 'min': -0.7, 'max' : 1.7, 'ticks' : []},
+        't_STAR'            : {'tex_name' : r"$t_{\star}$", 'min': -0.3, 'max' : 1.3, 'ticks' : []},
+        'F_ESC10'           : {'tex_name' : r"$\log_{10}[f_{\rm esc, 10}]$", 'min': -2, 'max' : 0.1},
+        'F_ESC7_MINI'       : {'tex_name' : r"$\log_{10}[f_{\rm esc, 7}^{\rm mini}]$", 'min': -2, 'max' : 0.1},
+        'ALPHA_ESC'         : {'tex_name' : r"$\alpha_{\rm esc}$", 'min': -1.4, 'max': 0.6, 'ticks' : []},
+        'L_X'               : {'tex_name' : r"$\log_{10}\left[\frac{L_X}{\rm units}\right]$", 'min': 40, 'max': 41},
+        'L_X_MINI'          : {'tex_name' : r"$\log_{10}\left[\frac{L_X^{\rm mini}}{\rm units}\right]$", 'min': 40, 'max': 41},
+        'M_TURN'            : {'tex_name' : r"$\log_{10}\left[\frac{M_{\rm turn}}{{\rm M}_\odot}\right]$", 'min': 7.6, 'max': 8.9, 'ticks' : []},
+        'NU_X_THRESH'       : {'tex_name' : r"$E_0~[\rm eV]$", 'min': 300, 'max': 700, 'ticks' : []},
+        'DM_LOG10_LIFETIME' : {'tex_name' : r"$\log_{\rm 10}\left[\frac{\tau_{\chi}}{\rm s}\right]$", 'min': 25.6, 'max': 26.4, 'ticks' : []},
+        'DM_LOG10_MASS'     : {'tex_name' : r"$\log_{10}[\frac{m_{\chi}}{\rm eV}]$", 'min': 3, 'max': 11,  'ticks' : []},
+        'DM_FHEAT_APPROX_PARAM_LOG10_F0' : {'tex_name' : r"$\log_{10}[f_0]$", 'min': -2, 'max': 1,  'ticks' : []},
+        'DM_FHEAT_APPROX_PARAM_A'  : {'tex_name' : r"$a$", 'min': -2, 'max': 1,  'ticks' : []},
+        'DM_FHEAT_APPROX_PARAM_B'  : {'tex_name' : r"$b$", 'min': -2, 'max': 1,  'ticks' : []},
+        'LOG10_XION_at_Z_HEAT_MAX' : {'tex_name' : r"$\log_{10}[\bar x_e^{\rm init}]$", 'min': -2, 'max': 1,  'ticks' : []},
+        'LOG10_TK_at_Z_HEAT_MAX'   : {'tex_name' : r"$\log_{10}[\frac{\bar T_K^{\rm init}}{\rm K}]$", 'min': -2, 'max': 1,  'ticks' : []},
+        }
+
 
 
     #####################################
-    ## Rearrange the dataset into an array of coordinates
+    ## Go through all the possible cases and corresponding parameters
     for j in range(ngrid) : 
         for i in range(0, j+1) :
+
             ## Here i represents the x axis while j goes along the y axis
+            axs[j][i] = fig.add_subplot(gs[j:j+1, i:i+1])
+
+            ## Information concertning this case
+            _default_info  = {'tex_name' : r'$\theta$', 'min' : None, 'max' : None, 'ticks' : []}
             
-         
-            x_min = fiducial_params[name_params[i]] - 4*np.sqrt(cov_matrix[i, i])
-            x_max = fiducial_params[name_params[i]] + 4*np.sqrt(cov_matrix[i, i])
+            _param_info_x  = _parameters_plot.get(name_params[i], _default_info)
+            _param_info_y  = _parameters_plot.get(name_params[j], _default_info)
+
+            # add the fiducial values in the infos
+            val_x = fiducial_params[name_params[i]]     
+            val_y = fiducial_params[name_params[j]]                 
+    
+            x_min = val_x - 4*np.sqrt(cov_matrix[i, i])
+            x_max = val_x + 4*np.sqrt(cov_matrix[i, i])
+            y_min = val_y - 4*np.sqrt(cov_matrix[j, j])
+            y_max = val_y + 4*np.sqrt(cov_matrix[j, j])
+            
+
+            ##############
+            # Setting the plot
+
+            # we remove the ticks if necessary for some parts of this case
+            if j < ngrid -1 :
+                axs[j][i].xaxis.set_ticklabels([])
+            if i > 0 : 
+                axs[j][i].yaxis.set_ticklabels([])
+
+            if j == ngrid -1 :
+                axs[j][i].set_xlabel(_param_info_x.get('tex_name', r'$\theta$'))
+                x_ticks = _param_info_x.get('ticks', [])
+                if x_ticks != [] :
+                    axs[j][i].set_xticks(_param_info_x.get('ticks', []))
+                axs[j][i].tick_params(axis='x', labelsize=8)
+                for tick in axs[j][i].get_xticklabels():
+                    tick.set_rotation(55)
+
+            if i == 0 and j > 0:
+                axs[j][i].set_ylabel(_param_info_y.get('tex_name', r'$\theta$'))
+                y_ticks = _param_info_y.get('ticks', [])
+                if y_ticks != [] :
+                    axs[j][i].set_yticks(_param_info_y.get('ticks', []))
+                axs[j][i].tick_params(axis='y', labelsize=8)
+                for tick in axs[j][i].get_yticklabels():
+                    tick.set_rotation(55)
+           
+
             axs[j][i].set_xlim([x_min, x_max])
+            ##############
 
-
+            ## Make the plots now
             if i != j : 
+                
+                axs[j][i].set_ylim([y_min, y_max])
+
                 # Countour plot for the scatter
                 sub_cov = np.zeros((2, 2))
                 sub_cov[0, 0] = cov_matrix[i, i]
                 sub_cov[0, 1] = cov_matrix[i, j]
                 sub_cov[1, 0] = cov_matrix[j, i]
                 sub_cov[1, 1] = cov_matrix[j, j]
-                ellipse_x, ellipse_y = ellipse_from_covariance(sub_cov, [fiducial_params[name_params[i]], fiducial_params[name_params[j]]])
-                axs[j][i].plot(ellipse_x, ellipse_y, linewidth=0.5, color='blue')
-    
-                #y_min = fiducial_params[name_params[j]] - 4*np.sqrt(cov_matrix[j, j])
-                #y_max = fiducial_params[name_params[j]] + 4*np.sqrt(cov_matrix[j, j])
-                
-                #axs[j][i].set_ylim([y_min, y_max])
 
-                axs[j][i].set_xlim([min_val_arr[i], max_val_arr[i]])
-                axs[j][i].set_ylim([min_val_arr[j], max_val_arr[j]])
+                #ellipse_x, ellipse_y = ellipse_from_covariance(sub_cov, [val_x, val_y])
+                #axs[j][i].plot(ellipse_x, ellipse_y, linewidth=0.5, color='blue')
 
-                confidence_ellipse(sub_cov, fiducial_params[name_params[i]], fiducial_params[name_params[j]], axs[j][i],  n_std=2, facecolor='blue', alpha=0.3)
-                confidence_ellipse(sub_cov, fiducial_params[name_params[i]], fiducial_params[name_params[j]], axs[j][i],  n_std=1, facecolor='blue', alpha=0.7)
+                confidence_ellipse(sub_cov, val_x, val_y, axs[j][i],  n_std=2, facecolor='dodgerblue', alpha=0.4)
+                confidence_ellipse(sub_cov, val_x, val_y, axs[j][i],  n_std=1, facecolor='dodgerblue', alpha=0.8)
 
             if i == j :
-                sigma = np.sqrt(cov_matrix[i, i])
-                mean_val = fiducial_params[name_params[i]]
-                val_arr = np.linspace(mean_val-5*sigma, mean_val+5*sigma, 100)
-                gaussian_approx = exp(-(val_arr - mean_val)**2/2./sigma**2)
-                axs[i][i].plot(val_arr, gaussian_approx, color='blue')
-                axs[i][i].set_xlim([min_val_arr[i], max_val_arr[i]])
+
+
                 axs[i][i].set_ylim([0, 1.2])
-                axs[i][i].set_title(r'${} \pm {:.2}$'.format(mean_val, np.sqrt(cov_matrix[i, i])), fontsize=10)
+                axs[i][i].set_title(r'${} \pm {:.2}$'.format(val_x, np.sqrt(cov_matrix[i, i])), fontsize=10)
+    
+                # Plot the gaussian approximation in that panel
+                sigma     = np.sqrt(cov_matrix[i, i])
+                val_arr   = np.linspace(val_x-5*sigma, val_x+5*sigma, 100)
+                gaussian  = exp(-(val_arr - val_x)**2/2./sigma**2)
+
+                axs[i][i].plot(val_arr, gaussian, color='dodgerblue')
+    
+
+    axs[0][0].set_yticks([])  
 
     return fig
 
@@ -563,6 +552,57 @@ def plot_func_vs_z_and_k(z, k, func, func_err = None, std = None, istd  : float 
 
 
 
+def plot_func(x, func, **kwargs) :
+
+    """ 
+        Function that plots simple functions of one variable on the same graph
+
+        Params
+        ------
+        x : 1D array of floats
+            redshifts
+        func : (list of) 1D arrays of floats
+            function(s) to plot in terms of x
+    """
+
+        
+    if isinstance(func[0], (int, float, np.float64, np.float32)) : 
+        func = [func]
+
+    if isinstance(x[0], (int, float, np.float64, np.float32)) : 
+        x = [x]*len(func)
+
+    
+    fig = plt.figure(figsize = (5,4))
+    ax = fig.gca()
+
+    xlim   = kwargs.get('xlim', [np.min([val[0] for val in x]), np.max([val[-1] for val in x])])
+    ylim   = kwargs.get('ylim', None)
+    xlog   = kwargs.get('xlog', False)
+    ylog   = kwargs.get('ylog', False)
+    xlabel = kwargs.get('xlabel', r'$x$')
+    ylabel = kwargs.get('ylabel', r'$y$')
+    color  = kwargs.get('color', plt.rcParams['axes.prop_cycle'].by_key()['color'])
+
+    ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    ax.set_xlabel('{}'.format(xlabel))
+    ax.set_ylabel('{}'.format(ylabel))
+
+    if xlog is True:
+        ax.set_xscale('log')
+    if ylog is True:
+        ax.set_yscale('log')
+
+
+    for ifunc, f in enumerate(func):
+        ax.plot(x[ifunc], f, color=color[ifunc])
+
+    return fig
+
+
+
 def display_matrix(matrix, names = None):
 
     if names is not None:
@@ -592,21 +632,11 @@ def load_uv_luminosity_functions(data_set = 'Bouwens21'):
     with open(file_name, 'rb') as file:  
         data = np.load(file, allow_pickle = True)   
        
+        z_uv       = data['redshifts']
+        m_uv       = data['M_uv']
         l_uv       = data['l_uv']
         sigma_l_uv = data['sigma_l_uv']
 
-    return l_uv, sigma_l_uv
 
+    return z_uv, m_uv, l_uv, sigma_l_uv
 
-
-def load_uv_bins(data_set = 'Bouwens21'):
-
-    file_name = os.path.dirname(os.path.abspath(__file__)) + '/_data/' + data_set + '.npz'
-
-    with open(file_name, 'rb') as file:  
-        data = np.load(file, allow_pickle = True)   
-       
-        redshift   = data['redshifts']
-        M_uv       = data['M_uv']
-
-    return redshift, M_uv

@@ -2848,7 +2848,7 @@ def run_lightcone(
         # Tabulated values for swave to be inserted here at some point
         if flag_options.DM_PROCESS == 'swave': 
             if flag_options.USE_DM_CUSTOM_F_RATIOS is False:
-                raise ValueError("No tabulated values have been implemented yet for FION_H_OVER_FHEAT, FION_HE_OVER_FHEAT and FEXCOVER_FHEAT in the swave case")
+                raise ValueError("No tabulated values have been implemented yet for FION_H_OVER_FHEAT, FION_HE_OVER_FHEAT and FEXC_OVER_FHEAT in the swave case")
             else: 
                 f_H_ION_over_f_HEAT  = _DM_FION_H_OVER_FHEAT
                 f_EXC_over_f_HEAT    = _DM_FEXC_OVER_FHEAT

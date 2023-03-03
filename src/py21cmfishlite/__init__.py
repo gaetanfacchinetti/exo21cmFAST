@@ -14,7 +14,6 @@ from .tools import (
     plot_func_vs_z_and_k,
     display_matrix,
     load_uv_luminosity_functions,
-    load_uv_bins,
 )
 
 from .fisher_matrix import (

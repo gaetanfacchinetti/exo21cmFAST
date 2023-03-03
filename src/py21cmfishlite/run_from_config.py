@@ -105,7 +105,7 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None, random_seed: 
     ####################### Running the lightcone ############################
 
     lightcone_quantities = ("brightness_temp", )
-    global_quantities    = ("brightness_temp", )
+    global_quantities    = ("brightness_temp", "xH_box")
 
     try: 
 
@@ -122,17 +122,18 @@ def run_lightcone_from_config(config_file: str, n_omp: int = None, random_seed: 
                 direc                = cache_path, 
                 random_seed          = random_seed,
             )
-
-        return lightcone, run_id
-    
-    except :
         
-        # at the end, we clear the cache if the run did not work
-        p21f.cache_tools.clear_cache(direc=cache_path)
-        # delete the directory once it has been emptied
-        os.rmdir(cache_path) 
+    except :
 
-        return None, None
+        lightcone = None
+        run_id    = None
+
+    # at the end, we clear the cache 
+    p21f.cache_tools.clear_cache(direc=cache_path)
+    # delete the directory once it has been emptied
+    os.rmdir(cache_path) 
+
+    return lightcone, run_id
 
 
     

@@ -168,7 +168,17 @@ class Run:
         self._z_arr, self._ps = p21a.compute_powerspectra_1D(lightcone, chunk_indices = self._chunk_indices, 
                                                                 n_psbins=self._k_bins.value, logk=logk, 
                                                                 remove_nans=False, vb=False)
+        
+        _lc_glob_redshifts = self._lightcone.node_redshifts
+        self._z_glob       = np.linspace(z_bins[0], z_bins[-1], 100)
+        
 
+        _global_signal = lightcone.global_quantities.get('brightness_temp', np.zeros(len(_lc_glob_redshifts), dtype=np.float64))
+        _xH_box        = lightcone.global_quantities.get('xH_box', np.zeros(len(_lc_glob_redshifts), dtype=np.float64))
+
+        self._global_signal = interpolate.interp1d(_lc_glob_redshifts, _global_signal)(self._z_glob)
+        self._xH_box        = interpolate.interp1d(_lc_glob_redshifts, _xH_box)(self._z_glob)
+        
         _k_arr = np.array([data['k'] for data in self._ps])
         assert np.any(np.diff(_k_arr, axis=0)[0]/_k_arr <= 1e-3)
         self._k_arr = _k_arr[0]
@@ -181,6 +191,18 @@ class Run:
     @property
     def ps_poisson_noise(self):
         return np.array([data['err_delta'] for data in self._ps])
+    
+    @property
+    def global_signal(self):
+        return self._global_signal
+    
+    @property
+    def xH_box(self):
+        return self._xH_box
+    
+    @property
+    def z_glob(self):
+        return self._z_glob
 
     @property
     def z_bins(self):
@@ -213,19 +235,25 @@ class Run:
     ## Lighcone properties
     @property
     def astro_params(self):
-        return dict(self._lightcone.astro_params.pystruct)
+        return dict(self._lightcone.astro_params.self)
 
     @property
     def user_params(self):
-        return dict(self._lightcone.user_params.pystruct)
+        return dict(self._lightcone.user_params.self)
 
     @property
     def flag_options(self):
-        return dict(self._lightcone.flag_options.pystruct)
+        return dict(self._lightcone.flag_options.self)
+
+    @property
+    def cosmo_params(self):
+        return dict(self._lightcone.cosmo_params.self)
 
 
 
 def compare_arrays(array_1, array_2, eps : float):
+    if len(array_1) != len(array_2):
+        return False
     return np.all(2* np.abs((array_1 - array_2)/(array_1 + array_2)) < eps)
 
 
@@ -274,7 +302,9 @@ class CombinedRuns:
 
         # fetch all the lightcone files that correspond to runs the same parameters but different seed
         _lightcone_file_name = glob.glob(self._dir_path + "/Lightcone_*" + self._name + ".h5")
-        print("For " + self._name + ": grouping a total of " + str(len(_lightcone_file_name)) + " runs")
+        
+        if len(_lightcone_file_name) > 1:
+            print("For " + self._name + ": grouping a total of " + str(len(_lightcone_file_name)) + " runs")
         
         # Create the array of runs
         self._runs =  [Run(p21f.LightCone.read(file_name), self._z_bins, self._k_bins, logk, q) for file_name in _lightcone_file_name]
@@ -294,11 +324,15 @@ class CombinedRuns:
             assert self._runs[0].astro_params  == self._runs[irun].astro_params
             assert self._runs[0].user_params   == self._runs[irun].user_params
             assert self._runs[0].flag_options  == self._runs[irun].flag_options
+            assert self._runs[0].cosmo_params  == self._runs[irun].cosmo_params
 
         self._z_array = self._runs[0].z_array
         self._k_array = self._runs[0].k_array
+        self._z_glob  = self._runs[0].z_glob
 
         self._average_quantities()
+
+        self._tau_ion = p21f.compute_tau(redshifts=self._z_glob, global_xHI = self.xH_box, user_params=self._user_params, cosmo_params=self._cosmo_params)
 
         if save is True:
             self._save()
@@ -307,12 +341,15 @@ class CombinedRuns:
     def _average_quantities(self):
         
         ## compute the average values and the spread 
-        self._power_spectrum = np.average([run.power_spectrum for run in self._runs], axis=0)
+        self._power_spectrum    = np.average([run.power_spectrum for run in self._runs], axis=0)
         self._ps_poisson_noise  = np.average([run.ps_poisson_noise for run in self._runs], axis=0)
         self._ps_modeling_noise = np.std([run.power_spectrum for run in self._runs], axis=0)
-        self._astro_params   = self._runs[0].astro_params 
-        self._user_params    = self._runs[0].user_params
-        self._flag_options   = self._runs[0].flag_options
+        self._global_signal     = np.average([run.global_signal for run in self._runs], axis=0)
+        self._xH_box            = np.average([run.xH_box for run in self._runs], axis=0)
+        self._astro_params      = self._runs[0].astro_params 
+        self._user_params       = self._runs[0].user_params
+        self._flag_options      = self._runs[0].flag_options
+        self._cosmo_params      = self._runs[0].cosmo_params
 
 
     def _save(self):
@@ -324,19 +361,23 @@ class CombinedRuns:
         """
 
         with open(self._filename_data, 'wb') as file: 
-            np.savez(file, power_spectrum = self.power_spectrum,
-                                ps_poisson_noise = self.ps_poisson_noise,
-                                ps_modeling_noise = self.ps_modeling_noise,
-                                z_array = self.z_array,
-                                k_array = self.k_array,
-                                z_bins = self.z_bins,
-                                k_bins = self.k_bins)
+            np.savez(file, power_spectrum     = self.power_spectrum,
+                            ps_poisson_noise  = self.ps_poisson_noise,
+                            ps_modeling_noise = self.ps_modeling_noise,
+                            global_signal     = self.global_signal,
+                            xH_box            = self.xH_box,
+                            z_array           = self.z_array,
+                            k_array           = self.k_array,
+                            z_bins            = self.z_bins,
+                            k_bins            = self.k_bins,
+                            z_glob            = self.z_glob)
         
         # Prepare the dictionnary of parameters
         param_dict = {'logk' : self.logk, 'q' : self.q, 
                     'astro_params': self.astro_params, 
                     'user_params': self.user_params,
-                    'flag_options': self.flag_options}
+                    'flag_options': self.flag_options,
+                    'cosmo_params' : self.cosmo_params}
         
         with open(self._filename_params, 'wb') as file:
             pickle.dump(param_dict, file)
@@ -358,10 +399,13 @@ class CombinedRuns:
                 self._power_spectrum    = data['power_spectrum']
                 self._ps_poisson_noise  = data['ps_poisson_noise']
                 self._ps_modeling_noise = data['ps_modeling_noise']
-                self._z_array        = data['z_array']
-                self._k_array        = data['k_array']
-                self._z_bins         = data['z_bins']
-                self._k_bins         = data['k_bins']  / units.Mpc
+                self._z_array           = data['z_array']
+                self._k_array           = data['k_array']
+                self._z_bins            = data['z_bins']
+                self._k_bins            = data['k_bins']  / units.Mpc
+                self._global_signal     = data['global_signal']
+                self._xH_box            = data['xH_box']
+                self._z_glob            = data['z_glob']
 
             with open(self._filename_params, 'rb') as file:
                 params = pickle.load(file)
@@ -371,6 +415,10 @@ class CombinedRuns:
                 self._astro_params  = params['astro_params']
                 self._user_params   = params['user_params']
                 self._flag_options  = params['flag_options']  
+                self._cosmo_params  = params['cosmo_params']
+
+            ## Recompute tau_ion from the properties read here
+            self._tau_ion = p21f.compute_tau(redshifts=self._z_glob, global_xHI = self.xH_box, user_params=self._user_params, cosmo_params=self._cosmo_params)
 
             return True
 
@@ -379,6 +427,10 @@ class CombinedRuns:
             
             return False
     
+
+    @property
+    def tau_ion(self):
+        return self._tau_ion
 
     @property
     def power_spectrum(self):
@@ -391,6 +443,18 @@ class CombinedRuns:
     @property
     def ps_modeling_noise(self):
         return self._ps_modeling_noise
+    
+    @property
+    def global_signal(self):
+        return self._global_signal
+    
+    @property
+    def xH_box(self):
+        return self._xH_box
+    
+    @property
+    def z_glob(self):
+        return self._z_glob
 
     @property
     def z_array(self):
@@ -429,6 +493,10 @@ class CombinedRuns:
     def flag_options(self):
         return self._flag_options
 
+    @property
+    def cosmo_params(self):
+        return self._cosmo_params
+
 
 
     def plot_power_spectrum(self, std = None, figname = None, plot=True) :  
@@ -446,6 +514,8 @@ class CombinedRuns:
             fig.savefig(figname, bbox_layout='tight')
 
         return fig
+    
+
 
 
 
@@ -509,8 +579,59 @@ class Fiducial(CombinedRuns):
         self._ps_exp_noise = _std
 
 
+    
+    def chi2_UV_luminosity_functions(self, data_set = 'Bouwens21', plot = True):
+
+        z_uv, m_uv, l_uv, sigma_l_uv   = p21fl_tools.load_uv_luminosity_functions(data_set)
+        m_uv_sim , _ , log10_l_uv_sim  = p21f.compute_luminosity_function(redshifts = z_uv, 
+                                                    user_params  = self._user_params, 
+                                                    astro_params = self._astro_params, 
+                                                    flag_options = self._flag_options)
+        
+        if plot is True:
+            fig = p21fl_tools.plot_func(m_uv_sim, 10**log10_l_uv_sim, ylog=True, xlim=[-14, -25], ylim =[1e-12, 1], xlabel=r'$M_{\rm UV}$', ylabel=r'$\phi_{\rm UV}$')
+            for iz, z in enumerate(z_uv) :
+                    fig.gca().errorbar(m_uv[iz], l_uv[iz], yerr=sigma_l_uv[iz], linestyle='', capsize=2, elinewidth=0.5, label=r'${}$'.format(z))
+
+            fig.gca().legend()
+            fig.savefig(self._dir_path + '/UV_liminosity_functions.pdf', bbox_inches='tight')
+
+        ## The chi2 is given by a sum on the elements where z > 6 (as we cannot trust 21cmFAST below)
+
+        _chi2 = 0
+        _nval = 0
+        for iz, z in enumerate(z_uv):
+            if z > 6:
+                log10_l_uv_func = interpolate.interp1d(m_uv_sim[iz], log10_l_uv_sim[iz])
+                for im, m in enumerate(m_uv[iz]) :     
+                    _chi2 = _chi2 + (10**log10_l_uv_func(m) - l_uv[iz][im])**2/(sigma_l_uv[iz][im]**2)
+                    _nval = _nval + 1
+
+        ## Now compute the reduced chi2
+        _reduced_chi2 = _chi2 / _nval
+
+        return _reduced_chi2
+    
+
+    
+    def test_statistic_luminosity_function() :
+        pass
+
     def plot_power_spectrum(self):
-        super().plot_power_spectrum(std=self._ps_exp_noise)
+        super().plot_power_spectrum(std=self._ps_exp_noise, figname = self._dir_path + "/fiducial_power_spectrum.pdf")
+
+    def plot_xH_box(self):
+        fig = p21fl_tools.plot_func(self.z_glob, self.xH_box,
+                                    xlabel=r'$z$',
+                                    ylabel=r'$x_{\rm H_{I}}$')
+        fig.savefig(self._dir_path + '/fiducial_xH.pdf', bbox_inches='tight')
+    
+    def plot_global_signal(self):
+        fig = p21fl_tools.plot_func(self.z_glob, self.global_signal, ylim=[-150, 50],
+                                    xlabel=r'$z$',
+                                    ylabel=r'$\overline{T_{\rm b}}~\rm [mK]$')
+        fig.savefig(self._dir_path + '/fiducial_global_signal.pdf', bbox_inches='tight')
+
 
 
 parameters_tex_name = {'F_STAR10' : r'\log_{10} f_{\star, 10}', 
@@ -539,7 +660,7 @@ class Parameter:
         self._logk           = self._fiducial.logk
 
         self._tex_name       = parameters_tex_name.get(self._name, r'\theta')
-
+        self._load           = kwargs.get('load', True)
 
         if name not in self._astro_params:
             ValueError("ERROR: the name does not corresponds to any varied parameters")
@@ -560,7 +681,7 @@ class Parameter:
         self._q_value = np.sort(self._q_value)
 
         # Check that the q_values are consistant
-        assert (len(self._q_value) == 2 and (self._q_value[0] * self._q_value[1]) < 0) or len(self._q_value) == 1
+        assert len(self._q_value) == 1 or (len(self._q_value) == 2 and (self._q_value[0] * self._q_value[1]) < 0), "q_value : " + str(self._q_value)
 
         print("------------------------------------------")
         print(self._name  + " has been varied with q = " + str(self._q_value))
@@ -636,13 +757,8 @@ class Parameter:
         # For convinience some parameters in 21cmFAST have to be defined by their log value
         # HOWEVER astro_params contains the true value which makes things not confusing at ALL
         # For these parameters we need to get the log again
+        _param_fid = self._astro_params[self._name]
 
-        if self._name in ['M_TURN', 'L_X', 'F_STAR10', 'F_ESC10']:
-            _param_fid = copy.deepcopy(np.log10(self._astro_params[self._name]))
-        else:
-            _param_fid = copy.deepcopy(self._astro_params[self._name])
-
-       
         # get all the parameters and sort them
         _params         = np.array([(1+run.q) * _param_fid for run in self._runs])
         _params         = np.append(_params, _param_fid)
@@ -790,22 +906,6 @@ class Parameter:
 
 
 
-    def compute_UV_luminosity_functions(self, z_uv, m_uv):
-
-        _l_uv = [None]*len(self._runs)
-            
-        for irun, run in enumerate(self._runs):
-            
-            m_uv_sim , _ ,l_uv_sim = p21f.compute_luminosity_function(redshifts = z_uv, 
-                                                    user_params  = run.user_params, 
-                                                    astro_params = run.astro_params, 
-                                                    flag_options = run.flag_options,
-                                                    mturnovers= run.astro_params['M_TURN'])
-        
-            _l_uv[irun] = [interpolate.interp1d(m_uv_sim[iz], l_uv_sim[iz])(m_uv[iz]) for iz, z in enumerate(z_uv)]
-
-        return _l_uv
-
 
 
 def evaluate_fisher_matrix(parameters):
@@ -832,7 +932,7 @@ def evaluate_fisher_matrix(parameters):
 
     for ip, param in enumerate(parameters):
         name_arr[ip]      = param.name
-        weighted_der[ip]  = param.weighted_derivative()
+        weighted_der[ip]  = param.weighted_ps_derivative()
 
     for i in range(0, n_params) :
         for j in range(0, n_params) :        
