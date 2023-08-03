@@ -59,3 +59,5 @@ examples/example_plot_comparisons.py
 examples/example_plot_snapshots_movies.py
 examples/example_plot_summary.py
 examples/example_run_ligthcone.py
+
+src/py21cmanalysis

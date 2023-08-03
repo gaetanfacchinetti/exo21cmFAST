@@ -1,12 +1,9 @@
-===========
-exo21cmFAST
-===========
-
+# exo21cmFAST
 
 **A semi-numerical cosmological simulation code for the radio 21-cm signal with dark matter energy injection.**
 
-What is different in exo21cmFAST (from 21cmFAST)?
-==========================
+## Installing exo21cmFAST
+
 We introduce several features to `21cmFAST <https://github.com/21cmfast/21cmFAST>`_ related to dark matter energy injection via s-wave annihilation or decay. The energy deposition can be evaluated in two ways, either using the `DarkHistory package <https://darkhistory.readthedocs.io/en/master/>`_ or with template functions. To use exo21cmFAST, download the repository and do a usual installation with::
 
     $ pip install -e .
@@ -15,6 +12,9 @@ inside the main folder. To use DarkHistory you need to download the package (see
 
     $ export PYTHONPATH=$PYTHONPATH:"folder containing DarkHistory"
     $ export PYTHONPATH=$PYTHONPATH:"folder containing DarkHistory"/DarkHistory
+
+
+## What is new/different in exo21cmFAST ?
 
 The new feature are implemented only for the run_lightcone function. In order to use the new features we provide new input parameters summarized below::
 
