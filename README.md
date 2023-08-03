@@ -28,10 +28,12 @@ The physics behind exotic energy injection and notations and introduced in this 
 
 Exotic energy is added to the simulation assuming a smooth homogeneous energy injection rate per number of baryon
 $$\epsilon_{\rm inj.} \equiv \frac{1}{\overline{n_{\rm b}}}\left(\frac{{\rm d} E}{{\rm d} t {\rm d V}}\right)_{\rm inj.}$$
-and several deposition fractions quantifying how much of the injected energy is deposited in the intergalactic mediuc at a given time. Here $\overline{n_{\rm b}}$ is the average number density of baryons. The deposition fractions are denoted $f_{\rm c}$ with c the corresponding deposition channel (*heating, ionization of hydrogen atoms, ionization of Helium atoms, and excitation*). They depend on the redshift and on $\{x_i\}_i$ the ionization levels of $i=$ neutral hydrogen HI, neutral helium HeI, or exited Helium HeII. The evolution equations of the intergalactic medium kinetic temperature ($T_{\rm k}$) and of the electron fraction $(x_{\rm e})$ as well as the Lyman-$\alpha$ flux $(J_\alpha)$ are then modified by respectively adding
+and several deposition fractions quantifying how much of the injected energy is deposited in the intergalactic mediuc at a given time. Here $\overline{n_{\rm b}}$ is the average number density of baryons. The deposition fractions are denoted $f_{\rm c}$ with c the corresponding deposition channel (*heating, ionization of hydrogen atoms, ionization of Helium atoms, and excitation*). They depend on the redshift and on $\{x_i\}_i$ the ionization levels of $i=$ neutral hydrogen HI, neutral helium HeI, or exited Helium HeII. The evolution equations of the intergalactic medium kinetic temperature $(T_{\rm k})$ and of the electron fraction $(x_{\rm e})$ as well as the Lyman-$\alpha$ flux $(J_\alpha)$ are then modified by respectively adding
 
 $$ \left. \frac{\partial T_{\rm k}}{\partial t} \right|_{\rm exotic} = \frac{2}{3 k_{\rm B}(1+x_{\rm e})} \frac{1}{\overline{n_{\rm b}}} f_{\rm heat}(x_{i}, z) \epsilon_{\rm inj.}$$
+
 $$ \left. \frac{\partial x_{\rm e}}{\partial t} \right|_{\rm exotic} =  \left[ \frac{\frak{f}_{\rm H}}{E_{\rm HI}} f_{\rm ion., HII}(x_{i}, z) + \frac{\frak{f}_{\rm He}}{E_{\rm HI}} f_{\rm ion., HeII}(x_{i}, z) \right] \frac{1}{\overline{n_{\rm b}}}\epsilon_{\rm inj.} $$
+
 $$\left. J_\alpha \right|_{\rm exotic} = \frac{c}{4\pi H(z) h\nu_\alpha^2} f_{\rm exc.}(x_{i}, z) \epsilon_{\rm inj.}\, ,$$
 
 to the *classical* sources. Here $H(z)$ is the Hubble rate, $h$ is the Planck constant, and $\nu_\alpha$ is the Lyman-$\alpha$ frequency. Moreover $\frak{f}_{\rm H} = \overline{n_{\rm H}}/\overline{n_{\rm b}}$ and $\frak{f}_{\rm He} = \overline{n_{\rm He}}/\overline{n_{\rm b}}$ are the hydrogen and helium number fractions. $E_{\rm HI}$ and $E_{\rm HeI}$ are the ionization energies of neutral hydrogen and helium. 
@@ -47,7 +49,7 @@ $$\epsilon_{\rm inj.} = (1+z)^3 \frac{\overline{\rho_{\rm \chi, 0}}^2c^4}{\overl
 
 **WARNING 1**: This is the smooth energy injection rate. The true energy injection rate depends on the average of the squared density $\overline{\rho_\chi(x, z)^2}$  and not on the square of the average density $\overline{\rho_{\chi}}^2$ (as used here). With the presence of dark matter halos, the two are not equal at small redshifts. The difference is accounted for with a boost function $\overline{\rho_\chi^2}(z) \simeq \overline{\rho_\chi}^2(1+\mathcal{B}(z))$ and included into the definition of the deposition functions $f_c$.
 
-**WARNING 2**: Dark matter annihilation and decay produce Standard Model particles that shower to electrons and photons which, in turn, electromagnetically interact with the intergalactic medium. The deposion fractions then depend on the Standard Model *primary* species that are produced.
+**WARNING 2**: Dark matter annihilation and decay produce Standard Model particles that shower to electrons and photons which, in turn, electromagnetically interact with the intergalactic medium. The deposion fractions then depend on the Standard Model *primary* species that are produced. As the energy of the electrons and photons at the end of the chain impacts on the energy deposition, the deposition fraction also depends on the mass of the decaying or annihilating particles.
 
 
 ### Effective parametrisation
