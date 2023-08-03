@@ -133,6 +133,9 @@ struct TsBox{
     float *x_e_box;
     float *Tk_box;
     float *J_21_LW_box;
+    float *eps_heat_box; //GF
+    float *eps_heat_MINI_box; //GF
+    float *eps_heat_DM_box; //GF
 };
 
 struct IonizedBox{
@@ -155,7 +158,7 @@ struct BrightnessTemp{
     float *brightness_temp;
 };
 
-
+// New in exo21cmFAST
 struct ExoticEnergyInjected{
     float f_H_ION;
     float f_He_ION;

@@ -1904,6 +1904,14 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
 
                                 this_spin_temp->Ts_box[box_ct] = TS_fast;
 
+                                this_spin_temp->eps_heat_box[box_ct] = dxheat_dt_box[box_ct]; //GF
+                                this_spin_temp->eps_heat_DM_box[box_ct] = eps_DM; //GF
+
+                                if (flag_options->USE_MINI_HALOS)
+                                    this_spin_temp->eps_heat_MINI_box[box_ct] = dxheat_dt_box_MINI[box_ct]; //GF
+                                else
+                                    this_spin_temp->eps_heat_MINI_box[box_ct] = 0;
+
                                 if (LOG_LEVEL >= DEBUG_LEVEL)
                                 {
                                     J_alpha_ave += J_alpha_tot;
@@ -1926,7 +1934,6 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
                                 Lambda_ion_DM_ave += dxion_DM_dt; // llh not sure
                                 eps_DM_ave += eps_DM;                // llh not sure
                                 J_alpha_DM_ave += dxlya_DM_dt; // llh not sure
-
                                 x_e_ave += x_e;
                             }
                         }
@@ -2078,6 +2085,10 @@ int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_pa
                             TS_fast = fabs(TS_fast);
                         
                         this_spin_temp->Ts_box[box_ct] = TS_fast;
+
+                        this_spin_temp->eps_heat_box[box_ct] = dxheat_dt_box[box_ct]; //GF
+                        this_spin_temp->eps_heat_DM_box[box_ct] = eps_DM; //GF
+
 
                         if (LOG_LEVEL >= DEBUG_LEVEL)
                         {

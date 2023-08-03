@@ -644,6 +644,9 @@ class FlagOptions(StructWithDefaults):
     DM_BACKREACTION: bool, optional
         Include the backreaction of the ionization history on the injected energy
         By default it is set to True
+    DM_USE_DECAY_RATE: bool, optional
+        Sets the decay rate / lifetime of the decaying particle from the decay rate
+        and not he lifetime. Uses DM_DECAY_RATE and discards DM_LOG10_LIFETIME
     DM_FHEAT_APPROX_SHAPE: int or str, optional
         Functional form for the deposition fraction into heat: f_heat(z) 
         If str, should correspond to one of the following
@@ -690,6 +693,8 @@ class FlagOptions(StructWithDefaults):
         "DM_FS_METHOD"          : 'no_He',
         "DM_BACKREACTION"       : True,
         'DM_FHEAT_APPROX_SHAPE' : 'constant',
+
+        "DM_USE_DECAY_RATE" : False,
 
         "USE_DM_ENERGY_INJECTION"    : False,
         "USE_DM_EFFECTIVE_DEP_FUNCS" : False,
@@ -830,6 +835,14 @@ class FlagOptions(StructWithDefaults):
             return self._DM_FS_METHOD
         else : 
             raise ValueError("DM_FS_METHOD must be a string in the allowed options")
+
+    @property
+    def DM_USE_DECAY_RATE(self):
+        """ Sets the decay rate from the DM_DECAY_RATE parameter and not from DM_LOF10_LIFETIME parameter """
+        if isinstance(self._DM_USE_DECAY_RATE, (bool, np.bool_)):
+            return self._DM_USE_DECAY_RATE
+        else : 
+            raise ValueError("DM_USE_DECAY_RATE must be a boolean")
 
     @property
     def DM_FHEAT_APPROX_SHAPE(self):
@@ -1044,8 +1057,13 @@ class AstroParams(StructWithDefaults):
         Annihilation cross section -- given as log10(mass/(cm^3 s^{-1}))
         Be default it is set to -26
     DM_LOG10_LIFETIME: float, optional
-        Lifetime of decaying dark matter -- given as log10(lifetime/eV)
+        Lifetime of decaying dark matter -- given as log10(lifetime/s)
         By default it is set to 26
+        Only used if DM_USE_DECAY_RATE is False (in :class:`FlagOptions`).
+    DM_DECAY_RATE: float, optional
+        Decay rate of decaying dark matter -- given as decay_rate/s^{-1}
+        By default it is set to 1e-26
+        Only used if DM_USE_DECAY_RATE is True (in :class:`FlagOptions`).
     DM_FHEAT_APPROX_PARAM_LOG10_F0: float, optional
         Parameters to feed to the functional form for f_heat -- given as log10(f_0)
         By default it is set to -1
@@ -1112,6 +1130,7 @@ class AstroParams(StructWithDefaults):
         # New in exo21cmFAST
         "DM_LOG10_MASS"                  : 10,
         "DM_LOG10_SIGMAV"                : -26,
+        "DM_DECAY_RATE"                  : -26,
         "DM_LOG10_LIFETIME"              : 26,
         "DM_FHEAT_APPROX_PARAM_LOG10_F0" : -1.,
         "DM_FHEAT_APPROX_PARAM_A"        : 0.,
@@ -1219,6 +1238,15 @@ class AstroParams(StructWithDefaults):
             return float(self._DM_LOG10_SIGMAV)
         else:
             raise ValueError("DM_LOG10_SIGMAV must be a float")
+        
+
+    @property
+    def DM_DECAY_RATE(self):
+        """ Decay rate of decaying dark matter in s^{-1} """
+        if isinstance(self._DM_DECAY_RATE, (float, int, np.int64, np.float64)) :
+            return float(self._DM_DECAY_RATE)
+        else:
+            raise ValueError("DM_DECAY_RATE must be a float")
 
     @property
     def DM_LOG10_LIFETIME(self):
@@ -1227,6 +1255,7 @@ class AstroParams(StructWithDefaults):
             return float(self._DM_LOG10_LIFETIME)
         else:
             raise ValueError("DM_LOG10_LIFETIME must be a float")
+
 
     @property
     def DM_FHEAT_APPROX_PARAM_LOG10_F0(self):

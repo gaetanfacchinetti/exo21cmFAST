@@ -416,6 +416,9 @@ class TsBox(_AllParamsBox):
             "x_e_box": shape,
             "Tk_box": shape,
             "J_21_LW_box": shape,
+            "eps_heat_box": shape,
+            "eps_heat_MINI_box": shape,
+            "eps_heat_DM_box": shape,
         }
 
     @cached_property
@@ -430,7 +433,6 @@ class TsBox(_AllParamsBox):
 
     @cached_property
     def global_Tk(self):
-        #print("We enter this function")
         """Global (mean) Tk."""
         if "Tk_box" not in self._computed_arrays:
             raise AttributeError(
@@ -448,9 +450,8 @@ class TsBox(_AllParamsBox):
             )
         else:
             return np.mean(self.x_e_box)
-
-    #print("We are here") 
         
+
     def get_required_input_arrays(self, input_box: _BaseOutputStruct) -> List[str]:
         """Return all input arrays required to compute this object."""
         required = []

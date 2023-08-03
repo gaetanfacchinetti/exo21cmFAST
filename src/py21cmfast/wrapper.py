@@ -177,10 +177,9 @@ try:
     import DarkHistory.darkhistory.physics as phys
 except:
     _DARKHISTORY_NOT_FOUND_ = True
-
-from .c_21cmfast import ffi
 #####################################################################################
 
+from .c_21cmfast import ffi
 
 def _configure_inputs(
     defaults: list,
@@ -2553,6 +2552,7 @@ def run_lightcone(
     hooks=None,
     always_purge: bool = False,
     output_exotic_data = False,
+    heating_rate_output = None,
     **global_kwargs,
 ):
     r"""
@@ -2671,6 +2671,16 @@ def run_lightcone(
     _DM_FION_H_OVER_FHEAT     = 10**astro_params.DM_LOG10_FION_H_OVER_FHEAT          # no units
     _DM_FION_HE_OVER_FHEAT    = 10**astro_params.DM_LOG10_FION_HE_OVER_FHEAT         # no units
     _DM_FEXC_OVER_FHEAT       = 10**astro_params.DM_LOG10_FEXC_OVER_FHEAT            # no units
+
+    # if we have decaying DM particles with decay rate = 0
+    # then this is similar to have no DM_ENERGY_INJECTION
+    # thus, we enforce flag_options.USE_DM_ENERGY_INJECTION to False
+    if flag_options.DM_PROCESS == 'decay' and flag_options.DM_USE_DECAY_RATE is True:
+        if astro_params.DM_DECAY_RATE <= 0:
+            flag_options.update(**{'USE_DM_ENERGY_INJECTION' : False})
+        else:
+            _DM_LIFETIME = 1./(astro_params.DM_DECAY_RATE)
+
 
     # Some useful conversion factors
     eV_to_K = 11604.5250061657
@@ -2892,6 +2902,13 @@ def run_lightcone(
     else:
         logger.info("Initialisation completed")
         logger.info("--------------------------------------")
+
+
+    # Define arrays for the energy injection rates per baryons
+    z_21cmFAST        = np.array([])
+    eps_heat_arr      = np.array([])
+    eps_heat_DM_arr   = np.array([])
+    eps_heat_MINI_arr = np.array([])
 
 
 
@@ -3225,7 +3242,8 @@ def run_lightcone(
             ## At the bottom of the redshift loop we evaluate the energy deposited
             ## Here we assume that xHII = xHeII = xe
             ## Do not forget to put the temperature in eV
-            
+        
+
             xHII  = np.mean(st.x_e_box)
             xHeII = np.mean(st.x_e_box)
             Tm    = np.mean(st.Tk_box)/eV_to_K  # temperature in eV
@@ -3311,7 +3329,10 @@ def run_lightcone(
                 Tm_arr   = np.append(Tm_arr, Tm)
                 z_arr    = np.append(z_arr, z)
             
-            
+            z_21cmFAST        = np.append(z_21cmFAST, z)
+            eps_heat_arr      = np.append(eps_heat_arr, np.mean(st.eps_heat_box))
+            eps_heat_DM_arr   = np.append(eps_heat_DM_arr,  np.mean(st.eps_heat_DM_box) if flag_options.USE_DM_ENERGY_INJECTION else 0)
+            eps_heat_MINI_arr = np.append(eps_heat_MINI_arr, np.mean(st.eps_heat_MINI_box) if flag_options.USE_MINI_HALOS else 0)
             #####################################################################################
 
         #################################
@@ -3332,6 +3353,11 @@ def run_lightcone(
                 'Tm' : Tm_arr,   # in eV
                 'z'  : z_arr
             }
+
+        if heating_rate_output is not None:
+            with open(heating_rate_output, 'w') as f:
+                for iz, z in enumerate(z_21cmFAST):
+                    print(z, eps_heat_arr[iz], eps_heat_MINI_arr[iz], eps_heat_DM_arr[iz], file = f)
     
         #####################################################################################
 
