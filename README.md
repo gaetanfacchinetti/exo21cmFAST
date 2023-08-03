@@ -1,57 +1,54 @@
 # exo21cmFAST
 
-**A semi-numerical cosmological simulation code for the radio 21-cm signal with dark matter energy injection.**
+**A semi-numerical cosmological simulation code for the radio 21-cm signal including exotic sources of energy injection.**
+
+In this code we introduce several features to [**21cmFAST**](https://github.com/21cmfast/21cmFAST)[^1][^2] related to dark matter energy injection via s-wave annihilation or decay. The energy deposition can be evaluated in two ways, either using the [**DarkHistory**](https://darkhistory.readthedocs.io/en/master/)[^3] package or with template functions. Future updates will include other sources of energy injection not necessarily related to dark matter.
+
 
 ## Installing exo21cmFAST
 
-We introduce several features to `21cmFAST <https://github.com/21cmfast/21cmFAST>`_ related to dark matter energy injection via s-wave annihilation or decay. The energy deposition can be evaluated in two ways, either using the `DarkHistory package <https://darkhistory.readthedocs.io/en/master/>`_ or with template functions. To use exo21cmFAST, download the repository and do a usual installation with::
+To install **exo21cmFAST**, download the repository, on your terminal run go to the main folder (containing the file `config.py`) and run
 
-    $ pip install -e .
+```bash
+$ pip install -e .
+```
 
-inside the main folder. To use DarkHistory you need to download the package (see information on the DarkHistory documentation) and add these two lines to your PYTHONPATH::
+To use **DarkHistory** (which is not necessary depending on what you want to do) you need to download the package (see information on the DarkHistory documentation) and add these two lines to your `PYTHONPATH`:
 
-    $ export PYTHONPATH=$PYTHONPATH:"folder containing DarkHistory"
-    $ export PYTHONPATH=$PYTHONPATH:"folder containing DarkHistory"/DarkHistory
+```bash
+$ export PYTHONPATH=$PYTHONPATH:<folder containing DarkHistory>
+$ export PYTHONPATH=$PYTHONPATH:<folder containing DarkHistory>/DarkHistory
+```
 
 
-## What is new/different in exo21cmFAST ?
+## What is new/different in exo21cmFAST?
 
-The new feature are implemented only for the run_lightcone function. In order to use the new features we provide new input parameters summarized below::
+The new features are implemented in the `run_lightcone` function which accepts several new arguments. In addition, we provide new input parameters in the `astro_params` and `flag_options` arguments related to the exotic energy injection and its treatment. All new inputs are listed below (for more information go to `src/input.py` and `src/wrapper.py`).
 
-| User params:
-| # General quantities
-| "DM_MASS":         # (float) DM mass in eV
-| "DM_PROCESS":      # (string) Energy injection process 'swave', 'decay', ... 
-| "DM_SIGMAV":       # (float) Annihilation cross-section (in cm^3/s) | relevant only if DM_PROCESS = 'swave' 
-| "DM_LIFETIME":     # (float) Lifetime | relevant only if DM_PROCESS = 'decay'
-|
-| # Specific to DarkHistory
-| "DM_PRIMARY":       # (string) Primary particles (see list in user_params description)
-| "DM_BOOST":         # (string) Annihilation boost | relevant only if DM_PROCESS = 'swave' 
-| "DM_FS_METHOD":     # (string) Method to compute the energy deposition (see DarkHistory doc)
-| "DM_BACKREACTION":  # (bool) Turns on backreaction
-|
-| # Specific to an approximative energy deposition
-| "DM_FHEAT_APPROX_SHAPE":   # (string) Shape of the template for f_heat
-| "DM_FHEAT_APPROX_PARAMS":  # (list of float)  Parameters to feed to the template of fheat 
-| "DM_FION_H_OVER_FHEAT":    # (float) Ratio of f_ion_H over fheat  (if < 0 use values tabulated with DarkHistory)
-| "DM_FION_HE_OVER_FHEAT":   # (float) Ratio of f_ion_He over fheat (if < 0 use values tabulated with DarkHistory)
-| "DM_FEXC_OVER_FHEAT":      # (float) Ratio of fexc over fheat     (if < 0 use values tabulated with DarkHistory)
-| 
-| Flag options: 
-| "USE_DM_ENERGY_INJECTION":  # (bool) Turn on DM energy injection
-| "USE_EFFECTIVE_DEP_FUNCS":  # (bool) Treat the energy injection with approximate templates (instead of DarkHistory)
-| "FORCE_INIT_COND":          # (bool) Can force the initial to be from a template or given by XION_AT_ZHEAT_MAX and TK_AT_ZHEAT_MAX in global_params (not used now)
+### 1. Astro parameters
+*These parameters are the *astrophysical* quantities which can be included in an inference analysis (a MCMC with [21CMMC]() or a Fisher forecast with [21cmCAST]())*
+ - `DM_MASS`: (float) dark matter mass in eV
+ - `DM_PROCESS`: (string) ...
 
-The run_lighcone function also gets a new arguments called coarsen_factor (integer), which redifines the redshift steps to match with the table of DarkHistory. Note that if we use energy deposition through the templates this value can be arbitrary. Be default it is set to 16 to match with the nominal redshift step definition of 21cmFAST.
+### 2. Flag options
 
-Alongisde these additions, we provide a built-in database manager for runs with DM energy injection (as we can play with many parameters and one may need to keep track of all the runs that are done). This database manager system is currently not optimised (probably better not to use it for more than a few thousand entries). An example of how it can be used is provided in examples/example_run_lightcone.py. From this script you can run a given model on command line. Set the strings <database_path> an <cache_path> (at the top of the file) to the location where you want to save the file. To see what it can do you can run::
+- `DM_BACKREACTION`: (bool) if `True` turns on exotic energy injection
+- ... 
 
-    $ python example_run_lightcone.py --help
 
-For instance, these two lines::
+### 3. run_lightcone arguments
 
-    $ python example_run_lightcone.py -decay -m 1e+8 -lftm 1e+26 -p elec_delta -nobkr
-    $ python example_run_lightcone.py -approx -decay -shape schechter -params 0.1 2.0 0.4 -lftm 1e+26 -m 1e+8 -xe_init 1e-3 -Tm_init 120 -force_init 
+- `coarsen_factor`: (integer) redifines the redshift steps to match with the table of DarkHistory. Note that if we use energy deposition through the templates this value can be arbitrary. Be default it is set to 16 to match with the nominal redshift step definition of 21cmFAST.
+- ... 
 
-perform the following two computations. The first one uses DarkHistory to fully compute the impact of decaying dark matter with mass 100 MeV and a lifetime of 1e+26 without including backreaction. The second one uses the shechter template with parameters (0.1, 2.0, 0.4) for decaying dark matter of the same mass and lifetime. In the second example we further fix the initial conditions to x_e = 1e-3 and Tm = 120 K at Z_HEAT_MAX. If -approx is not given in input it is also possible to launch several runs with a single command (by specifying two masses for instance, or two priamries). Examples of plots (and how to make them) are also avalailable in the example folder (example_plot_0.py and example_plot_1.py).
+## Using exo21cmFAST
+
+
+
+
+## Credits
+
+If you use **exo21cmFAST** or parts of the new functionnalities not already present in 21cmFAST please cite 
+
+
+[^1]: something here
