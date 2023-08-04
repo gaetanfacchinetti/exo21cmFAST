@@ -23,7 +23,7 @@ $ export PYTHONPATH=$PYTHONPATH:<folder containing DarkHistory>/DarkHistory
 
 ## The physics behind exo21cmFAST
 
-The physics behind exotic energy injection and notations and introduced in this section. For more information please read the [companion paper](#credits) improving on [^5]. 
+The physics behind exotic energy injection and notations and introduced in this section. For more information please read the [companion paper](#credits) improving on a previous study[^5]. 
 
 ### Energy injection and deposition
 
@@ -82,7 +82,7 @@ The numerical parameters related to the dark matter properties (the only necessa
  - `DM_LOG10_MASS`: $\log_{10}(m_\chi / {\rm eV})$  mass of the dark matter particle
  - `DM_LOG10_SIGMAV`:  $\log_{10}(\left<\sigma v\right> /{\rm cm^3 / s^{-1}})$ annihilation cross section
  - `DM_LOG10_LIFETIME`: $\log_{10}(\tau / {\rm s})$ lifetime of decaying dark matter
- - (`DM_DECAY_RATE`: $\Gamma/{\rm s^{-1}} = {\rm s} / \tau$ decay rate of decaying dark matter)
+ - (`DM_DECAY_RATE`: $\Gamma/{\rm s^{-1}} = {\rm s} / \tau$ decay rate of decaying dark matter). Need `DM_USE_DECAY_RATE` set to `True` in the Flag options to be used (otherwise the value of `DM_LOG10_LIFETIME` is used)
 
 The numerical parameters related to the effective parametrisation
 
