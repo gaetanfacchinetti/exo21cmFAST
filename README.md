@@ -27,7 +27,9 @@ The physics behind exotic energy injection and notations and introduced in this 
 ### Energy injection and deposition
 
 Exotic energy is added to the simulation assuming a smooth homogeneous energy injection rate per number of baryon
-$$\epsilon_{\rm inj.} \equiv \frac{1}{\overline{n_{\rm b}}}\left(\frac{{\rm d} E}{{\rm d} t {\rm d V}}\right)_{\rm inj.}$$
+
+$$\epsilon_{\rm inj.} \equiv \frac{1}{\overline{n_{\rm b}}} \frac{{\rm d} E}{{\rm d} t {\rm d V}}$$ 
+
 and several deposition fractions quantifying how much of the injected energy is deposited in the intergalactic mediuc at a given time. Here $\overline{n_{\rm b}}$ is the average number density of baryons. The deposition fractions are denoted $f_{\rm c}$ with c the corresponding deposition channel (*heating, ionization of hydrogen atoms, ionization of Helium atoms, and excitation*). They depend on the redshift and on $\{x_i\}_i$ the ionization levels of $i=$ neutral hydrogen HI, neutral helium HeI, or exited Helium HeII. The evolution equations of the intergalactic medium kinetic temperature $(T_{\rm k})$ and of the electron fraction $(x_{\rm e})$ as well as the Lyman-$\alpha$ flux $(J_\alpha)$ are then modified by respectively adding
 
 $$ \left. \frac{\partial T_{\rm k}}{\partial t} \right|_{\rm exotic} = \frac{2}{3 k_{\rm B}(1+x_{\rm e})} \frac{1}{\overline{n_{\rm b}}} f_{\rm heat}(x_{i}, z) \epsilon_{\rm inj.}$$
