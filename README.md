@@ -8,7 +8,7 @@ In the future, this code should be merged with the main branch of **21cmFAST**.
 
 ## Installing exo21cmFAST
 
-To install **exo21cmFAST**, download the repository, on your terminal run go to the main folder (containing the file `config.py`) and run
+To install **exo21cmFAST**, download the repository, on your terminal go to the main folder (containing the file `config.py`) and run
 
 ```bash
 $ pip install -e .
