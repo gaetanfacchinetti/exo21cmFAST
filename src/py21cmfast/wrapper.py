@@ -3356,6 +3356,7 @@ def run_lightcone(
 
         if heating_rate_output is not None:
             with open(heating_rate_output, 'w') as f:
+                print("# z | eps_heat [erg / s] | eps_heat_MINI [erg / s] | eps_heat_exotic [erg / s]", file = f)
                 for iz, z in enumerate(z_21cmFAST):
                     print(z, eps_heat_arr[iz], eps_heat_MINI_arr[iz], eps_heat_DM_arr[iz], file = f)
     

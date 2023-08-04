@@ -61,3 +61,4 @@ examples/example_plot_summary.py
 examples/example_run_ligthcone.py
 
 src/py21cmanalysis
+src/py21cmfast/dm_dtb_tools.py
