@@ -662,7 +662,7 @@ class FlagOptions(StructWithDefaults):
     USE_DM_CUSTOM_F_RATIOS: bool, optional
         Sets the ratios of f_ion/f_heat and f_exc/f_heat with DM_FION_H_OVER_FHEAT, ... in AstroParams
     USE_CUSTOM_INIT_COND: bool, optional
-        Forces initial conditions to `TK_at_Z_HEAT_MAX` and `XION_at_Z_HEAT_MAX` in AstroParams
+        Forces initial conditions to `LOG10_TK_at_Z_HEAT_MAX` and `LOG10_XION_at_Z_HEAT_MAX` in AstroParams
         Note that if `USE_CUSTOM_INIT_COND` is False and `FORCE_DEFAULT_INIT_COND` is False the initial conditions are set 
         either by vanilla RECFAST if USE_DM_EFFECTIVE_DEP_FUNCS is False or by the result of the DarkHistory run otherwise
         Cannot be set to True if `FORCE_DEFAULT_INIT_COND` is True as well
