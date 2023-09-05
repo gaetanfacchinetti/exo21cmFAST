@@ -17,7 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover
 from os import mkdir as _mkdir
 from os import path
 
-from . import cache_tools, inputs, outputs, plotting, wrapper, dh_tools, dm_dtb_tools
+from . import cache_tools, inputs, outputs, plotting, wrapper, dh_tools
 from ._cfg import config
 from ._logging import configure_logging
 from .cache_tools import query_cache

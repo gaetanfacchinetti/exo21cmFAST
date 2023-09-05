@@ -42,7 +42,7 @@ doc_req = ["nbsphinx", "numpydoc", "sphinx >= 1.3", "sphinx-rtd-theme"]
 
 setup(
     name="21cmFAST",
-    license="MIT license",
+    license="GPL3",
     description="A semi-numerical cosmological simulation code for the 21cm signal",
     long_description="%s\n%s"
     % (
@@ -51,9 +51,9 @@ setup(
         ),
         re.sub(":[a-z]+:`~?(.*?)`", r"``\1``", _read("CHANGELOG.rst")),
     ),
-    author="The 21cmFAST coredev team",
-    author_email="21cmfast.coredev@gmail.com",
-    url="https://github.com/21cmFAST/21cmFAST",
+    author="Gaétan Facchinetti",
+    author_email="gaetan.facchinetti@ulb.be",
+    url="https://github.com/gaetanfacchinetti/exo21cmFAST",
     packages=find_packages("src"),
     package_dir={"": "src"},
     include_package_data=True,
@@ -73,7 +73,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: Implementation :: CPython",
     ],
-    keywords=["Epoch of Reionization", "Cosmology"],
+    keywords=["Epoch of Reionization", "Cosmology", "Dark Matter"],
     install_requires=[
         "click",
         "numpy",
