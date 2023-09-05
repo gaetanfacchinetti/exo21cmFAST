@@ -41,7 +41,7 @@ test_req = [
 doc_req = ["nbsphinx", "numpydoc", "sphinx >= 1.3", "sphinx-rtd-theme"]
 
 setup(
-    name="21cmFAST",
+    name="exo21cmFAST",
     license="GPL3",
     description="A semi-numerical cosmological simulation code for the 21cm signal with exotic energy injection",
     long_description="%s\n%s"
