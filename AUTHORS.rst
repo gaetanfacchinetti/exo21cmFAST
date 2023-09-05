@@ -6,6 +6,5 @@ Authors
 * Andrei Mesinger - github.com/andreimesinger
 * Steven Murray - github.com/steven-murray
 
-
 Contributors
 ============
