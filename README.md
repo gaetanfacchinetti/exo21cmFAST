@@ -121,7 +121,7 @@ Flags related to the effective parametrisation:
 - `coarsen_factor`: *integer* redifines the redshift steps to match with the table of **DarkHistory**. Note that if we use energy deposition through the templates this value can be arbitrary. Be default it is set to 16 to match with the nominal redshift step definition of 21cmFAST.
 - `verbose_ntbk`: *boolean* if `True` outputs more information during the run, which can be useful when running 21cmFAST on small boxed in a notebook.
 - `output_exotic_data`: *boolean* if `True` gives a second output to the `run_lightcone()` function in the form of a dictionnary. This dictionnary contains the deposition fractions `'f'`, electron fraction `'x'`, gaz temperature `'Tm'` at every redshifts in `'z'`.
-- `heating_rate_output`: *string* that defines a file where to save the the heating rate due to exotic energy injection and astrophycial energy injection. If nothing specified, the heating rates are not saved.
+- `heating_rate_output`: *string* defines a file where to save the the heating rate due to exotic energy injection and astrophycial energy injection. If nothing specified, the heating rates are not saved.
 
 ## Using exo21cmFAST
 
