@@ -41,19 +41,19 @@ test_req = [
 doc_req = ["nbsphinx", "numpydoc", "sphinx >= 1.3", "sphinx-rtd-theme"]
 
 setup(
-    name="21cmFAST",
-    license="MIT license",
-    description="A semi-numerical cosmological simulation code for the 21cm signal",
+    name="exo21cmFAST",
+    license="GPL3",
+    description="A semi-numerical cosmological simulation code for the 21cm signal with exotic energy injection",
     long_description="%s\n%s"
     % (
         re.compile("^.. start-badges.*^.. end-badges", re.M | re.S).sub(
-            "", _read("README.rst")
+            "", _read("README.md")
         ),
         re.sub(":[a-z]+:`~?(.*?)`", r"``\1``", _read("CHANGELOG.rst")),
     ),
-    author="The 21cmFAST coredev team",
-    author_email="21cmfast.coredev@gmail.com",
-    url="https://github.com/21cmFAST/21cmFAST",
+    author="Gaétan Facchinetti",
+    author_email="gaetan.facchinetti@ulb.be",
+    url="https://github.com/gaetanfacchinetti/exo21cmFAST",
     packages=find_packages("src"),
     package_dir={"": "src"},
     include_package_data=True,
@@ -62,7 +62,7 @@ setup(
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GPL-3.0-only",
         "Operating System :: Unix",
         "Operating System :: POSIX",
         "Programming Language :: Python",
@@ -73,7 +73,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: Implementation :: CPython",
     ],
-    keywords=["Epoch of Reionization", "Cosmology"],
+    keywords=["Epoch of Reionization", "Cosmology", "Dark Matter"],
     install_requires=[
         "click",
         "numpy",
@@ -88,11 +88,11 @@ setup(
     ],
     extras_require={"tests": test_req, "docs": doc_req, "dev": test_req + doc_req},
     setup_requires=["cffi>=1.0", "setuptools_scm"],
-    entry_points={"console_scripts": ["21cmfast = py21cmfast.cli:main"]},
+    entry_points={"console_scripts": ["exo21cmfast = py21cmfast.cli:main"]},
     cffi_modules=[f"{pkgdir}/build_cffi.py:ffi"],
     use_scm_version={
         "write_to": "src/py21cmfast/_version.py",
-        "parentdir_prefix_version": "21cmFAST-",
+        "parentdir_prefix_version": "exo21cmFAST-",
         "fallback_version": "0.0.0",
     },
 )

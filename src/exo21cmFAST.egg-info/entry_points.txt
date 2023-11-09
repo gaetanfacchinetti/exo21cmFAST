@@ -1,0 +1,2 @@
+[console_scripts]
+exo21cmfast = py21cmfast.cli:main

@@ -1,0 +1,567 @@
+Metadata-Version: 2.1
+Name: exo21cmFAST
+Version: 0.1.dev1743+g369e5b2.d20231109
+Summary: A semi-numerical cosmological simulation code for the 21cm signal with exotic energy injection
+Home-page: https://github.com/gaetanfacchinetti/exo21cmFAST
+Author: Gaétan Facchinetti
+Author-email: gaetan.facchinetti@ulb.be
+License: GPL3
+Keywords: Epoch of Reionization,Cosmology,Dark Matter
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GPL-3.0-only
+Classifier: Operating System :: Unix
+Classifier: Operating System :: POSIX
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: Implementation :: CPython
+License-File: LICENSE
+License-File: AUTHORS.rst
+Requires-Dist: click
+Requires-Dist: numpy
+Requires-Dist: pyyaml
+Requires-Dist: cffi>=1.0
+Requires-Dist: scipy
+Requires-Dist: astropy>=2.0
+Requires-Dist: h5py>=2.8.0
+Requires-Dist: cached_property
+Requires-Dist: matplotlib
+Requires-Dist: bidict
+Provides-Extra: tests
+Requires-Dist: pre-commit; extra == "tests"
+Requires-Dist: pytest>=5.0; extra == "tests"
+Requires-Dist: pytest-cov; extra == "tests"
+Requires-Dist: tox; extra == "tests"
+Requires-Dist: pytest-remotedata>=0.3.2; extra == "tests"
+Requires-Dist: powerbox; extra == "tests"
+Requires-Dist: pytest-plt; extra == "tests"
+Requires-Dist: questionary; extra == "tests"
+Provides-Extra: docs
+Requires-Dist: nbsphinx; extra == "docs"
+Requires-Dist: numpydoc; extra == "docs"
+Requires-Dist: sphinx>=1.3; extra == "docs"
+Requires-Dist: sphinx-rtd-theme; extra == "docs"
+Provides-Extra: dev
+Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: pytest>=5.0; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: tox; extra == "dev"
+Requires-Dist: pytest-remotedata>=0.3.2; extra == "dev"
+Requires-Dist: powerbox; extra == "dev"
+Requires-Dist: pytest-plt; extra == "dev"
+Requires-Dist: questionary; extra == "dev"
+Requires-Dist: nbsphinx; extra == "dev"
+Requires-Dist: numpydoc; extra == "dev"
+Requires-Dist: sphinx>=1.3; extra == "dev"
+Requires-Dist: sphinx-rtd-theme; extra == "dev"
+
+# exo21cmFAST
+
+**A semi-numerical cosmological simulation code for the radio 21-cm signal including exotic sources of energy injection.**
+
+In this code we introduce several features to [**21cmFAST**](https://github.com/21cmfast/21cmFAST)[^1][^2] related to dark matter energy injection via s-wave annihilation or decay. The energy deposition can be evaluated in two ways, either using the [**DarkHistory**](https://darkhistory.readthedocs.io/en/master/)[^3][^4] package or with template functions. Future updates will include other sources of energy injection not necessarily related to dark matter.
+
+In the future, this code should be merged with the main branch of **21cmFAST**.
+
+## Installing exo21cmFAST
+
+To install **exo21cmFAST**, download the repository, on your terminal go to the main folder (containing the file `config.py`) and run
+
+```bash
+$ pip install -e .
+```
+
+To use **DarkHistory** (which is not necessary depending on what you want to do) you need to download the package (see information on the DarkHistory documentation) and add these two lines to your `PYTHONPATH`:
+
+```bash
+$ export PYTHONPATH=$PYTHONPATH:<folder containing DarkHistory>
+$ export PYTHONPATH=$PYTHONPATH:<folder containing DarkHistory>/DarkHistory
+```
+
+## The physics behind exo21cmFAST
+
+The physics behind exotic energy injection and notations and introduced in this section. For more information please read the [companion paper](#credits) improving on a previous study[^5]. 
+
+### Energy injection and deposition
+
+Exotic energy is added to the simulation assuming a smooth homogeneous energy injection rate per number of baryon
+
+$$\epsilon_{\rm inj} \equiv \frac{1}{\overline{n_{\rm b}}} \frac{{\rm d} E_{\rm inj}}{{\rm d} t {\rm d V}}$$ 
+
+and several deposition fractions quantifying how much of the injected energy is deposited in the intergalactic medium at a given time. Here $\overline{n_{\rm b}}$ is the average number density of baryons. The deposition fractions are denoted $f_{\rm c}$ with c the corresponding deposition channel (*heating, ionization of hydrogen atoms, ionization of Helium atoms, and excitation*). They depend on the redshift and on $x_i$ the ionization levels of $i=$ neutral hydrogen HI, neutral helium HeI, or exited Helium HeII. The evolution equations of the intergalactic medium kinetic temperature $(T_{\rm k})$ and of the electron fraction $(x_{\rm e})$ as well as the Lyman-$\alpha$ flux $(J_\alpha)$ are then modified by respectively adding
+
+$$ \frac{\partial T_{\rm k}}{\partial t}  = ... + \frac{2}{3 k_{\rm B}(1+x_{\rm e})} \frac{1}{\overline{n_{\rm b}}} f_{\rm heat}(x_{i}, z) \epsilon_{\rm inj}$$
+
+$$ \frac{\partial x_{\rm e}}{\partial t}  = ... +  \left[ \frac{X_{\rm H}}{E_{\rm HI}} f_{\rm ion., HII}(x_{i}, z) + \frac{X_{\rm He}}{E_{\rm HI}} f_{\rm ion., HeII}(x_{i}, z) \right] \frac{1}{\overline{n_{\rm b}}}\epsilon_{\rm inj} $$
+
+$$ J_\alpha = ... + \frac{c}{4\pi H(z) h\nu_\alpha^2} f_{\rm exc.}(x_{i}, z) \epsilon_{\rm inj}\, ,$$
+
+to the *classical* sources. Here $H(z)$ is the Hubble rate, $h$ is the Planck constant, and $\nu_\alpha$ is the Lyman-$\alpha$ frequency. Moreover $X_{\rm H} = \overline{n_{\rm H}}/\overline{n_{\rm b}}$ and $X_{\rm He} = \overline{n_{\rm He}}/\overline{n_{\rm b}}$ are the hydrogen and helium number fractions. $E_{\rm HI}$ and $E_{\rm HeI}$ are the ionization energies of neutral hydrogen and helium. 
+
+### The specific cases of dark matter decay and annihilation
+
+
+In the case of dark matter decay the injected energy can be written in terms of the average dark matter energy density today $\overline{\rho_{\chi, 0}}$, the number density of baryons today $\overline{n_{\rm b, 0}}$ and the lifetime $\tau$ (or decay rate $\Gamma = 1/\tau$),
+$$\epsilon_{\rm inj.} = \frac{\overline{\rho_{\rm \chi, 0}}c^2}{\overline{n_{\rm b, 0}}}\frac{1}{\tau}$$
+
+In case of DM annihilation the relevant parameters are the annihilation cross-section $\left<\sigma v\right>$ and the dark matter mass $m_\chi$ and the smoothed energy injection rate reads
+$$\epsilon_{\rm inj.} = (1+z)^3 \frac{\overline{\rho_{\rm \chi, 0}}^2c^4}{\overline{n_{\rm b, 0}}} \frac{\left<\sigma v\right>}{m_\chi}$$
+
+**WARNING 1**: This is the smooth energy injection rate. The true energy injection rate depends on the average of the squared density $\overline{\rho_\chi(x, z)^2}$  and not on the square of the average density $\overline{\rho_{\chi}}^2$ (as used here). With the presence of dark matter halos, the two are not equal at small redshifts. The difference is accounted for with a boost function $\overline{\rho_\chi^2}(z) \simeq \overline{\rho_\chi}^2(1+\mathcal{B}(z))$ and included into the definition of the deposition functions $f_c$.
+
+**WARNING 2**: Dark matter annihilation and decay produce Standard Model particles that shower to electrons and photons which, in turn, electromagnetically interact with the intergalactic medium. The deposion fractions then depend on the Standard Model *primary* species that are produced. As the energy of the electrons and photons at the end of the chain impacts on the energy deposition, the deposition fraction also depends on the mass of the decaying or annihilating particles.
+
+
+### Effective parametrisation
+
+Based on observations of the evolution of the deposition fractions with the redshifts, one can often find $F$ a function, and  $c_1$, $c_2$, and $c_3$, three constants such that, in good approximation, 
+
+$$f_{\rm heat}(z) \simeq F(z) $$
+$$f_{\rm ion., HII}(z) \simeq c_1 f_{\rm heat}(z)$$
+$$f_{\rm ion., HeII}(z) \simeq c_2 f_{\rm heat}(z)$$
+$$f_{\rm exc.}(z) \simeq c_3 f_{\rm heat}(z)$$
+
+(at least for dark matter decay and annihilation). Pre-implemented functions in the code are
+
+$$F(z) = f_0$$
+$$F(z) = f_0 e^{a(z-15)}$$
+$$F(z) = f_0 e^{a(z-15)} \left(\frac{z}{15}\right)^b$$
+with $f_0$, $a$, and $b$ three constants. Using this parametrisation bypasses **DarkHistory** for the computation of the deposition functions. However, when active, **DarkHistory** also determines the initial condition for 21cmFAST at around redshift 35. Therefore using the effective parametrisation also implies that initial conditions must be set by hand. 
+
+## What is new/different in exo21cmFAST?
+
+The new features are implemented in the `run_lightcone` function which accepts several new arguments. In addition, we provide new input parameters in the `astro_params` and `flag_options` arguments related to the exotic energy injection and its treatment. All new inputs are listed below (for more information go to [`src/inputs.py`](https://github.com/gaetanfacchinetti/exo21cmFAST/blob/master/src/py21cmfast/inputs.py) and [`src/wrapper.py`](https://github.com/gaetanfacchinetti/exo21cmFAST/blob/master/src/py21cmfast/wrapper.py)).
+
+### 1. Astro parameters
+*These parameters are the *astrophysical* quantities which can be included in an inference analysis (a MCMC with [**21cmMC**](https://github.com/21cmfast/21CMMC) or a Fisher forecast with [**21cmCAST**](https://github.com/gaetanfacchinetti/21cmCAST))*
+
+The numerical parameters related to the dark matter properties (the only necessary ones when using **DarkHistory**)
+ - `DM_LOG10_MASS`: $\log_{10}(m_\chi / {\rm eV})$  mass of the dark matter particle
+ - `DM_LOG10_SIGMAV`:  $\log_{10}(\left<\sigma v\right> /{\rm cm^3 / s^{-1}})$ annihilation cross section
+ - `DM_LOG10_LIFETIME`: $\log_{10}(\tau / {\rm s})$ lifetime of decaying dark matter
+ - (`DM_DECAY_RATE`: $\Gamma/{\rm s^{-1}} = {\rm s} / \tau$ decay rate of decaying dark matter). Need `DM_USE_DECAY_RATE` set to `True` in the Flag options to be used (otherwise the value of `DM_LOG10_LIFETIME` is used)
+
+The numerical parameters related to the effective parametrisation
+
+ - `DM_FHEAT_APPROX_PARAM_LOG10_F0`: $\log_{10}(f_0)$
+ - `DM_FHEAT_APPROX_PARAM_A`: $a$
+ - `DM_FHEAT_APPROX_PARAM_B`: $b$
+ - `DM_LOG10_FION_H_OVER_FHEAT`: $\log_{10}(c_1) = \log_{10}(f_{\rm ion., HII} / f_{\rm heat})$
+ - `DM_LOG10_FION_HE_OVER_FHEAT`: $\log_{10}(c_2) = \log_{10}(f_{\rm ion., HeII} / f_{\rm heat})$
+ - `DM_LOG10_FEXC_OVER_FHEAT`:  $\log_{10}(c_3) = \log_{10}(f_{\rm exc.} / f_{\rm heat})$
+ - `LOG10_TK_at_Z_HEAT_MAX$`: $T_{\rm k}(z_{\rm init})$ initial condition for the temperature
+ - `LOG10_XION_at_Z_HEAT_MAX$`: $x_{\rm e}(z_{\rm init})$ initial condition for the electron fraction
+
+### 2. Flag options
+
+General flags
+- `USE_DM_ENERGY_INJECTION`: *boolean* if `True` turns on exotic energy injection
+
+Flags related to **DarkHistory**:
+- `DM_PROCESS`: *string* $\in$ ['swave', 'decay', 'none'] specify the type of enerjy injection
+- `DM_PRIMARY`: *string* $\in$ ['elec_delta', 'e', 'phot_delta', 'gamma', 'mu', ...] (see **DarkHistory** documentation for all the possibillities) primary particles in which dark matter decays or annihilates
+- `DM_BOOST`: *string* $\in$ ['erfc', 'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs'] preimplemented boost function $\mathcal{B}(z)$ for dark matter annihilation
+- `DM_FS_METHOD`: *string* $\in$ ['He', 'no_He', 'He_recomb'] method to compute the deposition fractions (see **DarkHistory** documentation for more details)
+- `DM_BACKREACTION`: *boolean* if `True` turns on exotic energy injection
+- `DM_USE_DECAY_RATE`: *boolean* if `True` uses `DM_DECAY_RATE` instead of `DM_LOG10_LIFETIME` to evaluate the energy injection from dark matter decay
+  
+Flags related to the effective parametrisation:
+- `USE_DM_EFFECTIVE_DEP_FUNCS`: *boolean* if `True` bypasses **DarkHistory** and uses the effective parametrisation for the deposition functions
+- `DM_FHEAT_APPROX_SHAPE`: *integer* or *string* $\in$ [0: 'none', 1: 'constant', 2: 'exponential', 3: 'schechter'] functional form of the deposition fraction into heat $F(z)$
+- `USE_DM_CUSTOM_F_RATIOS`: *boolean* if `True` uses `DM_LOG10_FION_H_OVER_FHEAT`, `DM_LOG10_FION_HE_OVER_FHEAT`, `DM_LOG10_FION_HE_OVER_FHEAT` to relate the other deposition fractions to $f_{\rm heat}$. If `False` uses predefined values obtained from scans of **DarkHistory** results
+- `USE_CUSTOM_INIT_COND`: *boolean* forces initial conditions to `LOG10_TK_at_Z_HEAT_MAX` and `LOG10_XION_at_Z_HEAT_MAX`. If `USE_CUSTOM_INIT_COND` is `False` and `FORCE_DEFAULT_INIT_COND` is `False` the initial conditions are set either by vanilla RECFAST if `USE_DM_EFFECTIVE_DEP_FUNCS` is `False` or by the result of the **DarkHistory** run otherwise. Cannot be set to `True` if `FORCE_DEFAULT_INIT_COND` is `True` as well
+- `FORCE_DEFAULT_INIT_COND`: *boolean*  forces the initial conditions to be that of vanilla RECFAST (even if exotic energy injection has happened before redshift $z_{\rm init}=$ `Z_HEAT_MAX`). If `USE_CUSTOM_INIT_COND` is `False` and `FORCE_DEFAULT_INIT_COND` is `False` the initial conditions are set either by vanilla RECFAST if `USE_DM_EFFECTIVE_DEP_FUNCS` is `False` or by the result of the **DarkHistory** run otherwise. Cannot be set to True if `USE_CUSTOM_INIT_COND` is `True` as well.
+
+
+### 3. run_lightcone arguments
+
+- `coarsen_factor`: *integer* redifines the redshift steps to match with the table of **DarkHistory**. Note that if we use energy deposition through the templates this value can be arbitrary. Be default it is set to 16 to match with the nominal redshift step definition of 21cmFAST.
+- `verbose_ntbk`: *boolean* if `True` outputs more information during the run, which can be useful when running 21cmFAST on small boxed in a notebook.
+- `output_exotic_data`: *boolean* if `True` gives a second output to the `run_lightcone()` function in the form of a dictionnary. This dictionnary contains the deposition fractions `'f'`, electron fraction `'x'`, gaz temperature `'Tm'` at every redshifts in `'z'`.
+- `heating_rate_output`: *string* defines a file where to save the the heating rate due to exotic energy injection and astrophycial energy injection. If nothing specified, the heating rates are not saved.
+
+## Using exo21cmFAST
+
+Some examples are provided in `exo21cmFAST/examples` and play the role of small tutorials. In particular see [`example_notebook.py`](https://github.com/gaetanfacchinetti/exo21cmFAST/blob/master/examples/example_notebook.ipynb). 
+
+The most simple code that can be run for a test assuming dark matter decyaing into $e^+e^-$ with a mass of 100 MeV, a lifetime $\tau = 10^{26}$ s, and using **DarkHistory** is
+
+```python
+import py21cmfast as p21f
+
+lightcone = p21f.run_lightcone(
+        redshift = 5,
+        user_params = {"BOX_LEN": 250, "HII_DIM": 128},
+        astro_params = {"DM_LOG10_MASS": 8.0, "DM_LOG10_LIFETIME": 26.0},
+        flag_options = {
+            "USE_DM_ENERGY_INJECTION" : True,
+            "USE_TS_FLUCT"            : True, 
+            "DM_PROCESS"              : 'decay',
+            "DM_PRIMARY"              : 'elec_delta'    
+        },
+        direc='./cache', 
+    )
+
+lightcone.save(fname = "my_ligthcone.h5")
+```
+
+A more complete example is also provided in [`example_run.py`](https://github.com/gaetanfacchinetti/exo21cmFAST/blob/master/examples/example_run.py).
+
+Once the lightcone is created, it can be analysed with different tools. See [**21cmCAST** documentation](https://github.com/gaetanfacchinetti/21cmCAST) for an example.
+
+## Credits
+
+If you use **exo21cmFAST** or parts of the new functionnalities not already present in 21cmFAST please cite 
+
+- Gaetan Facchinetti, Laura Lopez-Honorez, Andrei Mesinger, Yuxiang Qin, *21cm signal sensitivity to dark matter
+decay* (in prep.)
+
+
+[^1]: Andrei Mesinger, Steven Furlanetto, and Renyue Cen, *21cmFAST: A Fast, Semi-Numerical Simulation of the High-Redshift 21-cm Signal* [[arXiv:1003.3878](https://arxiv.org/abs/1003.3878)]
+
+[^2]: Andrei Mesinger and Steven Furlanetto, *Efficient Simulations of Early Structure Formation and Reionization* [[arXiv:0704.0946](https://arxiv.org/abs/0704.0946)]
+
+[^3]: Hongwan Liu, Gregory W. Ridgway, Tracy R. Slatyer, *DarkHistory: A code package for calculating modified cosmic ionization and thermal histories with dark matter and other exotic energy injections* [[arXiv:1904.09296](https://arxiv.org/abs/1904.09296)]
+
+[^4]: Yitian Sun, Tracy R. Slatyer, *Modeling early-universe energy injection with Dense Neural Networks* [[arXiv:2207.06425](https://arxiv.org/abs/2207.06425)]
+
+[^5]: Laura Lopez-Honorez, Olga Mena, Ángeles Moliné, Sergio Palomares-Ruiz, Aaron C. Vincent, *The 21 cm signal and the interplay between dark matter annihilations and astrophysical processes* [[arXiv:1603.06795](https://arxiv.org/abs/1603.06795)]
+
+Changelog
+=========
+
+dev-version
+-----------
+
+Fixed
+~~~~~
+
+* Incorrect sign on adiabatic fluctuations.
+
+v3.3.1 [24 May 2023]
+----------------------
+
+Fixed
+~~~~~
+
+* Compilation of C code for some compilers (#330)
+
+v3.3.0 [17 May 2023]
+----------------------
+
+Internals
+~~~~~~~~~
+
+* Refactored setting up of inputs to high-level functions so that there is less code
+  repetition.
+
+Fixed
+~~~~~
+
+* Running with ``R_BUBBLE_MAX`` too large auto-fixes it to be ``BOX_LEN`` (#112)
+* Bug in calling ``clear_cache``.
+* Inconsistency in the way that the very highest redshift of an evolution is handled
+  between low-level code (eg. ``spin_temperature()``) and high-level code (eg. ``run_coeval()``).
+
+
+Added
+~~~~~
+
+* New ``validate_all_inputs`` function that cross-references the four main input structs
+  and ensures all the parameters make sense together. Mostly for internal use.
+* Ability to save/read directly from an open HDF5 File (#170)
+* An implementation of cloud-in-cell to more accurately redistribute the perturbed mass
+  across all neighbouring cells instead of the previous nearest cell approach
+* Changed PhotonConsEndCalibz from z = 5 -> z = 3.5 to handle later reionisation
+  scenarios in line with current observations (#305)
+* Add in an initialisation check for the photon conservation to address some issues
+  arising for early EOR histories (#311)
+* Added ``NON_CUBIC_FACTOR`` to ``UserParams`` to allow for non-cubic coeval boxes (#289)
+
+v3.2.1 [13 Sep 2022]
+----------------------
+
+Changed
+~~~~~~~
+
+* Included log10_mturnovers(_mini) in lightcone class. Only useful when USE_MINI_HALOS
+
+
+v3.2.0 [11 Jul 2022]
+----------------------
+
+Changed
+~~~~~~~
+
+* Floats are now represented to a specific number of significant digits in the hash of
+  an output object. This fixes problems with very close redshifts not being read from
+  cache (#80). Note that this means that very close astro/cosmo params will now be read
+  from cache. This could cause issues when creating large databases with many random
+  parameters. The behaviour can modified in the configuration by setting the
+  ``cache_param_sigfigs`` and ``cache_redshift_sigfigs`` parameters (these are 6 and
+  4 by default, respectively).
+  **NOTE**: updating to this version will cause your previous cached files to become
+  unusable. Remove them before updating.
+
+Fixed
+~~~~~
+
+* Added a missing C-based error to the known errors in Python.
+
+v3.1.5 [27 Apr 2022]
+----------------------
+
+v3.1.4 [10 Feb 2022]
+----------------------
+
+Fixed
+~~~~~
+
+* error in FFT normalization in FindHaloes
+* docs not compiling on RTD due to missing ``scipy.integrate`` mock module
+* Updated matplotlib removed support for setting vmin/vmax and norm. Now passes vmin/vmax
+  to the norm() constructor.
+
+v3.1.3 [27 Oct 2021]
+----------------------
+
+* Fixed ``FAST_FCOLL_TABLES`` so it only affects MCGs and not ACGs. Added tests of this
+  flag for high and low z separately.
+
+v3.1.2 [14 Jul 2021]
+----------------------
+
+Internals
+~~~~~~~~~
+* ``MINIMIZE_MEMORY`` flag significantly reduces memory without affecting performance much,
+  by changing the way some arrays are allocated and accessed in C. (#224)
+
+Change
+~~~~~~
+
+* Updated ``USE_INTERPOLATION_TABLES`` to be default True. This makes much more sense as
+  a default value. Until v4, a warning will be raised if it is not set explicitly.
+
+
+v3.1.1 [13 Jun 2021]
+----------------------
+
+Fixed
+~~~~~
+
+* Bug in deployment to PyPI.
+
+v3.1.0 [13 Jun 2021]
+----------------------
+
+Added
+~~~~~
+* Ability to access all evolutionary Coeval components, either from the end Coeval
+  class, or the Lightcone.
+* Ability to gather all evolutionary antecedents from a Coeval/Lightcone into the one
+  file.
+* ``FAST_FCOLL_TABLES`` in ``UserParams`` which improves speeds quite significantly for
+  ~<10% accuracy decrease.
+* Fast and low-memory generation of relative-velocity (vcb) initial conditions. Eliminated hi-res vcb boxes, as they are never needed.
+* Also output the mean free path (i.e. MFP_box in IonizedBox).
+* Added the effect of DM-baryon relative velocities on PopIII-forming minihaloes. This now provides the correct background evolution jointly with LW feedback. It gives rise to velocity-induced acoustic oscillations (VAOs) from the relative-velocity fluctuations. We also follow a more flexible parametrization for LW feedback in minihaloes, following new simulation results, and add a new index ALPHA_STAR_MINI for minihaloes, now independent of regular ACGs.
+* New ``hooks`` keyword to high-level functions, that are run on the completion of each computational step, and can
+  be used to more generically write parts of the data to file.
+* Ability to pass a function to ``write=`` to write more specific aspects of the data (internally, this will be put into the ``hooks`` dictionary).
+* ``run_lightcone`` and ``run_coeval`` use significantly less memory by offloading initial conditions and perturb_field instances to disk if possible.
+
+Fixed
+~~~~~
+* Bug in 2LPT when ``USE_RELATIVE_VELOCITIES=True`` [Issue #191, PR #192]
+* Error raised when redshifts are not in ascending order [Issue #176, PR #177]
+* Errors when ``USE_FFTW_WISDOM`` is used on some systems [Issue #174, PR #199]
+* Bug in ComputeIonizedBox causing negative recombination rate and ring structure in ``Gamma12_box`` [Issue #194, PR #210]
+* Error in determining the wisdom file name [Issue #209, PR#210]
+* Bug in which cached C-based memory would be read in and free'd twice.
+
+Internals
+~~~~~~~~~
+
+* Added ``dft.c``, which makes doing all the cubic FFTs a lot easier and more consistent. [PR #199]
+* More generic way of keeping track of arrays to be passed between C and Python, and their shape in Python, using ``_get_box_structures``.
+  This also means that the various boxes can be queried before they are initialized and computed.
+* More stringent integration tests that test each array, not just the final brightness temperature.
+* Ability to plot the integration test data to more easily identify where things have gone wrong (use ``--plots`` in the ``pytest`` invocation).
+* Nicer CLI interface for ``produce_integration_test_data.py``. New options to ``clean`` the ``test_data/`` directory,
+  and also test data is saved by user-defined key rather than massive string of variables.
+* Nicer debug statements before calls to C, for easily comparing between versions.
+* Much nicer methods of keeping track of array state (in memory, on disk, c-controlled, etc.)
+* Ability to free C-based pointers in a more granular way.
+
+v3.0.3
+------
+
+Added
+~~~~~
+* ``coeval_callback`` and ``coeval_callback_redshifts`` flags to the ``run_lightcone``.
+  Gives the ability to run arbitrary code on ``Coeval`` boxes.
+* JOSS paper!
+* ``get_fields`` classmethod on all output classes, so that one can easily figure out
+  what fields are computed (and available) for that class.
+
+Fixed
+~~~~~
+* Only raise error on non-available ``external_table_path`` when actually going to use it.
+
+v3.0.2
+------
+
+Fixed
+-----
+* Added prototype functions to enable compilation for some standard compilers on MacOS.
+
+v3.0.1
+------
+Modifications to the internal code structure of 21cmFAST
+
+Added
+~~~~~
+* Refactor FFTW wisdom creation to be a python callable function
+
+
+v3.0.0
+------
+Complete overhaul of 21cmFAST, including a robust python-wrapper and interface,
+caching mechanisms, and public repository with continuous integration. Changes
+and equations for minihalo features in this version are found in
+https://arxiv.org/abs/2003.04442
+
+All functionality of the original 21cmFAST v2 C-code has been implemented in this
+version, including ``USE_HALO_FIELD`` and performing full integration instead of using
+the interpolation tables (which are faster).
+
+Added
+~~~~~
+* Updated the radiation source model: (i) all radiation fields including X-rays, UV
+  ionizing, Lyman Werner and Lyman alpha are considered from two seperated population
+  namely atomic-cooling (ACGs) and minihalo-hosted molecular-cooling galaxies (MCGs);
+  (ii) the turn-over masses of ACGs and MCGs are estimated with cooling efficiency and
+  feedback from reionization and lyman werner suppression (Qin et al. 2020). This can
+  be switched on using new ``flag_options`` ``USE_MINI_HALOS``.
+* Updated kinetic temperature of the IGM with fully ionized cells following equation 6
+  of McQuinn (2015) and partially ionized cells having the volume-weightied temperature
+  between the ionized (volume: 1-xHI; temperature T_RE ) and neutral components (volume:
+  xHI; temperature: temperature of HI). This is stored in IonizedBox as
+  temp_kinetic_all_gas. Note that Tk in TsBox remains to be the kinetic temperature of HI.
+* Tests: many unit tests, and also some regression tests.
+* CLI: run 21cmFAST boxes from the command line, query the cache database, and produce
+  plots for standard comparison runs.
+* Documentation: Jupyter notebook demos and tutorials, FAQs, installation instructions.
+* Plotting routines: a number of general plotting routines designed to plot coeval
+  and lightcone slices.
+* New power spectrum option (``POWER_SPECTRUM=5``) that uses a CLASS-based transfer
+  function. WARNING: If POWER_SPECTRUM==5 the cosmo parameters cannot be altered, they
+  are set to the Planck2018 best-fit values for now (until CLASS is added):
+  (omegab=0.02237, omegac= 0.120, hubble=0.6736 (the rest are irrelevant for the
+  transfer functions, but in case:  A_s=2.100e-9, n_s=0.9649, z_reio = 11.357)
+* New ``user_params`` option ``USE_RELATIVE_VELOCITIES``, which produces initial relative
+  velocity cubes (option implemented, but not the actual computation yet).
+* Configuration management.
+* global params now has a context manager for changing parameters temporarily.
+* Vastly improved error handling: exceptions can be caught in C code and propagated to
+  Python to inform the user of what's going wrong.
+* Ability to write high-level data (``Coeval`` and ``Lightcone`` objects) directly to
+  file in a simple portable format.
+
+Changed
+~~~~~~~
+* ``POWER_SPECTRUM`` option moved from ``global_params`` to ``user_params``.
+* Default cosmology updated to Planck18.
+
+v2.0.0
+------
+All changes and equations for this version are found in https://arxiv.org/abs/1809.08995.
+
+Changed
+~~~~~~~
+
+* Updated the ionizing source model: (i) the star formation rates and ionizing escape
+  fraction are scaled with the masses of dark matter halos and (ii) the abundance of
+  active star forming galaxies is exponentially suppressed below the turn-over halo
+  mass, M_{turn}, according to a duty cycle of exp(−M_{turn}/M_{h}), where M_{h} is a
+  halo mass.
+* Removed the mean free path parameter, R_{mfp}. Instead, directly computes
+  inhomogeneous, sub-grid recombinations in the intergalactic medium following the
+  approach of Sobacchi & Mesinger (2014)
+
+
+
+
+v1.2.0
+------
+Added
+~~~~~
+* Support for a halo mass dependent ionizing efficiency: zeta = zeta_0 (M/Mmin)^alpha,
+  where zeta_0 corresponds to  HII_EFF_FACTOR, Mmin --> ION_M_MIN,
+  alpha --> EFF_FACTOR_PL_INDEX in ANAL_PARAMS.H
+
+
+v1.12.0
+-------
+Added
+~~~~~
+- Code 'redshift_interpolate_boxes.c' to interpolate between comoving cubes,
+  creating comoving light cone boxes.
+- Enabled openMP threading  for SMP machines.  You can specify the number of threads
+  (for best performace, do not exceed the number of processors) in INIT_PARAMS.H. You do
+  not need to have an SMP machine to run the code. NOTE: YOU SHOULD RE-INSTALL FFTW to
+  use openMP (see INSTALL file)
+- Included a threaded driver file 'drive_zscroll_reion_param.c' set-up to perform
+  astrophysical parameter studies of reionization
+- Included explicit support for WDM cosmologies; see COSMOLOGY.H.  The prescription is
+  similar to that discussed in Barkana+2001; Mesinger+2005, madifying the (i) transfer
+  function (according to the Bode+2001 formula; and (ii) including the effective
+  pressure term of WDM using a Jeans mass analogy.  (ii) is approximated with a sharp
+  cuttoff in the EPS barrier, using 60* M_J found in Barkana+2001 (the 60 is an
+  adjustment factor found by fitting to the WDM collapsed fraction).
+- A Gaussian filtering step of the PT fields to perturb_field.c, in addition to the
+  implicit boxcar smoothing.  This avoids having"empty" density cells, i.e. \delta=-1,
+  with some small loss in resolution.  Although for most uses \delta=-1 is ok, some Lya
+  forest statistics do not like it.
+- Added treatment of the risidual electron fraction from X-ray heating when computing
+  the ionization field.  Relatedly, modified Ts.c to output all intermediate evolution
+  boxes, Tk and x_e.
+- Added a missing factor of Omega_b in Ts.c corresponding to eq. 18 in MFC11.  Users who
+  used a previous version should note that their results just effecively correspond to a
+  higher effective X-ray efficiency, scaled by 1/Omega_baryon.
+- Normalization optimization to Ts.c, increasing performace on arge resolution boxes
+
+
+Fixed
+~~~~~
+- GSL interpolation error in kappa_elec_pH for GSL versions > 1.15
+- Typo in macro definition, which impacted the Lya background calculation in v1.11 (not applicable to earlier releases)
+- Outdated filename sytax when calling gen_size_distr in drive_xHIscroll
+- Redshift scrolling so that drive_logZscroll_Ts.c and Ts.c are in sync.
+
+Changed
+~~~~~~~
+- Output format to avoid FFT padding for all boxes
+- Filename conventions to be more explicit.
+- Small changes to organization and structure
+
+
+v1.1.0
+------
+Added
+~~~~~
+- Wrapper functions mod_fwrite() and mod_fread() in Cosmo_c_progs/misc.c, which
+  should fix problems with the library fwrite() and fread() for large files (>4GB) on
+  certain operating systems.
+- Included print_power_spectrum_ICs.c program which reads in high resolution initial
+  conditions and prints out an ASCII file with the associated power spectrum.
+- Parameter in Ts.c for the maximum allowed kinetic temperature, which increases
+  stability of the code when the redshift step size and the X-ray efficiencies are large.
+
+Fixed
+~~~~~
+- Oversight adding support for a Gaussian filter for the lower resolution field.
