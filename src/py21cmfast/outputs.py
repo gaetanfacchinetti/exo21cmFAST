@@ -36,9 +36,11 @@ from .inputs import AstroParams, CosmoParams, FlagOptions, UserParams, global_pa
 class _OutputStruct(_BaseOutputStruct):
     _global_params = global_params
 
-    def __init__(self, *, user_params=None, cosmo_params=None, **kwargs):
+    def __init__(self, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None, **kwargs):
         self.cosmo_params = cosmo_params or CosmoParams()
         self.user_params = user_params or UserParams()
+        self.astro_params = astro_params or AstroParams()
+        self.flag_options = flag_options or FlagOptions()
 
         super().__init__(**kwargs)
 
@@ -172,6 +174,8 @@ class InitialConditions(_OutputStruct):
             self.random_seed,
             self.user_params,
             self.cosmo_params,
+            self.astro_params,
+            self.flag_options,
             hooks=hooks,
         )
 
@@ -253,6 +257,8 @@ class PerturbedField(_OutputStructZ):
             self.redshift,
             self.user_params,
             self.cosmo_params,
+            self.astro_params,
+            self.flag_options,
             ics,
             hooks=hooks,
         )

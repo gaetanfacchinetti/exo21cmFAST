@@ -1,0 +1,5 @@
+Obtaining file:///home/users/g/f/gfacchin/exo21cmFAST_ncdm/exo21cmFAST
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'canceled'

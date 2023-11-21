@@ -1,0 +1,216 @@
+This file explains what has been changed in the code
+
+TODO: 
+    1) IonisationBox.c
+    2) heating_helper_progs.c
+    3) UsefulFunctions.c
+    4) SpinTemperatureBox.c
+    5) ps.c 
+
+##########################################
+############# Python part ################
+##########################################
+ 
+inputs.py: 
+    In there I added an extra option for the variable FILTER
+    This was used as a flag to change the normalisation of Sigma8 when 
+    the sharp-k filter (by changing the value of SIGMA8). Now In the v3
+    of 21cmFAST, the code recomputes the normalisation itself, so it is not 
+    necessary. This adaption was thus commented, which I now finally deleted.
+
+    In the structure UserParams I added an extra parameter m_wdm. This is a float tells the code the mass of the warm dark matter
+    keV. Giving it a non-zero mass will activate the new implementation of warm dark matter. Also wrote a comment on it.
+
+    In the array _hmf_models in UserParams added a new model of halo mass function (ST_QUENTIN)
+    This is the seth-thormen halo mass function, but with the parameters that are best suited for warm dark matter.
+
+
+wrapper.py:
+    We added in the start of the function run_lightcone an if statement which checks if m_wdm has been set to zero.
+    If yes, we set the global parameters: P_CUTOFF =TRUE, MWDM =m_wdm, and FILTER =2. This tells the code it will 
+    have to deal with warm dark matter. Now because these are global parameters, and not parameters of a specific run,
+    we reset after the run. This is done by another if statement with the same condition at the end of this run.
+    
+    In compute_luminosity_function we added that when we give an array of mturns (which is mturn redshifts evolved) we do
+    not overwrite it by the constant mturn expression.
+    
+
+#########################################
+############### C part ##################
+#########################################
+
+
+Globals.h:
+    In this .h file we added 3 constant global doubles: Schneider_cSK, dlRdlMSK, nu_VIEL.
+    Schneider_cSK = 2.5, is the free parameter to go from Halo Mass to Radius using the Sharp-k
+    dlRdlMSK = 1./3. The power used to go from R-> M with the sharp-k window
+    nu_VIEL = 1.12, the \mu fitting parameter in the transfer function of warm dark matter.
+
+
+Constants.h:
+    Here two things were done: 
+    1) We updated the values of the parameters of the standard Seth-Thormen 
+    2) We introduced a copy of the three free parameters in the ST halo mass function, and put them to values 
+    that work better for WDM.
+        SHETH_aWDM = 1.
+        SHETH_pWDM = 0.3
+        SHETH_AWDM = 0.322
+
+
+21cmFAST.h:
+    Here we added a new float, m_wdm, to the structure UserParams.
+
+
+UsefulFunctions.c:
+    1) In the function double MtoR, which relates mass and radius, added an else if statement,
+       which defines the relation in the case of a sharp-k filter.
+
+    2) In RtoM, did the same as above, an extra else if for the sharp-k.
+
+    3) TODO: I added the function: double inverseDicke(double growthf), this function tales as input a 
+       growth factor and returns a redshift. Is handy to compare some internally calculated 
+       quantities that are redshift depended. However, it is fully commented and I think I never finished implementing it.
+       This needs to e checked if we can just erase it.
+
+
+heating_helper_progs.c:
+    1) In the function double get_M_min_ion(float z), we commented the section of code that had to do with warm dark matter.
+       This code block implemented a sharp cut off on the minimal halo mass situated at the jeans mass scale associated to
+       the warm dark matter particle. Since we work at the level of the matter power spectrum this is no longer necessary.
+
+       WARNING: Notice that this probably breaks the initial implementation of warm dark matter in the code. 
+       TODO: Instead of commenting it out use as extra check in the condition which global.FILTER is used.
+
+
+IonisationBox.c: 
+    1) In the function ComputeIonizedBox we commented a code block that puts the minimum mass equal to the Jeans mass 
+       associated to the warm dark matter particle. Since we work at the level of the matter power spectrum this is no 
+       longer necessary.
+    
+       WARNING: Notice that this probably breaks the initial implementation of warm dark matter in the code. 
+       TODO: Instead of commenting it out use as extra check in the condition which global.FILTER is used.
+
+
+FindHaloes.c:
+    1) In ComputeHaloField changed the range of the HMF variable because from 4 -> 5.
+       This was needed because we added an extra halo mass function.
+
+
+SpinTemperatureBox.c:
+    1) In here I changed M_MIN_WDM form M_MIN_WDM = M_J_WDM to M_MIN_WDM = 0.0. This should be save to do because this
+       quantity always comes into play inside an fmaxf together with another quantity, which is the mass we want to use.
+
+       WARNING: Notice that this probably breaks the initial implementation of warm dark matter in the code. 
+       TODO: Instead of commenting it out use as extra check in the condition which global.FILTER is used.
+
+
+ps.c:
+    1) Added in a commented block, #include<unistd.h>, no idea why I did this, but lets keep it.
+    
+    2) Added two file pointers fileSigma and filedNdM. These are used to be able to output the halo mass function as well
+       as the variance of powerspectrum into a file to check calculations. We do not want to read and write into to file each
+       time these quantities are computed by the code (because the code does this a lot), hence we add a variable and a pointer:
+       hasBeenWritten, to check if the files have been created or not. 
+       
+       WARNING: I do not free the variables because I do not exactly know when it is the last time he computes these quantities. 
+                Hence, this will probably lead to a memory leak.
+    
+    3) Declared the function double dNdM into the beginning of the file instead of just defining it somewhere lower into the code.
+       This is because when writing the dNdM function we do that in the init_ps function, which is declared before dNdM, so the code
+       does not now the dNdM function at that point.
+    
+    4) We changed the functiontype of dNdM_conditional from float to double (to have precision when working with small quantities).
+
+    5) In double dsigma_dk put an if-else block to check if you want to run old por new implementation of WDM. 
+       To check this it use the user_params_ps -> m_wdm == 0 (which I should use in other parts of the code maybe)
+       in the else case (new implementation) the code use the transfer function of Viel et al. instead of Bode et al. to 
+       calculate the powerspectrum. 
+
+    6) Still in dsigma_dk, added the sharp_k filter as window function.
+
+    7) In double sigma_z0, added a commented code block which when decommented writes sigma(M,z=0) into sigma.txt.
+       The check on the pointer value if used to see if the we already wrote the values into it, or not. The hard coded
+       smaller than 3 is because the code calls this function multiple times before really computing the sigmas (make this sentence more clear).
+
+    8) Inside double power_in_k, I made the same adaptions concering the transfer function of Viel as in dsigma_dk.
+
+    9) Inside double init_ps added 3 new doubles, alpha_cut, gtr, and oUT1. alpha_cut is the constant inside the formula
+       for alpha in the Viel transfer function. grt is variable used to track the value of the growth function when given
+       a redshift. oUT1 is a variable used to see what the value of dNdM is. 
+
+       TODO: Are these last 2 variables really needed? 
+    
+    10) Added 2 commented code blocks that create the files sigma.txt and dNdM.txt and write a first row containing the header
+        of the different quantities that we are going to print in those files. 
+    
+    11) Still in init_ps added a code block that changes the cut_off radius using the alpha parametrization of Viel et al.
+        At the moment the alpha_cut is still mass dependend, we are going to change this to a fixed value. The rest will be commented.
+        We also have some commented blocks that can be used to print intermediate quantities (such as R_CUTOFF).
+        
+        TODO: Fix the value of alpha_cut.
+
+    12) Commented code block that changes the value of the hasBeenWritten pointer, to keep track if we already wrote into to 
+        files or not. Also a commented output message that prints the value of sigma norm.
+    
+    13) In double dsigmasq_dm which returns  d/dm (sigma^2), added the Viel transfer function. 
+
+    14) In double dsigmasqdm_z0 added an extra variable double out, which is the variable used to write the output of this function.
+        I find that nicer than how the output of this function is returned now (a multiplication of several quantities) 
+    
+    15) Still in that function, added an extra if-else block, where in the if block, the code calculates this quantity numerically using 
+        the pre-code filters using an integral. In the else-block we use the analytic expression we have for the sharp-k filter. 
+    
+    16) In double dNdM_st(double growthf, double M,double z), the double z is an addition from me. This is to be able to print this quantity
+        at a redshift z, and not having to convert between redshift and growth factor. I also added the variable returndNdM, to be able to 
+        print it in file. Then added a big commented code-block that prints this quantity into the file dNdM.txt
+    
+    17) Copy-pasted the function double dNdM_st(double growthf, double M,double z) and called it double dNdM_stQuentin(double growthf, double M,double z).
+        This is the new Seth-Thormen with parameter values more adapted to warm dark matter.
+
+    18) Inside dFdlnM_General, added the halo mass function Seth-Thormen Quentin (STQ), also added the extra z in the HMF's ST and STQ.
+        There is also a commented code-block that prints some intermediate variables to check if everything is working'.
+    
+    19) Inside double FgtrM_General, changed the range of HMF's, from 4 to 5 + same print block as above.
+
+    20) In double dNion_General, added the STQ HMF, added the variable z in ST HMF.
+
+    21) In double Nion_General, changed the range of HMF's, from 4 to 5 + same big print block.
+
+    22) In double dNion_General_MINI, same changes as in dNion_General. 
+
+    23) In double Nion_General_MINI, same as Nion_General
+
+    24) In double M_J_WDM, added an if-else to make sure that if you have m_wdm != 0, he use this variable to calculate the Jeans mass and not 
+        the variable global_params.M_WDM. Altough, I do not think this Jeans mass should ever be used by the code.
+    
+    25) In int ComputeLF, added the HMF STQ, and made sure the ST has the extra z variable as input.
+
+    26) For the function dNdM_conditional, changed its type from float to double, also changed the conditions to instead of equal, difference smaller than 10^-6.
+        TODO: Is this change in condition necessary, and should it be kept?
+    
+    27) In dNion_ConditionallnM, added an extra double to be able to print the return value of this function.
+        Also added a commented code-block to do this print. But, more importantly, added an extra condition that checks that 
+        if the halo mass is larger than 10^(20) this function returns 0. This is done because for larger values the integration of 
+        this function fails, make the code fail. Notice that for large values this function becomes very small,
+        so putting it to zero is okey.
+    
+    28) In Nion_ConditionalM, added an extra double to and print statements, as well as changing the error messages. This was done for debugging this function
+        Because it failed for high mass. But not really necessary since the adaptions above solves the problem.
+
+    
+
+    
+ ####################################################################   
+ ####################################################################    
+       
+Gaetan: I am following a slightly different approach. I made such that the functions in ps.c and UsefulFunctions.c can access
+the variables in astro_params and flag_options. That way I can remove the old implementation of the warm dark matter with a 
+parameter in the global parameters, to put it in the astro_params (with some flag_options).
+
+- I do not add anything in Globals.h
+
+- I modified global_params.P_CUTOFF to flag_options_PS_CUTOFF
+
+- Treated all modifications in UsefulFunctions.c adding two new parameters 
+-> astro_params : VOLUME_FACTOR_SHARP_K
+-> flag_options : PS_FILTER (replacing the old global_params : FILTER)

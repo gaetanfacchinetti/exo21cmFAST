@@ -401,7 +401,7 @@ def get_all_fieldnames(
 # ======================================================================================
 # WRAPPING FUNCTIONS
 # ======================================================================================
-def construct_fftw_wisdoms(*, user_params=None, cosmo_params=None):
+def construct_fftw_wisdoms(*, user_params=None, cosmo_params=None, astro_params=None, flag_options = None):
     """Construct all necessary FFTW wisdoms.
 
     Parameters
@@ -412,15 +412,18 @@ def construct_fftw_wisdoms(*, user_params=None, cosmo_params=None):
     """
     user_params = UserParams(user_params)
     cosmo_params = CosmoParams(cosmo_params)
+    astro_params = AstroParams(astro_params)
+    flag_options = FlagOptions(flag_options)
+
 
     # Run the C code
     if user_params.USE_FFTW_WISDOM:
-        return lib.CreateFFTWWisdoms(user_params(), cosmo_params())
+        return lib.CreateFFTWWisdoms(user_params(), cosmo_params(), astro_params(), flag_options())
     else:
         return 0
 
 
-def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None):
+def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None, astro_params=None, flag_options=None):
     """Compute the optical depth to reionization under the given model.
 
     Parameters
@@ -445,8 +448,9 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None):
         If `redshifts` and `global_xHI` have inconsistent length or if redshifts are not
         in ascending order.
     """
-    user_params, cosmo_params = _setup_inputs(
-        {"user_params": user_params, "cosmo_params": cosmo_params}
+    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+        {"user_params": user_params, "cosmo_params": cosmo_params,
+          "astro_params": astro_params, "flag_options":flag_options}
     )
 
     if len(redshifts) != len(global_xHI):
@@ -463,7 +467,7 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None):
     xHI = ffi.cast("float *", ffi.from_buffer(global_xHI))
 
     # Run the C code
-    return lib.ComputeTau(user_params(), cosmo_params(), len(redshifts), z, xHI)
+    return lib.ComputeTau(user_params(), cosmo_params(), astro_params(), flag_options(), len(redshifts), z, xHI)
 
 
 def compute_luminosity_function(
@@ -900,6 +904,8 @@ def initial_conditions(
     *,
     user_params=None,
     cosmo_params=None,
+    astro_params=None,
+    flag_options=None,
     random_seed=None,
     regenerate=None,
     write=None,
@@ -945,17 +951,18 @@ def initial_conditions(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        user_params, cosmo_params = _setup_inputs(
-            {"user_params": user_params, "cosmo_params": cosmo_params}
+        user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+            {"user_params": user_params, "cosmo_params": cosmo_params, 
+             "astro_params": astro_params, "flag_options" : flag_options}
         )
 
         # Initialize memory for the boxes that will be returned.
         boxes = InitialConditions(
-            user_params=user_params, cosmo_params=cosmo_params, random_seed=random_seed
+            user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options = flag_options, random_seed=random_seed
         )
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
 
         # First check whether the boxes already exist.
         if not regenerate:
@@ -977,6 +984,8 @@ def perturb_field(
     init_boxes=None,
     user_params=None,
     cosmo_params=None,
+    astro_params=None,
+    flag_options=None,
     random_seed=None,
     regenerate=None,
     write=None,
@@ -1043,11 +1052,13 @@ def perturb_field(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        random_seed, user_params, cosmo_params, redshift = _setup_inputs(
+        random_seed, user_params, cosmo_params, astro_params, flag_options, redshift = _setup_inputs(
             {
                 "random_seed": random_seed,
                 "user_params": user_params,
                 "cosmo_params": cosmo_params,
+                "astro_params": astro_params,
+                "flag_options": flag_options
             },
             input_boxes={"init_boxes": init_boxes},
             redshift=redshift,
@@ -1074,7 +1085,7 @@ def perturb_field(
                 pass
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options = flag_options)
 
         # Make sure we've got computed init boxes.
         if init_boxes is None or not init_boxes.is_computed:
@@ -1193,7 +1204,7 @@ def determine_halo_list(
                 pass
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
 
         # Make sure we've got computed init boxes.
         if init_boxes is None or not init_boxes.is_computed:
@@ -1565,7 +1576,7 @@ def ionize_box(
         )
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
 
         # Check whether the boxes already exist
         if not regenerate:
@@ -1898,7 +1909,7 @@ def spin_temperature(
         )
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options)
 
         # Check whether the boxes already exist on disk.
         if not regenerate:
@@ -2041,7 +2052,8 @@ def brightness_temperature(
 
         # Construct FFTW wisdoms. Only if required
         construct_fftw_wisdoms(
-            user_params=ionized_box.user_params, cosmo_params=ionized_box.cosmo_params
+            user_params=ionized_box.user_params, cosmo_params=ionized_box.cosmo_params,
+            astro_params=ionized_box.astro_params, flag_options = ionized_box.flag_options
         )
 
         # Check whether the boxes already exist on disk.
@@ -2624,16 +2636,16 @@ def run_lightcone(
             random_seed,
             user_params,
             cosmo_params,
-            flag_options,
             astro_params,
+            flag_options,
             redshift,
         ) = _setup_inputs(
             {
                 "random_seed": random_seed,
                 "user_params": user_params,
                 "cosmo_params": cosmo_params,
-                "flag_options": flag_options,
                 "astro_params": astro_params,
+                "flag_options": flag_options,
             },
             {"init_box": init_box, "perturb": perturb},
             redshift=redshift,
@@ -2687,6 +2699,8 @@ def run_lightcone(
             init_box = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                astro_params=astro_params,
+                flag_options=flag_options,
                 hooks=hooks,
                 regenerate=regenerate,
                 direc=direc,

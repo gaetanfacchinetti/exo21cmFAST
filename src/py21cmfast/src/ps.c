@@ -58,6 +58,7 @@ gsl_spline *deriv_spline;
 
 struct CosmoParams *cosmo_params_ps;
 struct UserParams *user_params_ps;
+struct AstroParams *astro_params_ps;
 struct FlagOptions *flag_options_ps;
 
 //double sigma_norm, R, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, R_CUTOFF, DEL_CURR, SIG_CURR;
@@ -196,6 +197,7 @@ double power_in_k(double k); /* Returns the value of the linear power spectrum d
 double TFmdm(double k); //Eisenstein & Hu power spectrum transfer function
 void TFset_parameters();
 
+double TF_alpha_beta_gamma_delta(double k, double alpha, double beta, double gamma, double delta);
 double TF_CLASS(double k, int flag_int, int flag_dv); //transfer function of matter (flag_dv=0) and relative velocities (flag_dv=1) fluctuations from CLASS
 double power_in_vcb(double k); /* Returns the value of the DM-b relative velocity power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
 
@@ -212,13 +214,24 @@ double splined_erfc(double x);
 
 double M_J_WDM();
 
-void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params){
+void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+            struct AstroParams *astro_params, struct FlagOptions *flag_options){
 
     cosmo_params_ps = cosmo_params;
     user_params_ps = user_params;
+    astro_params_ps = astro_params;
+    flag_options_ps = flag_options;
 }
 
 
+/* parametrises the transfer function in an effective way that can capture WDM, (H+C)DM or (W+C)DM scenarios 
+    this parametrisation has been introduced in arXiv:2206.08188.
+    the case of traditional WDM is recovered from delta = 0, beta = 2*nu gamma = -5/nu 
+    with nu = 1.12 (arXiv:astro-ph/0501562) */
+double TF_alpha_beta_gamma_delta(double k, double alpha, double beta, double gamma, double delta)
+{
+    return (1-delta) * pow(1 + pow(alpha * k, beta), gamma) + delta;
+}
 
 /*
   this function reads the z=0 matter (CDM+baryons)  and relative velocity transfer functions from CLASS (from a file)
@@ -345,7 +358,7 @@ double dsigma_dk(double k, void *params){
     if (user_params_ps->POWER_SPECTRUM == 0){ // Eisenstein & Hu
         T = TFmdm(k);
         // check if we should cuttoff power spectrum according to Bode et al. 2000 transfer function
-        if (global_params.P_CUTOFF) T *= pow(1 + pow(BODE_e*k*R_CUTOFF, 2*BODE_v), -BODE_n/BODE_v);
+        if (flag_options_ps->PS_CUTOFF) T *= pow(1 + pow(BODE_e*k*R_CUTOFF, 2*BODE_v), -BODE_n/BODE_v);
         p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
     }
     else if (user_params_ps->POWER_SPECTRUM == 1){ // BBKS
@@ -392,15 +405,15 @@ double dsigma_dk(double k, void *params){
 
     kR = k*Radius;
 
-    if ( (global_params.FILTER == 0) || (sigma_norm < 0) ){ // top hat
+    if ( (flag_options_ps->PS_FILTER == 0) || (sigma_norm < 0) ){ // top hat
         if ( (kR) < 1.0e-4 ){ w = 1.0;} // w converges to 1 as (kR) -> 0
         else { w = 3.0 * (sin(kR)/pow(kR, 3) - cos(kR)/pow(kR, 2));}
     }
-    else if (global_params.FILTER == 1){ // gaussian of width 1/R
+    else if (flag_options_ps->PS_FILTER == 1){ // gaussian of width 1/R
         w = pow(E, -kR*kR/2.0);
     }
     else {
-        LOG_ERROR("No such filter: %i. Output is bogus.", global_params.FILTER);
+        LOG_ERROR("No such filter: %i. Output is bogus.", flag_options_ps->PS_FILTER);
         Throw(ValueError);
     }
     return k*k*p*w*w;
@@ -514,7 +527,7 @@ double power_in_k(double k){
     if (user_params_ps->POWER_SPECTRUM == 0){ // Eisenstein & Hu
         T = TFmdm(k);
         // check if we should cuttoff power spectrum according to Bode et al. 2000 transfer function
-        if (global_params.P_CUTOFF) T *= pow(1 + pow(BODE_e*k*R_CUTOFF, 2*BODE_v), -BODE_n/BODE_v);
+        if (flag_options_ps->PS_CUTOFF) T *= pow(1 + pow(BODE_e*k*R_CUTOFF, 2*BODE_v), -BODE_n/BODE_v);
         p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
         //p = pow(k, POWER_INDEX - 0.05*log(k/0.05)) * T * T; //running, alpha=0.05
     }
@@ -681,7 +694,7 @@ double dsigmasq_dm(double k, void *params){
     if (user_params_ps->POWER_SPECTRUM == 0){ // Eisenstein & Hu ApJ, 1999, 511, 5
         T = TFmdm(k);
         // check if we should cuttoff power spectrum according to Bode et al. 2000 transfer function
-        if (global_params.P_CUTOFF) T *= pow(1 + pow(BODE_e*k*R_CUTOFF, 2*BODE_v), -BODE_n/BODE_v);
+        if (flag_options_ps->PS_CUTOFF) T *= pow(1 + pow(BODE_e*k*R_CUTOFF, 2*BODE_v), -BODE_n/BODE_v);
         p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
         //p = pow(k, POWER_INDEX - 0.05*log(k/0.05)) * T * T; //running, alpha=0.05
     }
@@ -729,7 +742,7 @@ double dsigmasq_dm(double k, void *params){
 
     // now get the value of the window function
     kR = k * Radius;
-    if (global_params.FILTER == 0){ // top hat
+    if (flag_options_ps->PS_FILTER == 0){ // top hat
         if ( (kR) < 1.0e-4 ){ w = 1.0; }// w converges to 1 as (kR) -> 0
         else { w = 3.0 * (sin(kR)/pow(kR, 3) - cos(kR)/pow(kR, 2));}
 
@@ -740,13 +753,13 @@ double dsigmasq_dm(double k, void *params){
         //     dwdr = -1e8 * k / (R*1e3);
         drdm = 1.0 / (4.0*PI * cosmo_params_ps->OMm*RHOcrit * Radius*Radius);
     }
-    else if (global_params.FILTER == 1){ // gaussian of width 1/R
+    else if (flag_options_ps->PS_FILTER == 1){ // gaussian of width 1/R
         w = pow(E, -kR*kR/2.0);
         dwdr = - k*kR * w;
         drdm = 1.0 / (pow(2*PI, 1.5) * cosmo_params_ps->OMm*RHOcrit * 3*Radius*Radius);
     }
     else {
-        LOG_ERROR("No such filter: %i. Output is bogus.", global_params.FILTER);
+        LOG_ERROR("No such filter: %i. Output is bogus.", flag_options_ps->PS_FILTER);
         Throw(ValueError);
     }
 
@@ -1387,7 +1400,7 @@ double Nion_General_MINI(double z, double M_Min, double MassTurnover, double Mas
  corresponding to the gas analog of WDM ; eq. 10 in Barkana+ 2001 */
 double M_J_WDM(){
     double z_eq, fudge=60;
-    if (!(global_params.P_CUTOFF))
+    if (!(flag_options_ps->PS_CUTOFF))
         return 0;
     z_eq = 3600*(cosmo_params_ps->OMm-cosmo_params_ps->OMb)*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle/0.15;
     return fudge*3.06e8 * (1.5/global_params.g_x) * sqrt((cosmo_params_ps->OMm-cosmo_params_ps->OMb)*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle/0.15) * pow(global_params.M_WDM, -4) * pow(z_eq/3000.0, 1.5);
@@ -1755,10 +1768,11 @@ float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC){
     return(0.0);
 }
 
-int initialise_ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options) {
+int initialise_ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options) {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params);
-    Broadcast_struct_global_UF(user_params,cosmo_params);
+    Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params, astro_params, flag_options);
 
     lnMhalo_param = calloc(nbins,sizeof(double));
     Muv_param = calloc(nbins,sizeof(double));
@@ -3399,8 +3413,8 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
     int status;
     Try{  // this try wraps the whole function.
-    Broadcast_struct_global_PS(user_params,cosmo_params);
-    Broadcast_struct_global_UF(user_params,cosmo_params);
+    Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params, astro_params, flag_options);
     init_ps();
     //     To solve differentail equation, uses Euler's method.
     //     NOTE:

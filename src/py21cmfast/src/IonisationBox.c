@@ -42,8 +42,8 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
 
     // Makes the parameter structs visible to a variety of functions/macros
     // Do each time to avoid Python garbage collection issues
-    Broadcast_struct_global_PS(user_params,cosmo_params);
-    Broadcast_struct_global_UF(user_params,cosmo_params);
+    Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params, astro_params, flag_options);
 
     omp_set_num_threads(user_params->N_THREADS);
 
@@ -517,7 +517,7 @@ LOG_SUPER_DEBUG("sigma table has been initialised");
 
     // check for WDM
 
-    if (global_params.P_CUTOFF && ( M_MIN < M_J_WDM())){
+    if (flag_options->PS_CUTOFF && ( M_MIN < M_J_WDM())){
         LOG_WARNING("The default Jeans mass of %e Msun is smaller than the scale supressed by the effective pressure of WDM.", M_MIN);
         M_MIN = M_J_WDM();
         LOG_WARNING("Setting a new effective Jeans mass from WDM pressure supression of %e Msun", M_MIN);

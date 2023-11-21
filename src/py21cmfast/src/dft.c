@@ -54,14 +54,15 @@ int dft_r2c_cube(bool use_wisdom, int dim, int dim_los, int n_threads, fftwf_com
     return(0);
 }
 
-int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params) {
+int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options) {
 
     int status;
     char *wisdom_string;
 
     Try{ // This Try wraps the entire function so we don't indent.
 
-        Broadcast_struct_global_UF(user_params,cosmo_params);
+        Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
 
         fftwf_plan plan;
 

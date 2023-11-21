@@ -228,8 +228,6 @@ class GlobalParams(StructInstanceWrapper):
         (Lehmer et al. 2013, 2015)
     NBINS_LF : int
         Number of bins for the luminosity function calculation.
-    P_CUTOFF : bool
-        Turn on Warm-Dark-matter power suppression.
     M_WDM : float
         Mass of WDM particle in keV. Ignored if `P_CUTOFF` is False.
     g_x : float
@@ -267,10 +265,6 @@ class GlobalParams(StructInstanceWrapper):
         Sheth-Tormen parameter for ellipsoidal collapse (for HMF). See notes for `SHETH_b`.
     Zreion_HeII : float
         Redshift of helium reionization, currently only used for tau_e
-    FILTER : int, {0, 1}
-        Filter to use for smoothing.
-        0. tophat
-        1. gaussian
     external_table_path : str
         The system path to find external tables for calculation speedups. DO NOT MODIFY.
     R_BUBBLE_MIN : float
@@ -646,6 +640,13 @@ class FlagOptions(StructWithDefaults):
         Determines whether to use a fixed vcb=VAVG (*regardless* of USE_RELATIVE_VELOCITIES). It includes the average effect of velocities but not its fluctuations. See Muñoz+21 (2110.13919).
     USE_VELS_AUX: bool, optional
         Auxiliary variable (not input) to check if minihaloes are being used without relative velocities and complain
+    PS_FILTER: int, optional
+        Filter to use for smoothing the power spectrum
+        0. tophat
+        1. sharp-k
+        2. gaussian
+    PS_CUTOFF:bool, optional
+        Include the supression of power-spectrum on small scales see `NCDM_TRANSFER_FUNCTION`
     """
 
     _ffi = ffi
@@ -662,6 +663,8 @@ class FlagOptions(StructWithDefaults):
         "M_MIN_in_Mass": False,
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
+        "PS_FILTER": 0,
+        "PS_CUTOFF": 0,
     }
 
     @property
@@ -818,6 +821,9 @@ class AstroParams(StructWithDefaults):
         Impact of the LW feedback on Mturn for minihaloes. Default is 22.8685 and 0.47 following Machacek+01, respectively. Latest simulations suggest 2.0 and 0.6. See Sec 2 of Muñoz+21 (2110.13919).
     A_VCB, BETA_VCB: float, optional
         Impact of the DM-baryon relative velocities on Mturn for minihaloes. Default is 1.0 and 1.8, and agrees between different sims. See Sec 2 of Muñoz+21 (2110.13919).
+    VOLUME_FACTOR_SHARP_K: float, optional
+        Volume factor relating the mass M to the size R when using a sharp-k window function to evaluate the variance of the smoothed density field
+        Default value is set to the "theoretical" value used by Lacey & Cole (1994) = 6*PI^2
     """
 
     _ffi = ffi
@@ -846,6 +852,7 @@ class AstroParams(StructWithDefaults):
         "BETA_LW": 0.6,
         "A_VCB": 1.0,
         "BETA_VCB": 1.8,
+        "VOLUME_FACTOR_SHARP_K": 59.2176264065
     }
 
     def __init__(

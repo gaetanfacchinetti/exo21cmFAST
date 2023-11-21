@@ -10,7 +10,8 @@ double BinWidth_pH,inv_BinWidth_pH,BinWidth_elec,inv_BinWidth_elec,BinWidth_10,i
 
 double get_M_min_ion(float z);
 
-void Broadcast_struct_global_HF(struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options){
+void Broadcast_struct_global_HF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+struct AstroParams *astro_params, struct FlagOptions *flag_options){
 
     user_params_hf = user_params;
     cosmo_params_hf = cosmo_params;
@@ -29,7 +30,7 @@ double get_M_min_ion(float z){
         MMIN = TtoM(z, astro_params_hf->ION_Tvir_MIN, 0.6);
 
     // check for WDM
-    if (global_params.P_CUTOFF && ( MMIN < M_J_WDM()))
+    if (flag_options_hf->PS_CUTOFF && ( MMIN < M_J_WDM()))
         MMIN = M_J_WDM();
     return MMIN;
 }

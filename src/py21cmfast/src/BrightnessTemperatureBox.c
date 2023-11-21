@@ -11,8 +11,8 @@ int ComputeBrightnessTemp(float redshift, struct UserParams *user_params, struct
     LOG_DEBUG("Starting Brightness Temperature calculation for redshift %f", redshift);
     // Makes the parameter structs visible to a variety of functions/macros
     // Do each time to avoid Python garbage collection issues
-    Broadcast_struct_global_PS(user_params,cosmo_params);
-    Broadcast_struct_global_UF(user_params,cosmo_params);
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
 
     char wisdom_filename[500];
     int i, ii, j, k, n_x, n_y, n_z;
