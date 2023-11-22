@@ -110,8 +110,6 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     first_zero = true;
     n_pts_radii = 1000;
 
-    float M_MIN_WDM =  M_J_WDM();
-
     double ave_fcoll, ave_fcoll_inv, dfcoll_dz_val_ave, ION_EFF_FACTOR;
     double ave_fcoll_MINI, ave_fcoll_inv_MINI, dfcoll_dz_val_ave_MINI, ION_EFF_FACTOR_MINI;
 
@@ -785,7 +783,7 @@ LOG_SUPER_DEBUG("Initialised heat");
                     // Calculate the sigma_z and Fgtr_M values for each point in the interpolation table
                     #pragma omp parallel shared(determine_zpp_min,determine_zpp_max,\
                                                 Sigma_Tmin_grid,ST_over_PS_arg_grid,\
-                                                mu_for_Ts,M_MIN,M_MIN_WDM) \
+                                                mu_for_Ts,M_MIN) \
                                          private(i,zpp_grid) \
                                          num_threads(user_params->N_THREADS)
                     {
@@ -794,12 +792,12 @@ LOG_SUPER_DEBUG("Initialised heat");
                             zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(float)i/((float)zpp_interp_points_SFR-1.0);
 
                             if(flag_options->M_MIN_in_Mass) {
-                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf(M_MIN,  M_MIN_WDM));
-                                ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf(M_MIN,  M_MIN_WDM));
+                                Sigma_Tmin_grid[i] = sigma_z0(M_MIN);
+                                ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, M_MIN);
                             }
                             else {
-                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM));
-                                ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM));
+                                Sigma_Tmin_grid[i] = sigma_z0((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts));
+                                ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, (float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts));
                             }
                         }
                     }
@@ -1010,7 +1008,7 @@ LOG_SUPER_DEBUG("Initialised heat");
         } else {
             if(flag_options->M_MIN_in_Mass) {
 
-                if (FgtrM(zp, fmaxf(M_MIN,  M_MIN_WDM)) < 1e-15 )
+                if (FgtrM(zp, M_MIN) < 1e-15 )
                     NO_LIGHT = 1;
                 else
                     NO_LIGHT = 0;
@@ -1018,7 +1016,7 @@ LOG_SUPER_DEBUG("Initialised heat");
                 M_MIN_at_zp = M_MIN;
             } else {
 
-                if (FgtrM(zp, fmaxf((float)TtoM(zp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM)) < 1e-15 )
+                if (FgtrM(zp, (float)TtoM(zp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts)) < 1e-15 )
                     NO_LIGHT = 1;
                 else
                     NO_LIGHT = 0;
@@ -1188,10 +1186,10 @@ LOG_SUPER_DEBUG("Initialised heat");
                 }
                 else {
                     if(flag_options->M_MIN_in_Mass) {
-                        sigma_Tmin[R_ct] = sigma_z0(fmaxf(M_MIN, M_MIN_WDM));
+                        sigma_Tmin[R_ct] = sigma_z0(M_MIN);
                     }
                     else {
-                        sigma_Tmin[R_ct] = sigma_z0(fmaxf((float)TtoM(zpp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM));
+                        sigma_Tmin[R_ct] = sigma_z0((float)TtoM(zpp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts));
                     }
 
                     ST_over_PS[R_ct] = dzpp_for_evolve * pow(1+zpp, -(astro_params->X_RAY_SPEC_INDEX));
@@ -1396,10 +1394,10 @@ LOG_SUPER_DEBUG("Initialised heat");
                     }
                     else {
                         if(flag_options->M_MIN_in_Mass) {
-                            ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], fmaxf(M_MIN, M_MIN_WDM));
+                            ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], M_MIN);
                         }
                         else {
-                            ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], fmaxf((float)TtoM(zpp_for_evolve_list[R_ct], astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM));
+                            ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], (float)TtoM(zpp_for_evolve_list[R_ct], astro_params->X_RAY_Tvir_MIN, mu_for_Ts));
                         }
                     }
 

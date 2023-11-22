@@ -470,6 +470,48 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None, a
     return lib.ComputeTau(user_params(), cosmo_params(), astro_params(), flag_options(), len(redshifts), z, xHI)
 
 
+def matter_power_spectrum(*, k, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    
+    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+        {"user_params": user_params, "cosmo_params": cosmo_params,
+          "astro_params": astro_params, "flag_options":flag_options})
+    
+
+    # Convert the data to the right type
+    k = np.array(k, dtype="float32")
+    _k = ffi.cast("float *", ffi.from_buffer(k))
+
+    # Run the C code
+    ps_c =  lib.ComputeMatterPowerSpectrum(user_params(), cosmo_params(), astro_params(), flag_options(), _k, len(k))
+
+    ps = np.array([ps_c[i] for i in range(len(k))])
+    
+    lib.free(ps_c)
+    
+    return ps
+
+
+def sigma_z0(*, mass, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    
+    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+        {"user_params": user_params, "cosmo_params": cosmo_params,
+          "astro_params": astro_params, "flag_options":flag_options})
+    
+
+    # Convert the data to the right type
+    mass = np.array(mass, dtype="float32")
+    _mass = ffi.cast("float *", ffi.from_buffer(mass))
+
+    # Run the C code
+    sigma_c =  lib.ComputeSigmaZ0(user_params(), cosmo_params(), astro_params(), flag_options(), _mass, len(mass))
+
+    sigma = np.array([sigma_c[i] for i in range(len(mass))])
+    
+    lib.free(sigma_c)
+    
+    return sigma
+    
+
 def compute_luminosity_function(
     *,
     redshifts,

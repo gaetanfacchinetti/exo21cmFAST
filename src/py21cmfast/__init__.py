@@ -51,6 +51,8 @@ from .wrapper import (
     run_coeval,
     run_lightcone,
     spin_temperature,
+    matter_power_spectrum,
+    sigma_z0,
 )
 
 configure_logging()

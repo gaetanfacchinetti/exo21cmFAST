@@ -28,11 +28,6 @@ double get_M_min_ion(float z){
         MMIN = TtoM(z, astro_params_hf->ION_Tvir_MIN, 1.22);
     else // ionized IGM
         MMIN = TtoM(z, astro_params_hf->ION_Tvir_MIN, 0.6);
-
-    // check for WDM
-    if (flag_options_hf->PS_CUTOFF && ( MMIN < M_J_WDM()))
-        MMIN = M_J_WDM();
-    return MMIN;
 }
 
 // * initialization routine * //

@@ -515,14 +515,6 @@ LOG_SUPER_DEBUG("minimum source mass has been set: %f", M_MIN);
 
 LOG_SUPER_DEBUG("sigma table has been initialised");
 
-    // check for WDM
-
-    if (flag_options->PS_CUTOFF && ( M_MIN < M_J_WDM())){
-        LOG_WARNING("The default Jeans mass of %e Msun is smaller than the scale supressed by the effective pressure of WDM.", M_MIN);
-        M_MIN = M_J_WDM();
-        LOG_WARNING("Setting a new effective Jeans mass from WDM pressure supression of %e Msun", M_MIN);
-    }
-
     // ARE WE USING A DISCRETE HALO FIELD (identified in the ICs with FindHaloes.c and evolved  with PerturbHaloField.c)
     if(flag_options->USE_HALO_FIELD) {
         M_coll_unfiltered = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);

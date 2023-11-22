@@ -15,6 +15,7 @@ VERSION
 build_cffi.py
 bump
 changethelog.py
+compile.txt
 environment_dev.yml
 pyproject.toml
 setup.cfg
@@ -73,6 +74,7 @@ joss-paper/paper.bib
 joss-paper/paper.md
 joss-paper/xH_history.pdf
 joss-paper/yuxiangs-plot-small.png
+modifs/instructions_Quentin.txt
 src/exo21cmFAST.egg-info/PKG-INFO
 src/exo21cmFAST.egg-info/SOURCES.txt
 src/exo21cmFAST.egg-info/dependency_links.txt

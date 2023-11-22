@@ -208,9 +208,21 @@ the variables in astro_params and flag_options. That way I can remove the old im
 parameter in the global parameters, to put it in the astro_params (with some flag_options).
 
 - I do not add anything in Globals.h
-
-- I modified global_params.P_CUTOFF to flag_options_PS_CUTOFF
+- I modified global_params.P_CUTOFF to flag_options.PS_CUTOFF
 
 - Treated all modifications in UsefulFunctions.c adding two new parameters 
 -> astro_params : VOLUME_FACTOR_SHARP_K
 -> flag_options : PS_FILTER (replacing the old global_params : FILTER)
+
+- heating_helper_progs.c: removed the line corresponding to MMIN
+- IonisationBox.c: removed the line corresponding to MMIN
+- SpinTemperatureBox.c: removed completely the variable M_MIN_WDM 
+
+- ps.c
+-> changed dNdM_conditional precision to double
+-> removed M_J_WDM() completely
+-> reomved the global variable R_CUTOFF completely
+-> created a function power_spectrum (it was previously written three times)
+-> created a wrapper function matter_power_spectrum in the python code calling the new function ComputeMatterPOwerSpectrum in ps.c
+-> implemented the sharp-k window function in dsigma_dk and sigma_z0
+-> created a wrapper function sigma_z0 in the python code calling the new function ComputeSigmaZ0 in psc.c

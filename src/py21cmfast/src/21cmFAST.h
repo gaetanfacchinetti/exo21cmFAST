@@ -194,6 +194,13 @@ float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_param
                     struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                     int Npoints, float *redshifts, float *global_xHI);
 
+float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
+
+float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length);
+
+
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params,
                     struct AstroParams *astro_params, struct FlagOptions *flag_options);
 
@@ -203,6 +210,8 @@ void Broadcast_struct_global_UF(struct UserParams *user_params, struct CosmoPara
                                 struct AstroParams *astro_params, struct FlagOptions *flag_options);
 void Broadcast_struct_global_HF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                                 struct AstroParams *astro_params, struct FlagOptions *flag_options);
+
+
 
 void free_TsCalcBoxes(struct UserParams *user_params, struct FlagOptions *flag_options);
 void FreePhotonConsMemory();
