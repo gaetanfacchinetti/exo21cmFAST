@@ -491,6 +491,27 @@ def matter_power_spectrum(*, k, user_params=None, cosmo_params=None, astro_param
     return ps
 
 
+def transfer_function_nCDM(*, k, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    
+    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+        {"user_params": user_params, "cosmo_params": cosmo_params,
+          "astro_params": astro_params, "flag_options":flag_options})
+    
+
+    # Convert the data to the right type
+    k = np.array(k, dtype="float32")
+    _k = ffi.cast("float *", ffi.from_buffer(k))
+
+    # Run the C code
+    tf_c =  lib.ComputeTransferFunctionNCDM(user_params(), cosmo_params(), astro_params(), flag_options(), _k, len(k))
+
+    tf = np.array([tf_c[i] for i in range(len(k))])
+    
+    lib.free(tf_c)
+    
+    return tf
+
+
 def sigma_z0(*, mass, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     
     user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
@@ -510,6 +531,52 @@ def sigma_z0(*, mass, user_params=None, cosmo_params=None, astro_params=None, fl
     lib.free(sigma_c)
     
     return sigma
+
+
+def dsigmasqdm_z0(*, mass, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    
+    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+        {"user_params": user_params, "cosmo_params": cosmo_params,
+          "astro_params": astro_params, "flag_options":flag_options})
+    
+
+    # Convert the data to the right type
+    mass = np.array(mass, dtype="float32")
+    _mass = ffi.cast("float *", ffi.from_buffer(mass))
+
+    # Run the C code
+    dsigmasqdm_c =  lib.ComputeDSigmaSqDmZ0(user_params(), cosmo_params(), astro_params(), flag_options(), _mass, len(mass))
+
+    dsigmasqdm = np.array([dsigmasqdm_c[i] for i in range(len(mass))])
+    
+    lib.free(dsigmasqdm_c)
+    
+    return dsigmasqdm
+    
+
+def dndm_st(*, mass, z, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    
+    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+        {"user_params": user_params, "cosmo_params": cosmo_params,
+          "astro_params": astro_params, "flag_options":flag_options})
+
+    # enforce to not use interpolations tables are these may not have been created
+    user_params.update(USE_INTERPOLATION_TABLES=False)
+
+    # Convert the data to the right type
+    mass = np.array(mass, dtype="float32")
+    _mass = ffi.cast("float *", ffi.from_buffer(mass))
+
+    _z = ffi.cast("float", z)
+
+    # Run the C code
+    dndm_c =  lib.ComputeDNDMST(user_params(), cosmo_params(), astro_params(), flag_options(), _mass, z, len(mass))
+
+    dndm = np.array([dndm_c[i] for i in range(len(mass))])
+    
+    lib.free(dndm_c)
+    
+    return dndm
     
 
 def compute_luminosity_function(

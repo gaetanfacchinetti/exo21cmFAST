@@ -195,10 +195,21 @@ void free_ps(); /* deallocates the gsl structures from init_ps */
 double power_spectrum(double k); // Defines the matter power-spectrum
 double sigma_z0(double M); //calculates sigma at z=0 (no dicke)
 double power_in_k(double k); /* Returns the value of the linear power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
-double TFmdm(double k); //Eisenstein & Hu power spectrum transfer function
+
+double transfer_function(double k);
+double transfer_function_EH(double k);
+double transfer_function_BBKS(double k);
+double transfer_function_EBW(double k);
+double transfer_function_Peebles(double k);
+double transfer_function_WF(double k);
+double transfer_function_CLASS(double k);
+
+double transfer_function_abgd(double k, double alpha, double beta, double gamma, double delta);
+double transfer_function_nCDM(double k);
+
 void TFset_parameters();
 
-double TF_alpha_beta_gamma_delta(double k, double alpha, double beta, double gamma, double delta);
+
 double TF_CLASS(double k, int flag_int, int flag_dv); //transfer function of matter (flag_dv=0) and relative velocities (flag_dv=1) fluctuations from CLASS
 double power_in_vcb(double k); /* Returns the value of the DM-b relative velocity power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
 
@@ -236,55 +247,228 @@ void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoPara
     
 */
 double power_spectrum(double k)
-{
-    double p, T, gamma, q, aa, bb, cc;
-
-    // get the power spectrum.. choice of 5:
-    if (user_params_ps->POWER_SPECTRUM == 0){ // Eisenstein & Hu
-        T = TFmdm(k);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 1){ // BBKS
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb/cosmo_params_ps->OMm));
-        q = k / (cosmo_params_ps->hlittle*gamma);
-        T = (log(1.0+2.34*q)/(2.34*q)) *
-        pow( 1.0+3.89*q + pow(16.1*q, 2) + pow( 5.46*q, 3) + pow(6.71*q, 4), -0.25);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 2){ // Efstathiou,G., Bond,J.R., and White,S.D.M., MNRAS,258,1P (1992)
-        gamma = 0.25;
-        aa = 6.4/(cosmo_params_ps->hlittle*gamma);
-        bb = 3.0/(cosmo_params_ps->hlittle*gamma);
-        cc = 1.7/(cosmo_params_ps->hlittle*gamma);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) / pow( 1+pow( aa*k + pow(bb*k, 1.5) + pow(cc*k,2), 1.13), 2.0/1.13 );
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 3){ // Peebles, pg. 626
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb/cosmo_params_ps->OMm));
-        aa = 8.0 / (cosmo_params_ps->hlittle*gamma);
-        bb = 4.7 / pow(cosmo_params_ps->hlittle*gamma, 2);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) / pow(1 + aa*k + bb*k*k, 2);
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 4){ // White, SDM and Frenk, CS, 1991, 379, 52
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb/cosmo_params_ps->OMm));
-        aa = 1.7/(cosmo_params_ps->hlittle*gamma);
-        bb = 9.0/pow(cosmo_params_ps->hlittle*gamma, 1.5);
-        cc = 1.0/pow(cosmo_params_ps->hlittle*gamma, 2);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * 19400.0 / pow(1 + aa*k + bb*pow(k, 1.5) + cc*k*k, 2);
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 5){ // output of CLASS
-        T = TF_CLASS(k, 1, 0); //read from z=0 output of CLASS. Note, flag_int = 1 here always, since now we have to have initialized the interpolator for CLASS
-  	    p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-        if(user_params_ps->USE_RELATIVE_VELOCITIES) { //jbm:Add average relvel suppression
-          p *= 1.0 - A_VCB_PM*exp( -pow(log(k/KP_VCB_PM),2.0)/(2.0*SIGMAK_VCB_PM*SIGMAK_VCB_PM)); //for v=vrms
-        }
-    }
-    else{
-        LOG_ERROR("No such power spectrum defined: %i. Output is bogus.", user_params_ps->POWER_SPECTRUM);
-        Throw(ValueError);
-    }
-
-    return p;
+{   
+    return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function(k), 2) * pow(transfer_function_nCDM(k), 2);
 }
+
+/* 
+    transfer_function(double k)
+
+    matter transfer function according to the chosen model by the user
+
+    Params
+    ------
+    - k (double) mode in Mpc^{-1}
+*/
+double transfer_function(double k)
+{
+    switch(user_params_ps->POWER_SPECTRUM)
+    {
+        case(0): 
+            return transfer_function_EH(k);
+            break;
+
+        case(1): // BBKS
+            return transfer_function_BBKS(k);
+            break;
+        
+        case(2): // Efstathiou,G., Bond,J.R., and White,S.D.M., MNRAS,258,1P (1992)
+            return transfer_function_EBW(k);
+            break;
+
+        case(3): // Peebles, pg. 626
+            return transfer_function_Peebles(k);
+            break;
+
+        case(4): // White, SDM and Frenk, CS, 1991, 379, 52
+            return transfer_function_WF(k);
+            break;
+
+        case(5): // output of CLASS
+            return transfer_function_CLASS(k);
+            break;
+
+        default:
+            LOG_ERROR("No such power spectrum defined: %i. Output is bogus.", user_params_ps->POWER_SPECTRUM);
+            Throw(ValueError);
+
+    }
+
+}
+
+// FUNCTION transfer_function_EH is the power spectrum transfer function from Eisenstein & Hu ApJ, 1999, 511, 5
+double transfer_function_EH(double k)
+{
+    double q, gamma_eff, q_eff, TF_m, q_nu;
+
+    q = k*pow(theta_cmb,2)/omhh;
+    gamma_eff = sqrt(alpha_nu) + (1.0-sqrt(alpha_nu))/(1.0+pow(0.43*k*sound_horizon, 4));
+    q_eff = q/gamma_eff;
+    TF_m = log(E+1.84*beta_c*sqrt(alpha_nu)*q_eff);
+    TF_m /= TF_m + pow(q_eff,2) * (14.4 + 325.0/(1.0+60.5*pow(q_eff,1.11)));
+    q_nu = 3.92*q/sqrt(f_nu/N_nu);
+    TF_m *= 1.0 + (1.2*pow(f_nu,0.64)*pow(N_nu,0.3+0.6*f_nu)) / (pow(q_nu,-1.6)+pow(q_nu,0.8));
+
+    return TF_m;
+}
+
+// Initialises global parameters to compute transfer_function_EH
+void TFset_parameters()
+{
+    double z_drag, R_drag, R_equality, p_c, p_cb, f_c, f_cb, f_nub, k_equality;
+
+    LOG_DEBUG("Setting Transfer Function parameters.");
+
+    z_equality = 25000*omhh*pow(theta_cmb, -4) - 1.0;
+    k_equality = 0.0746*omhh/(theta_cmb*theta_cmb);
+
+    z_drag = 0.313*pow(omhh,-0.419) * (1 + 0.607*pow(omhh, 0.674));
+    z_drag = 1 + z_drag*pow(cosmo_params_ps->OMb*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle, 0.238*pow(omhh, 0.223));
+    z_drag *= 1291 * pow(omhh, 0.251) / (1 + 0.659*pow(omhh, 0.828));
+
+    y_d = (1 + z_equality) / (1.0 + z_drag);
+
+    R_drag = 31.5 * cosmo_params_ps->OMb*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle * pow(theta_cmb, -4) * 1000 / (1.0 + z_drag);
+    R_equality = 31.5 * cosmo_params_ps->OMb*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle * pow(theta_cmb, -4) * 1000 / (1.0 + z_equality);
+
+    sound_horizon = 2.0/3.0/k_equality * sqrt(6.0/R_equality) *
+    log( (sqrt(1+R_drag) + sqrt(R_drag+R_equality)) / (1.0 + sqrt(R_equality)) );
+
+    p_c = -(5 - sqrt(1 + 24*(1 - f_nu-f_baryon)))/4.0;
+    p_cb = -(5 - sqrt(1 + 24*(1 - f_nu)))/4.0;
+    f_c = 1 - f_nu - f_baryon;
+    f_cb = 1 - f_nu;
+    f_nub = f_nu+f_baryon;
+
+    alpha_nu = (f_c/f_cb) * (2*(p_c+p_cb)+5)/(4*p_cb+5.0);
+    alpha_nu *= 1 - 0.553*f_nub+0.126*pow(f_nub,3);
+    alpha_nu /= 1-0.193*sqrt(f_nu)+0.169*f_nu;
+    alpha_nu *= pow(1+y_d, p_c-p_cb);
+    alpha_nu *= 1+ (p_cb-p_c)/2.0 * (1.0+1.0/(4.0*p_c+3.0)/(4.0*p_cb+7.0))/(1.0+y_d);
+    beta_c = 1.0/(1.0-0.949*f_nub);
+}
+
+
+// Transfer function from BBKS - k in Mpc^{-1}
+double transfer_function_BBKS(double k)
+{
+    double gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb/cosmo_params_ps->OMm));
+    double q = k / (cosmo_params_ps->hlittle*gamma);
+    return sqrt( (log(1.0+2.34*q)/(2.34*q)) * pow( 1.0+3.89*q + pow(16.1*q, 2) + pow( 5.46*q, 3) + pow(6.71*q, 4), -0.25));
+}
+
+// Transfer function from Efstathiou,G., Bond,J.R., and White,S.D.M., MNRAS,258,1P (1992) - k in Mpc^{-1}
+double transfer_function_EBW(double k)
+{
+    double gamma = 0.25;
+    double aa = 6.4/(cosmo_params_ps->hlittle*gamma);
+    double bb = 3.0/(cosmo_params_ps->hlittle*gamma);
+    double cc = 1.7/(cosmo_params_ps->hlittle*gamma);
+
+    return 1.0/pow(1.0 + pow( aa*k + pow(bb*k, 1.5) + pow(cc*k,2), 1.13), 1.0/1.13);    
+}
+// Transfer function from Peebles, pg. 626- k in Mpc^{-1}
+double transfer_function_Peebles(double k)
+{
+    double gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb/cosmo_params_ps->OMm));
+    double aa = 8.0 / (cosmo_params_ps->hlittle*gamma);
+    double bb = 4.7 / pow(cosmo_params_ps->hlittle*gamma, 2);
+
+    return 1.0 / (1.0 + aa*k + bb*k*k);
+}
+// Transfer function from White, SDM and Frenk, CS, 1991, 379, 52- k in Mpc^{-1}
+double transfer_function_WF(double k)
+{
+    double gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb/cosmo_params_ps->OMm));
+    double aa = 1.7/(cosmo_params_ps->hlittle*gamma);
+    double bb = 9.0/pow(cosmo_params_ps->hlittle*gamma, 1.5);
+    double cc = 1.0/pow(cosmo_params_ps->hlittle*gamma, 2);
+    
+    return  139.2838 / (1.0 + aa*k + bb*pow(k, 1.5) + cc*k*k);
+}
+// Transfer function from CLASS - k in Mpc^{-1}
+double transfer_function_CLASS(double k)
+{
+    double T = TF_CLASS(k, 1, 0);
+    if(user_params_ps->USE_RELATIVE_VELOCITIES) // Add average relvel suppression
+        T *= sqrt(1.0 - A_VCB_PM*exp( -pow(log(k/KP_VCB_PM),2.0)/(2.0*SIGMAK_VCB_PM*SIGMAK_VCB_PM))); //for v=vrms
+
+    return T;
+}
+
+
+/*  
+    transfer_function_abgd(double k, double alpha, double beta, double gamma, double delta)
+    
+    parametrises the transfer function in an effective way that can capture WDM, (H+C)DM or (W+C)DM scenarios 
+    this parametrisation has been introduced in arXiv:2206.08188.
+    the case of traditional WDM is recovered from delta = 0, beta = 2*nu gamma = -5/nu 
+    with nu = 1.12 (arXiv:astro-ph/0501562) 
+
+    Params
+    ------
+    - k (double) mode in Mpc^{-1} 
+    - alpha (double) in Mpc (caracteristic scale)
+    - beta (double)
+    - gamma (double)
+    - delta (double)
+    
+    */
+double transfer_function_abgd(double k, double alpha, double beta, double gamma, double delta)
+{
+    return (1-delta) * pow(1 + pow(alpha * k, beta), gamma) + delta;
+}
+
+
+double transfer_function_nCDM(double k)
+{
+    if (!flag_options_ps->PS_CUTOFF)
+        return 1.0;
+
+    if (flag_options_ps->NCDM_MODEL == 0) // vanilla warm dark matter
+    {
+        double m_wdm = astro_params_ps->M_WDM;
+        
+        // cutoff parameter according to Q. Decant PhD thesis (in Mpc)
+        double alpha = 0.049;
+        if (m_wdm > 3.0)
+            alpha = (m_wdm < 6.0) ? 0.045 : 0.043;
+
+        alpha *= pow(omhh/0.25/m_wdm, 0.11) / m_wdm * 1.54518467138; // last term if 0.7^(-1.22)
+
+        // transfer function according to Viel,Lesgourgues, Haehnelt, Matarrese, Riotto arXiv:astro-ph/0501562
+        return transfer_function_abgd(k, alpha, 2 * 1.12, -5.0 / 1.12, 0.0);
+
+    }
+    else
+        return transfer_function_abgd(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->BETA_NCDM_TF, astro_params_ps->GAMMA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
+}
+
+
+/*
+    ComputeTransferFunctionNCDM(..., float *k, int length)
+
+    this function is called in the python wrapper transfer_function_nCDM()
+
+    returns a pointer to an array (to be freed in the python wrapper)
+    needs the length of the input array to allocate the output array
+*/
+float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) transfer_function_nCDM(k[i]);
+
+    return result;
+}
+
+
 
 /*
     ComputeMatterPowerSpectrum(..., float *k, int length)
@@ -425,79 +609,6 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
 }
 
 
-// FUNCTION TFmdm is the power spectrum transfer function from Eisenstein & Hu ApJ, 1999, 511, 5
-double TFmdm(double k){
-    double q, gamma_eff, q_eff, TF_m, q_nu;
-
-    q = k*pow(theta_cmb,2)/omhh;
-    gamma_eff=sqrt(alpha_nu) + (1.0-sqrt(alpha_nu))/(1.0+pow(0.43*k*sound_horizon, 4));
-    q_eff = q/gamma_eff;
-    TF_m= log(E+1.84*beta_c*sqrt(alpha_nu)*q_eff);
-    TF_m /= TF_m + pow(q_eff,2) * (14.4 + 325.0/(1.0+60.5*pow(q_eff,1.11)));
-    q_nu = 3.92*q/sqrt(f_nu/N_nu);
-    TF_m *= 1.0 + (1.2*pow(f_nu,0.64)*pow(N_nu,0.3+0.6*f_nu)) /
-    (pow(q_nu,-1.6)+pow(q_nu,0.8));
-
-    return TF_m;
-}
-
-
-void TFset_parameters(){
-    double z_drag, R_drag, R_equality, p_c, p_cb, f_c, f_cb, f_nub, k_equality;
-
-    LOG_DEBUG("Setting Transfer Function parameters.");
-
-    z_equality = 25000*omhh*pow(theta_cmb, -4) - 1.0;
-    k_equality = 0.0746*omhh/(theta_cmb*theta_cmb);
-
-    z_drag = 0.313*pow(omhh,-0.419) * (1 + 0.607*pow(omhh, 0.674));
-    z_drag = 1 + z_drag*pow(cosmo_params_ps->OMb*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle, 0.238*pow(omhh, 0.223));
-    z_drag *= 1291 * pow(omhh, 0.251) / (1 + 0.659*pow(omhh, 0.828));
-
-    y_d = (1 + z_equality) / (1.0 + z_drag);
-
-    R_drag = 31.5 * cosmo_params_ps->OMb*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle * pow(theta_cmb, -4) * 1000 / (1.0 + z_drag);
-    R_equality = 31.5 * cosmo_params_ps->OMb*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle * pow(theta_cmb, -4) * 1000 / (1.0 + z_equality);
-
-    sound_horizon = 2.0/3.0/k_equality * sqrt(6.0/R_equality) *
-    log( (sqrt(1+R_drag) + sqrt(R_drag+R_equality)) / (1.0 + sqrt(R_equality)) );
-
-    p_c = -(5 - sqrt(1 + 24*(1 - f_nu-f_baryon)))/4.0;
-    p_cb = -(5 - sqrt(1 + 24*(1 - f_nu)))/4.0;
-    f_c = 1 - f_nu - f_baryon;
-    f_cb = 1 - f_nu;
-    f_nub = f_nu+f_baryon;
-
-    alpha_nu = (f_c/f_cb) * (2*(p_c+p_cb)+5)/(4*p_cb+5.0);
-    alpha_nu *= 1 - 0.553*f_nub+0.126*pow(f_nub,3);
-    alpha_nu /= 1-0.193*sqrt(f_nu)+0.169*f_nu;
-    alpha_nu *= pow(1+y_d, p_c-p_cb);
-    alpha_nu *= 1+ (p_cb-p_c)/2.0 * (1.0+1.0/(4.0*p_c+3.0)/(4.0*p_cb+7.0))/(1.0+y_d);
-    beta_c = 1.0/(1.0-0.949*f_nub);
-}
-
-
-/*  
-    TF_alpha_beta_gamma_delta(double k, double alpha, double beta, double gamma, double delta)
-    
-    parametrises the transfer function in an effective way that can capture WDM, (H+C)DM or (W+C)DM scenarios 
-    this parametrisation has been introduced in arXiv:2206.08188.
-    the case of traditional WDM is recovered from delta = 0, beta = 2*nu gamma = -5/nu 
-    with nu = 1.12 (arXiv:astro-ph/0501562) 
-
-    Params
-    ------
-    - k (double) mode in Mpc^{-1} 
-    - alpha (double) in Mpc (caracteristic scale)
-    - beta (double)
-    - gamma (double)
-    - delta (double)
-    
-    */
-double TF_alpha_beta_gamma_delta(double k, double alpha, double beta, double gamma, double delta)
-{
-    return (1-delta) * pow(1 + pow(alpha * k, beta), gamma) + delta;
-}
 
 
 /*
@@ -602,60 +713,11 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
 }
 
 
-
 // Returns the value of the linear power spectrum DENSITY (i.e. <|delta_k|^2>/V)
 // at a given k mode linearly extrapolated to z=0
 double power_in_k(double k)
 {
-    double p, T, gamma, q, aa, bb, cc;
-
-    // get the power spectrum.. choice of 5:
-    if (user_params_ps->POWER_SPECTRUM == 0){ // Eisenstein & Hu
-        T = TFmdm(k);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-        //p = pow(k, POWER_INDEX - 0.05*log(k/0.05)) * T * T; //running, alpha=0.05
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 1){ // BBKS
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb/cosmo_params_ps->OMm));
-        q = k / (cosmo_params_ps->hlittle*gamma);
-        T = (log(1.0+2.34*q)/(2.34*q)) *
-        pow( 1.0+3.89*q + pow(16.1*q, 2) + pow( 5.46*q, 3) + pow(6.71*q, 4), -0.25);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 2){ // Efstathiou,G., Bond,J.R., and White,S.D.M., MNRAS,258,1P (1992)
-        gamma = 0.25;
-        aa = 6.4/(cosmo_params_ps->hlittle*gamma);
-        bb = 3.0/(cosmo_params_ps->hlittle*gamma);
-        cc = 1.7/(cosmo_params_ps->hlittle*gamma);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) / pow( 1+pow( aa*k + pow(bb*k, 1.5) + pow(cc*k,2), 1.13), 2.0/1.13 );
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 3){ // Peebles, pg. 626
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb)/(cosmo_params_ps->OMm));
-        aa = 8.0 / (cosmo_params_ps->hlittle*gamma);
-        bb = 4.7 / pow(cosmo_params_ps->hlittle*gamma, 2);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) / pow(1 + aa*k + bb*k*k, 2);
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 4){ // White, SDM and Frenk, CS, 1991, 379, 52
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb/cosmo_params_ps->OMm));
-        aa = 1.7/(cosmo_params_ps->hlittle*gamma);
-        bb = 9.0/pow(cosmo_params_ps->hlittle*gamma, 1.5);
-        cc = 1.0/pow(cosmo_params_ps->hlittle*gamma, 2);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * 19400.0 / pow(1 + aa*k + bb*pow(k, 1.5) + cc*k*k, 2);
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 5){ // output of CLASS
-        T = TF_CLASS(k, 1, 0); //read from z=0 output of CLASS. Note, flag_int = 1 here always, since now we have to have initialized the interpolator for CLASS
-  	    p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-        if(user_params_ps->USE_RELATIVE_VELOCITIES) { //jbm:Add average relvel suppression
-          p *= 1.0 - A_VCB_PM*exp( -pow(log(k/KP_VCB_PM),2.0)/(2.0*SIGMAK_VCB_PM*SIGMAK_VCB_PM)); //for v=vrms
-        }
-    }
-    else{
-        LOG_ERROR("No such power spectrum defined: %i. Output is bogus.", user_params_ps->POWER_SPECTRUM);
-        Throw(ValueError);
-    }
-
-
-    return p*TWOPI*PI*sigma_norm*sigma_norm;
+    return power_spectrum(k)*TWOPI*PI*sigma_norm*sigma_norm;
 }
 
 
@@ -766,55 +828,10 @@ void free_ps(){
  FUNCTION dsigmasqdm_z0(M)
  returns  d/dm (sigma^2) (see function sigma), in units of Msun^-1
  */
-double dsigmasq_dm(double k, void *params){
-    double p, w, T, gamma, q, aa, bb, cc, dwdr, drdm, kR;
+double dsigmasq_dm(double k, void *params)
+{
+    double dwdr, drdm, kR, w, Radius;
 
-    // get the power spectrum.. choice of 5:
-    if (user_params_ps->POWER_SPECTRUM == 0){ // Eisenstein & Hu ApJ, 1999, 511, 5
-        T = TFmdm(k);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-        //p = pow(k, POWER_INDEX - 0.05*log(k/0.05)) * T * T; //running, alpha=0.05
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 1){ // BBKS
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb)/(cosmo_params_ps->OMm));
-        q = k / (cosmo_params_ps->hlittle*gamma);
-        T = (log(1.0+2.34*q)/(2.34*q)) *
-        pow( 1.0+3.89*q + pow(16.1*q, 2) + pow( 5.46*q, 3) + pow(6.71*q, 4), -0.25);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 2){ // Efstathiou,G., Bond,J.R., and White,S.D.M., MNRAS,258,1P (1992)
-        gamma = 0.25;
-        aa = 6.4/(cosmo_params_ps->hlittle*gamma);
-        bb = 3.0/(cosmo_params_ps->hlittle*gamma);
-        cc = 1.7/(cosmo_params_ps->hlittle*gamma);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) / pow( 1+pow( aa*k + pow(bb*k, 1.5) + pow(cc*k,2), 1.13), 2.0/1.13 );
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 3){ // Peebles, pg. 626
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb)/(cosmo_params_ps->OMm));
-        aa = 8.0 / (cosmo_params_ps->hlittle*gamma);
-        bb = 4.7 / (cosmo_params_ps->hlittle*gamma);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) / pow(1 + aa*k + bb*k*k, 2);
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 4){ // White, SDM and Frenk, CS, 1991, 379, 52
-        gamma = cosmo_params_ps->OMm * cosmo_params_ps->hlittle * pow(E, -(cosmo_params_ps->OMb) - (cosmo_params_ps->OMb)/(cosmo_params_ps->OMm));
-        aa = 1.7/(cosmo_params_ps->hlittle*gamma);
-        bb = 9.0/pow(cosmo_params_ps->hlittle*gamma, 1.5);
-        cc = 1.0/pow(cosmo_params_ps->hlittle*gamma, 2);
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * 19400.0 / pow(1 + aa*k + pow(bb*k, 1.5) + cc*k*k, 2);
-    }
-    else if (user_params_ps->POWER_SPECTRUM == 5){ // JBM: CLASS
-      T = TF_CLASS(k, 1, 0); //read from z=0 output of CLASS
-        p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
-        if(user_params_ps->USE_RELATIVE_VELOCITIES) { //jbm:Add average relvel suppression
-          p *= 1.0 - A_VCB_PM*exp( -pow(log(k/KP_VCB_PM),2.0)/(2.0*SIGMAK_VCB_PM*SIGMAK_VCB_PM)); //for v=vrms
-        }
-      }
-    else{
-        LOG_ERROR("No such power spectrum defined: %i. Output is bogus.", user_params_ps->POWER_SPECTRUM);
-        Throw(ValueError);
-    }
-
-    double Radius;
     Radius = *(double *)params;
 
     // now get the value of the window function
@@ -830,7 +847,7 @@ double dsigmasq_dm(double k, void *params){
         //     dwdr = -1e8 * k / (R*1e3);
         drdm = 1.0 / (4.0*PI * cosmo_params_ps->OMm*RHOcrit * Radius*Radius);
     }
-    else if (flag_options_ps->PS_FILTER == 1){ // gaussian of width 1/R
+    else if (flag_options_ps->PS_FILTER == 2){ // gaussian of width 1/R
         w = pow(E, -kR*kR/2.0);
         dwdr = - k*kR * w;
         drdm = 1.0 / (pow(2*PI, 1.5) * cosmo_params_ps->OMm*RHOcrit * 3*Radius*Radius);
@@ -841,19 +858,27 @@ double dsigmasq_dm(double k, void *params){
     }
 
 //    return k*k*p*2*w*dwdr*drdm * d2fact;
-    return k*k*p*2*w*dwdr*drdm;
+    return k*k*power_spectrum(k)*2*w*dwdr*drdm;
 }
+
 double dsigmasqdm_z0(double M){
     double result, error, lower_limit, upper_limit;
     gsl_function F;
     double rel_tol  = FRACT_FLOAT_ERR*10; //<- relative tolerance
-    gsl_integration_workspace * w
-    = gsl_integration_workspace_alloc (1000);
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
     double kstart, kend;
 
-    double Radius;
-//    R = MtoR(M);
-    Radius = MtoR(M);
+
+    double Radius = MtoR(M);
+
+    // If the filter is sharp-k we do not need to integrate, the result is analytical
+    if (flag_options_ps->PS_FILTER == 1) 
+    {
+        double _k = 1.0/Radius;
+        double dr_dm = 1.0 / ( astro_params_ps->VOLUME_FACTOR_SHARP_K * cosmo_params_ps->OMm*RHOcrit * Radius*Radius);
+        return -  sigma_norm * sigma_norm * pow(_k, 4) * power_spectrum(_k) * 2 * dr_dm;
+    }
+
 
     // now lets do the integral for sigma and scale it with sigma_norm
     if(user_params_ps->POWER_SPECTRUM == 5){
@@ -884,7 +909,7 @@ double dsigmasqdm_z0(double M){
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol,1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag(&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
 
     if(status!=0) {
         LOG_ERROR("gsl integration error occured!");
@@ -898,6 +923,28 @@ double dsigmasqdm_z0(double M){
 //    return sigma_norm * sigma_norm * result /d2fact;
     return sigma_norm * sigma_norm * result;
 }
+
+
+float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) dsigmasqdm_z0(mass[i]);
+
+    return result;
+}
+
+
+
+
+
 
 /* sheth correction to delta crit */
 double sheth_delc(double del, double sig){
@@ -944,6 +991,28 @@ double dNdM_st(double growthf, double M){
 
     return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * sqrt(2./PI)*SHETH_A * (1+ pow(nuhat, -2*SHETH_p)) * nuhat * pow(E, -nuhat*nuhat/2.0);
 }
+
+float* ComputeDNDMST(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *mass, float z, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    double growthf = dicke(z);
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) dNdM_st(growthf, mass[i]);
+
+    return result;
+}
+
+
+
 
 /*
  FUNCTION dNdM_WatsonFOF(z, M)

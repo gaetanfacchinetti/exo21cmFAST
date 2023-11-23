@@ -228,10 +228,6 @@ class GlobalParams(StructInstanceWrapper):
         (Lehmer et al. 2013, 2015)
     NBINS_LF : int
         Number of bins for the luminosity function calculation.
-    M_WDM : float
-        Mass of WDM particle in keV. Ignored if `P_CUTOFF` is False.
-    g_x : float
-        Degrees of freedom of WDM particles; 1.5 for fermions.
     OMn : float
         Relative density of neutrinos in the universe.
     OMk : float
@@ -645,8 +641,10 @@ class FlagOptions(StructWithDefaults):
         0. tophat
         1. sharp-k
         2. gaussian
-    PS_CUTOFF:bool, optional
+    PS_CUTOFF: bool, optional
         Include the supression of power-spectrum on small scales see `NCDM_TRANSFER_FUNCTION`
+    NCDM_MODEL: int, optional
+        If `PS_CUTOFF`is true then tells the model we want to use for the power suppression
     """
 
     _ffi = ffi
@@ -665,6 +663,7 @@ class FlagOptions(StructWithDefaults):
         "FIX_VCB_AVG": False,
         "PS_FILTER": 0,
         "PS_CUTOFF": 0,
+        "NCDM_MODEL": 0,
     }
 
     @property
@@ -824,6 +823,8 @@ class AstroParams(StructWithDefaults):
     VOLUME_FACTOR_SHARP_K: float, optional
         Volume factor relating the mass M to the size R when using a sharp-k window function to evaluate the variance of the smoothed density field
         Default value is set to the "theoretical" value used by Lacey & Cole (1994) = 6*PI^2
+    M_WDM : float
+        Mass of WDM particle in keV. Ignored if `P_CUTOFF` is False.
     """
 
     _ffi = ffi
@@ -852,7 +853,12 @@ class AstroParams(StructWithDefaults):
         "BETA_LW": 0.6,
         "A_VCB": 1.0,
         "BETA_VCB": 1.8,
-        "VOLUME_FACTOR_SHARP_K": 59.2176264065
+        "VOLUME_FACTOR_SHARP_K": 59.2176264065,
+        "M_WDM": 4.0,
+        "ALPHA_NCDM_TF" : 1.0,
+        "BETA_NCDM_TF" : 0.0,
+        "GAMMA_NCDM_TF" : 0.0,
+        "DELTA_NCDM_TF" : 0.0, 
     }
 
     def __init__(

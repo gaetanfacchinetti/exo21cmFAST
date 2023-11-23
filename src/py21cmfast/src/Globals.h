@@ -56,8 +56,6 @@ struct GlobalParams{
 
     int NBINS_LF;
 
-    float M_WDM;
-    float g_x;
     float OMn;
     float OMk;
     float OMr;
@@ -131,8 +129,6 @@ extern struct GlobalParams global_params = {
 
     .NBINS_LF = 100,
 
-    .M_WDM = 2,
-    .g_x = 1.5,
     .OMn = 0.0,
     .OMk = 0.0,
     .OMr = 8.6e-5,

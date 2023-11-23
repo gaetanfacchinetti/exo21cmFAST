@@ -67,6 +67,11 @@ struct AstroParams{
     int N_RSD_STEPS;
 
     float VOLUME_FACTOR_SHARP_K;
+    float M_WDM;
+    float ALPHA_NCDM_TF;
+    float BETA_NCDM_TF;
+    float GAMMA_NCDM_TF;
+    float DELTA_NCDM_TF;
 };
 
 struct FlagOptions{
@@ -85,6 +90,7 @@ struct FlagOptions{
     bool FIX_VCB_AVG;
     int PS_FILTER;
     int PS_CUTOFF;
+    int NCDM_MODEL;
 };
 
 
@@ -197,8 +203,18 @@ float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_param
 float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
 
+float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                                struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length); 
+
 float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length);
+
+float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length);
+
+float* ComputeDNDMST(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *mass, float z, int length);
 
 
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params,

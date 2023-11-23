@@ -52,7 +52,10 @@ from .wrapper import (
     run_lightcone,
     spin_temperature,
     matter_power_spectrum,
+    transfer_function_nCDM,
     sigma_z0,
+    dsigmasqdm_z0,
+    dndm_st,
 )
 
 configure_logging()

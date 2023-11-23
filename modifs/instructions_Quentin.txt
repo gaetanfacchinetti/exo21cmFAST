@@ -225,4 +225,16 @@ parameter in the global parameters, to put it in the astro_params (with some fla
 -> created a function power_spectrum (it was previously written three times)
 -> created a wrapper function matter_power_spectrum in the python code calling the new function ComputeMatterPOwerSpectrum in ps.c
 -> implemented the sharp-k window function in dsigma_dk and sigma_z0
--> created a wrapper function sigma_z0 in the python code calling the new function ComputeSigmaZ0 in psc.c
+-> created a wrapper function sigma_z0 in the python code calling the new function ComputeSigmaZ0 in ps.c
+-> implemented the sharp-k window function in dsigmasqdm_z0
+-> created a wrapper function for dsigmasqdm_z0
+-> created two new functions transfer_function and transfer_function_nCDM
+-> created a wrapper function for transfer_function_nCDM
+-> created parameters in astro_params to feed transfer_function_nCDM along with some flag options
+-> created a wrapper function for dNdM_st
+
+-> issues encountered, when using the top hat windows function for a power-spectrum suppression
+    the integration routines is asked to reach a too high precision with a small number of points and
+    breaks down with integrating over the large scales where the power is suppressed. When we have 
+    power suppression we therefore have to use the sharp-k window function (maybe put a warning in
+    the inputs.py when defining the flag_options)
