@@ -807,8 +807,9 @@ class OutputStruct(StructWrapper, metaclass=ABCMeta):
     def _remove_array(self, k, force=False):
         state = self._array_state[k]
 
+        # Gaetan
         if not state.initialized:
-            warnings.warn(f"Trying to remove array that isn't yet created: {k}")
+        #    warnings.warn(f"Trying to remove array that isn't yet created: {k}")
             return
 
         if state.computed_in_mem and not state.on_disk and not force:

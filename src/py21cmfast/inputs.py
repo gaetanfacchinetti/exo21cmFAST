@@ -478,13 +478,14 @@ class UserParams(StructWithDefaults):
     def USE_INTERPOLATION_TABLES(self):
         """Whether to use interpolation tables for integrals, speeding things up."""
         if self._USE_INTERPOLATION_TABLES is None:
-            warnings.warn(
-                "The USE_INTERPOLATION_TABLES setting has changed in v3.1.2 to be "
-                "default True. You can likely ignore this warning, but if you relied on"
-                "having USE_INTERPOLATION_TABLES=False by *default*, please set it "
-                "explicitly. To silence this warning, set it explicitly to True. This"
-                "warning will be removed in v4."
-            )
+            # Gaetan
+            # warnings.warn(
+            #     "The USE_INTERPOLATION_TABLES setting has changed in v3.1.2 to be "
+            #     "default True. You can likely ignore this warning, but if you relied on"
+            #     "having USE_INTERPOLATION_TABLES=False by *default*, please set it "
+            #     "explicitly. To silence this warning, set it explicitly to True. This"
+            #     "warning will be removed in v4."
+            # )
             self._USE_INTERPOLATION_TABLES = True
 
         return self._USE_INTERPOLATION_TABLES
@@ -655,6 +656,7 @@ class FlagOptions(StructWithDefaults):
         "USE_CMB_HEATING": True,
         "USE_LYA_HEATING": True,
         "USE_MASS_DEPENDENT_ZETA": False,
+        "USE_VELS_AUX": False, # set by default to the same value than user_params.USE_RELATIVE_VELOCITIES
         "SUBCELL_RSD": False,
         "INHOMO_RECO": False,
         "USE_TS_FLUCT": False,

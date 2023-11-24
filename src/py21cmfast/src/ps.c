@@ -193,6 +193,11 @@ void gauleg(float x1, float x2, float x[], float w[], int n);
 void init_ps(); /* initialize global variables, MUST CALL THIS FIRST!!! */
 void free_ps(); /* deallocates the gsl structures from init_ps */
 double power_spectrum(double k); // Defines the matter power-spectrum
+double power_spectrum_LCDM(double k); 
+
+double window_function(double kR);
+double dsigma_dk(double k, void *params);
+double dsigma_dk_LCDM(double k, void *params);
 double sigma_z0(double M); //calculates sigma at z=0 (no dicke)
 double power_in_k(double k); /* Returns the value of the linear power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
 
@@ -205,6 +210,7 @@ double transfer_function_WF(double k);
 double transfer_function_CLASS(double k);
 
 double transfer_function_abgd(double k, double alpha, double beta, double gamma, double delta);
+double transfer_function_sharp(double k, double alpha, double delta);
 double transfer_function_nCDM(double k);
 
 void TFset_parameters();
@@ -249,6 +255,11 @@ void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoPara
 double power_spectrum(double k)
 {   
     return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function(k), 2) * pow(transfer_function_nCDM(k), 2);
+}
+
+double power_spectrum_LCDM(double k)
+{
+    return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function(k), 2);
 }
 
 /* 
@@ -420,6 +431,18 @@ double transfer_function_abgd(double k, double alpha, double beta, double gamma,
 }
 
 
+double transfer_function_sharp(double k, double alpha, double delta)
+{
+
+    //LOG_DEBUG("We enter this function, %e, %e, %e, %e", alpha, delta, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
+    
+    if (k < 1.0/alpha) 
+        return 1.0; 
+    else
+        return delta;
+}
+
+
 double transfer_function_nCDM(double k)
 {
     if (!flag_options_ps->PS_CUTOFF)
@@ -440,8 +463,17 @@ double transfer_function_nCDM(double k)
         return transfer_function_abgd(k, alpha, 2 * 1.12, -5.0 / 1.12, 0.0);
 
     }
-    else
+    else if (flag_options_ps->NCDM_MODEL == 1)
         return transfer_function_abgd(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->BETA_NCDM_TF, astro_params_ps->GAMMA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
+    else if (flag_options_ps->NCDM_MODEL == 2)
+    {
+        return transfer_function_sharp(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
+    }
+    else
+    {
+        LOG_ERROR("No such NCDM_MODEL defined: %i. Output is bogus.", flag_options_ps->NCDM_MODEL);
+        Throw(ValueError);
+    }     
 }
 
 
@@ -501,27 +533,10 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
 
 
 
-// FUNCTION sigma_z0(M)
-// Returns the standard deviation of the normalized, density excess (delta(x)) field,
-// smoothed on the comoving scale of M (see filter definitions for M<->R conversion).
-// The sigma is evaluated at z=0, with the time evolution contained in the dicke(z) factor,
-// i.e. sigma(M,z) = sigma_z0(m) * dicke(z)
+double window_function(double kR)
+{
 
-// normalized so that sigma_z0(M->8/h Mpc) = SIGMA8 in ../Parameter_files/COSMOLOGY.H
-
-// NOTE: volume is normalized to = 1, so this is equvalent to the mass standard deviation
-
-// M is in solar masses
-
-// References: Padmanabhan, pg. 210, eq. 5.107
-double dsigma_dk(double k, void *params){
-   
-    double p = power_spectrum(k);
-    double Radius, kR, w;
-
-    Radius = *(double *)params;
-
-    kR = k*Radius;
+    double w;
 
     if ( (flag_options_ps->PS_FILTER == 0) || (sigma_norm < 0) ) // top hat
     { 
@@ -541,7 +556,34 @@ double dsigma_dk(double k, void *params){
         LOG_ERROR("No such filter: %i. Output is bogus.", flag_options_ps->PS_FILTER);
         Throw(ValueError);
     }
-    return k*k*p*w*w;
+
+    return w;
+}
+
+
+
+// FUNCTION sigma_z0(M)
+// Returns the standard deviation of the normalized, density excess (delta(x)) field,
+// smoothed on the comoving scale of M (see filter definitions for M<->R conversion).
+// The sigma is evaluated at z=0, with the time evolution contained in the dicke(z) factor,
+// i.e. sigma(M,z) = sigma_z0(m) * dicke(z)
+
+// normalized so that sigma_z0(M->8/h Mpc) = SIGMA8 in ../Parameter_files/COSMOLOGY.H
+
+// NOTE: volume is normalized to = 1, so this is equvalent to the mass standard deviation
+
+// M is in solar masses
+
+// References: Padmanabhan, pg. 210, eq. 5.107
+double dsigma_dk(double lnk, void *params){
+   
+    double k = exp(lnk);
+    double p = power_spectrum(k);
+    double Radius = *(double *)params;
+    double kR = k*Radius;
+    double w = window_function(kR);
+
+    return k*k*p*w*w * k;  // k*k*p*w*w
 }
 
 double sigma_z0(double M){
@@ -560,14 +602,20 @@ double sigma_z0(double M){
       kend = fmin(350.0/Radius, KTOP_CLASS);
     }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at KBOT_CLASS,~1e-5 Mpc-1 since the CLASS transfer function has a max!
     else{
-      kstart = 1.0e-99/Radius;
-      kend = 350.0/Radius;
+        kstart = 1e-8; //1.0e-99/Radius;
+        kend = 350.0/Radius;
     }
 
     
      // in sharpK we limit the window
-    lower_limit = kstart;//log(kstart);
-    (flag_options_ps->PS_FILTER != 1) ? upper_limit = kend : fmin(kend, 1.0/Radius);//log(kend);
+    lower_limit = log(kstart);
+
+    if (flag_options_ps->PS_FILTER == 1)  
+        upper_limit = log(fmin(kend, 1.0/Radius)); //log(kend);
+    else
+        upper_limit = log(kend);
+
+    LOG_DEBUG("lower_limit = %e, upper_limit = %e, radius = %e, %e, %e", lower_limit, upper_limit, Radius, kend, log(fmin(kend, 1.0/Radius)));
 
 
     F.function = &dsigma_dk;
@@ -577,7 +625,7 @@ double sigma_z0(double M){
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol,1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
 
     if(status!=0) {
         LOG_ERROR("gsl integration error occured!");
@@ -743,6 +791,21 @@ double power_in_vcb(double k){
 }
 
 
+
+
+
+double dsigma_dk_LCDM(double k, void *params)
+{
+   
+    double Radius = *(double *)params;
+    double kR = k*Radius;
+    double w = window_function(kR);
+    double p = power_spectrum_LCDM(k);
+  
+    return k*k*p*w*w;
+}
+
+
 void init_ps(){
     double result, error, lower_limit, upper_limit;
     gsl_function F;
@@ -786,7 +849,7 @@ void init_ps(){
 
     LOG_DEBUG("Initializing Power Spectrum with lower_limit=%e, upper_limit=%e, rel_tol=%e, radius_8=%g", lower_limit,upper_limit, rel_tol, Radius_8);
 
-    F.function = &dsigma_dk;
+    F.function = &dsigma_dk_LCDM;
     F.params = &Radius_8;
 
     int status;
