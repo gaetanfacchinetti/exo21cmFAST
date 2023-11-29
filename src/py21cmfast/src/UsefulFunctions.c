@@ -192,6 +192,37 @@ double RtoM(double R){
     Throw ValueError;
 }
 
+float* ComputeMtoR(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
+{
+
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) MtoR(mass[i]);
+
+    return result;
+}
+
+
+float* ComputeRtoM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *radius, int length) 
+{
+
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) RtoM(radius[i]);
+
+    return result;
+}
+
+
+
+
+
 /*
  T in K, M in Msun, mu is mean molecular weight
  from Barkana & Loeb 2001

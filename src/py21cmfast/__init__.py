@@ -56,6 +56,8 @@ from .wrapper import (
     sigma_z0,
     dsigmasqdm_z0,
     dndm_st,
+    mass_to_radius,
+    radius_to_mass,
 )
 
 configure_logging()

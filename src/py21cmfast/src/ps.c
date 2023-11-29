@@ -463,12 +463,10 @@ double transfer_function_nCDM(double k)
         return transfer_function_abgd(k, alpha, 2 * 1.12, -5.0 / 1.12, 0.0);
 
     }
-    else if (flag_options_ps->NCDM_MODEL == 1)
+    else if (flag_options_ps->NCDM_MODEL == 1) // alpha beta gamma delta parametrisation of cutoff
         return transfer_function_abgd(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->BETA_NCDM_TF, astro_params_ps->GAMMA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
-    else if (flag_options_ps->NCDM_MODEL == 2)
-    {
+    else if (flag_options_ps->NCDM_MODEL == 2) // sharp transfer function
         return transfer_function_sharp(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
-    }
     else
     {
         LOG_ERROR("No such NCDM_MODEL defined: %i. Output is bogus.", flag_options_ps->NCDM_MODEL);
@@ -532,7 +530,12 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
 
 
 
+/* 
+    window function(double kR)
 
+    returns the value of window function chosen according 
+    to the flag_option PS_FILTER
+*/
 double window_function(double kR)
 {
 
@@ -545,7 +548,7 @@ double window_function(double kR)
     }
     else if (flag_options_ps->PS_FILTER == 1)  // sharpK
     {
-        kR <= 1 ? w = 1.0 : 0.0; // in practice we do not use that one but rather truncate the integral
+        kR <= 1 ? w = 1.0 : 0.0; // in practice we do not use that one but rather truncate the integrals
     }
     else if (flag_options_ps->PS_FILTER == 2)  // gaussian of width 1/R
     {
@@ -575,7 +578,7 @@ double window_function(double kR)
 // M is in solar masses
 
 // References: Padmanabhan, pg. 210, eq. 5.107
-double dsigma_dk(double lnk, void *params){
+double dsigma_dlnk(double lnk, void *params){
    
     double k = exp(lnk);
     double p = power_spectrum(k);
@@ -602,23 +605,22 @@ double sigma_z0(double M){
       kend = fmin(350.0/Radius, KTOP_CLASS);
     }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at KBOT_CLASS,~1e-5 Mpc-1 since the CLASS transfer function has a max!
     else{
-        kstart = 1e-8; //1.0e-99/Radius;
+        kstart = 1.0e-99/Radius;
         kend = 350.0/Radius;
     }
 
-    
-     // in sharpK we limit the window
     lower_limit = log(kstart);
 
+    // for a sharp-k window function we truncate the intrgral
     if (flag_options_ps->PS_FILTER == 1)  
-        upper_limit = log(fmin(kend, 1.0/Radius)); //log(kend);
+        upper_limit = log(fmin(kend, 1.0/Radius));
     else
         upper_limit = log(kend);
 
     LOG_DEBUG("lower_limit = %e, upper_limit = %e, radius = %e, %e, %e", lower_limit, upper_limit, Radius, kend, log(fmin(kend, 1.0/Radius)));
 
 
-    F.function = &dsigma_dk;
+    F.function = &dsigma_dlnk;
     F.params = &Radius;
 
     int status;
@@ -793,7 +795,12 @@ double power_in_vcb(double k){
 
 
 
+/* 
+    dsigma_dk_LCDM(double k, void *params)
 
+    returns the integrand of the smoothed variance
+    for a LCDM power spectrum
+*/
 double dsigma_dk_LCDM(double k, void *params)
 {
    

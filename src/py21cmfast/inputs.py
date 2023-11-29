@@ -637,14 +637,14 @@ class FlagOptions(StructWithDefaults):
         Determines whether to use a fixed vcb=VAVG (*regardless* of USE_RELATIVE_VELOCITIES). It includes the average effect of velocities but not its fluctuations. See Muñoz+21 (2110.13919).
     USE_VELS_AUX: bool, optional
         Auxiliary variable (not input) to check if minihaloes are being used without relative velocities and complain
-    PS_FILTER: int, optional
+    PS_FILTER: int or str, optional
         Filter to use for smoothing the power spectrum
-        0. tophat
-        1. sharp-k
-        2. gaussian
+        0. TOPHAT
+        1. SHARPK
+        2. GAUSSIAN
     PS_CUTOFF: bool, optional
         Include the supression of power-spectrum on small scales see `NCDM_TRANSFER_FUNCTION`
-    NCDM_MODEL: int, optional
+    NCDM_MODEL: int or str, optional
         If `PS_CUTOFF`is true then tells the model we want to use for the power suppression
     """
 
@@ -667,6 +667,9 @@ class FlagOptions(StructWithDefaults):
         "PS_CUTOFF": 0,
         "NCDM_MODEL": 0,
     }
+
+    _ps_filter_models = ["TOPHAT", "SHARPK", "GAUSSIAN"]
+    _ncdm_models = ["WDM", "ABGD", "SHARP"]
 
     @property
     def USE_HALO_FIELD(self):
@@ -727,6 +730,47 @@ class FlagOptions(StructWithDefaults):
             "Automatically setting PHOTON_CONS to False."
         )
         return False
+    
+    @property 
+    def PS_FILTER(self):
+        """ Translate PS_FILTER string into an int """
+
+        if isinstance(self._PS_FILTER, str):
+            val = self._ps_filter_models.index(self._PS_FILTER.upper())
+        else:
+            val = self._PS_FILTER
+
+        try:
+            val = int(val)
+        except (ValueError, TypeError) as e:
+            raise ValueError("Invalid value for PS_FILTER") from e
+
+        if not 0 <= val < len(self._ps_filter_models):
+            raise ValueError(f"PS_FILTER must be an int between 0 and {len(self._ps_filter_models) - 1}")
+
+        return val
+    
+    @property
+    def NCDM_MODEL(self): 
+        """ Translate NCDM_MODEL string into an int """
+
+        if isinstance(self._NCDM_MODEL, str): 
+            val = self._ncdm_models.index(self._NCDM_MODEL.upper())
+        else:
+            val = self._NCDM_MODEL
+
+        try:
+            val = int(val)
+        except (ValueError, TypeError) as e:
+            raise ValueError("Invalid value for NCDM_MODEL") from e
+
+        if not 0 <= val < len(self._ncdm_models):
+            raise ValueError(f"NCDM_MODEL must be an int between 0 and {len(self._ncdm_models) - 1}")
+
+        return val
+
+
+
 
 
 class AstroParams(StructWithDefaults):

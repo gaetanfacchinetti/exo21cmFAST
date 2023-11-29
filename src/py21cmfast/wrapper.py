@@ -470,89 +470,51 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None, a
     return lib.ComputeTau(user_params(), cosmo_params(), astro_params(), flag_options(), len(redshifts), z, xHI)
 
 
-def matter_power_spectrum(*, k, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+def matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    return  generic_c_call(k, lib.ComputeMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
+
+def transfer_function_nCDM(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    return  generic_c_call(k, lib.ComputeTransferFunctionNCDM, user_params, cosmo_params, astro_params, flag_options)
+
+def sigma_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    return generic_c_call(mass, lib.ComputeSigmaZ0, user_params, cosmo_params, astro_params, flag_options)
+
+def mass_to_radius(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    return generic_c_call(mass, lib.ComputeMtoR, user_params, cosmo_params, astro_params, flag_options)
+
+def radius_to_mass(radius, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    return generic_c_call(radius, lib.ComputeRtoM, user_params, cosmo_params, astro_params, flag_options)
+
+def dsigmasqdm_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    return generic_c_call(mass, lib.ComputeDSigmaSqDmZ0, user_params, cosmo_params, astro_params, flag_options)
+    
+
+def generic_c_call(var, c_func, user_params=None, cosmo_params=None, astro_params=None, flag_options=None, **kwargs):
     
     user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
         {"user_params": user_params, "cosmo_params": cosmo_params,
           "astro_params": astro_params, "flag_options":flag_options})
     
+    res_list = isinstance(var, (list, np.ndarray))
+
+    if res_list is False:
+        var = [var]
 
     # Convert the data to the right type
-    k = np.array(k, dtype="float32")
-    _k = ffi.cast("float *", ffi.from_buffer(k))
+    var = np.array(var, dtype="float32")
+    _var = ffi.cast("float *", ffi.from_buffer(var))
 
     # Run the C code
-    ps_c =  lib.ComputeMatterPowerSpectrum(user_params(), cosmo_params(), astro_params(), flag_options(), _k, len(k))
+    res_c =  c_func(user_params(), cosmo_params(), astro_params(), flag_options(), _var, len(var))
+    res = np.array([res_c[i] for i in range(len(var))])
+    lib.free(res_c)
 
-    ps = np.array([ps_c[i] for i in range(len(k))])
-    
-    lib.free(ps_c)
-    
-    return ps
-
-
-def transfer_function_nCDM(*, k, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    
-    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
-        {"user_params": user_params, "cosmo_params": cosmo_params,
-          "astro_params": astro_params, "flag_options":flag_options})
-    
-
-    # Convert the data to the right type
-    k = np.array(k, dtype="float32")
-    _k = ffi.cast("float *", ffi.from_buffer(k))
-
-    # Run the C code
-    tf_c =  lib.ComputeTransferFunctionNCDM(user_params(), cosmo_params(), astro_params(), flag_options(), _k, len(k))
-
-    tf = np.array([tf_c[i] for i in range(len(k))])
-    
-    lib.free(tf_c)
-    
-    return tf
+    if res_list is True:
+        return res
+    else: 
+        return res[0]
 
 
-def sigma_z0(*, mass, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    
-    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
-        {"user_params": user_params, "cosmo_params": cosmo_params,
-          "astro_params": astro_params, "flag_options":flag_options})
-    
-
-    # Convert the data to the right type
-    mass = np.array(mass, dtype="float32")
-    _mass = ffi.cast("float *", ffi.from_buffer(mass))
-
-    # Run the C code
-    sigma_c =  lib.ComputeSigmaZ0(user_params(), cosmo_params(), astro_params(), flag_options(), _mass, len(mass))
-
-    sigma = np.array([sigma_c[i] for i in range(len(mass))])
-    
-    lib.free(sigma_c)
-    
-    return sigma
-
-
-def dsigmasqdm_z0(*, mass, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    
-    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
-        {"user_params": user_params, "cosmo_params": cosmo_params,
-          "astro_params": astro_params, "flag_options":flag_options})
-    
-
-    # Convert the data to the right type
-    mass = np.array(mass, dtype="float32")
-    _mass = ffi.cast("float *", ffi.from_buffer(mass))
-
-    # Run the C code
-    dsigmasqdm_c =  lib.ComputeDSigmaSqDmZ0(user_params(), cosmo_params(), astro_params(), flag_options(), _mass, len(mass))
-
-    dsigmasqdm = np.array([dsigmasqdm_c[i] for i in range(len(mass))])
-    
-    lib.free(dsigmasqdm_c)
-    
-    return dsigmasqdm
-    
 
 def dndm_st(*, mass, z, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     
