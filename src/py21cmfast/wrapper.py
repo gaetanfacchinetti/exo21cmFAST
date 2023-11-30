@@ -488,6 +488,15 @@ def radius_to_mass(radius, *, user_params=None, cosmo_params=None, astro_params=
 def dsigmasqdm_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     return generic_c_call(mass, lib.ComputeDSigmaSqDmZ0, user_params, cosmo_params, astro_params, flag_options)
     
+def dndm(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    # enforce to not use interpolations tables are these may not have been created
+    user_params.update(USE_INTERPOLATION_TABLES=False)
+    return generic_c_call_z(mass, z, lib.ComputeDNDM, user_params, cosmo_params, astro_params, flag_options)
+
+def f_gtr_mass(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None): 
+    user_params.update(USE_INTERPOLATION_TABLES=False)
+    return generic_c_call_z(mass, z, lib.ComputeFgtrMGeneral, user_params, cosmo_params, astro_params, flag_options)
+
 
 def generic_c_call(var, c_func, user_params=None, cosmo_params=None, astro_params=None, flag_options=None, **kwargs):
     
@@ -515,30 +524,33 @@ def generic_c_call(var, c_func, user_params=None, cosmo_params=None, astro_param
         return res[0]
 
 
-
-def dndm_st(*, mass, z, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+def generic_c_call_z(var, z, c_func, user_params=None, cosmo_params=None, astro_params=None, flag_options=None):
     
     user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
         {"user_params": user_params, "cosmo_params": cosmo_params,
           "astro_params": astro_params, "flag_options":flag_options})
 
-    # enforce to not use interpolations tables are these may not have been created
-    user_params.update(USE_INTERPOLATION_TABLES=False)
+    res_list = isinstance(var, (list, np.ndarray))
+
+    if res_list is False:
+        var = [var]
 
     # Convert the data to the right type
-    mass = np.array(mass, dtype="float32")
-    _mass = ffi.cast("float *", ffi.from_buffer(mass))
-
-    _z = ffi.cast("float", z)
+    var = np.array(var, dtype="float32")
+    _var = ffi.cast("float *", ffi.from_buffer(var))
+    _z   = ffi.cast("float", z)
 
     # Run the C code
-    dndm_c =  lib.ComputeDNDMST(user_params(), cosmo_params(), astro_params(), flag_options(), _mass, z, len(mass))
+    res_c =  c_func(user_params(), cosmo_params(), astro_params(), flag_options(), _var, _z, len(var))
 
-    dndm = np.array([dndm_c[i] for i in range(len(mass))])
+    res = np.array([res_c[i] for i in range(len(var))])
     
-    lib.free(dndm_c)
+    lib.free(res_c)
     
-    return dndm
+    if res_list is True:
+        return res
+    else: 
+        return res[0]
     
 
 def compute_luminosity_function(

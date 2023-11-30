@@ -199,6 +199,8 @@ int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cos
 float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                     struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                     int Npoints, float *redshifts, float *global_xHI);
+
+/* Function called by the python wrapper interface */         
 float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
 float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
@@ -211,12 +213,13 @@ float* ComputeMtoR(struct UserParams *user_params, struct CosmoParams *cosmo_par
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length);
 float* ComputeRtoM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *radius, int length); 
-                    
-
-float* ComputeDNDMST(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                         float *mass, float z, int length);
-
+float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *mass, float z, int length);
+/* ---------------------------------------------- */
 
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params,
                     struct AstroParams *astro_params, struct FlagOptions *flag_options);

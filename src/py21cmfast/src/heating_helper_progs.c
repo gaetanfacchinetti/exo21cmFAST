@@ -28,6 +28,8 @@ double get_M_min_ion(float z){
         MMIN = TtoM(z, astro_params_hf->ION_Tvir_MIN, 1.22);
     else // ionized IGM
         MMIN = TtoM(z, astro_params_hf->ION_Tvir_MIN, 0.6);
+
+    return MMIN;
 }
 
 // * initialization routine * //

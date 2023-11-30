@@ -55,9 +55,10 @@ from .wrapper import (
     transfer_function_nCDM,
     sigma_z0,
     dsigmasqdm_z0,
-    dndm_st,
+    dndm,
     mass_to_radius,
     radius_to_mass,
+    f_gtr_mass,
 )
 
 configure_logging()

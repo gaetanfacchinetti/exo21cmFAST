@@ -240,6 +240,15 @@ void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoPara
     flag_options_ps = flag_options;
 }
 
+//
+//
+// Part 1. 
+//
+// ------------------------------------- //
+// ------------------------------------- //
+/* Power spectrum and transfer functions */
+// ------------------------------------- //
+// ------------------------------------- //
 
 /* 
     power_spectrum(double k)
@@ -423,26 +432,42 @@ double transfer_function_CLASS(double k)
     - beta (double)
     - gamma (double)
     - delta (double)
-    
-    */
+*/
 double transfer_function_abgd(double k, double alpha, double beta, double gamma, double delta)
 {
     return (1-delta) * pow(1 + pow(alpha * k, beta), gamma) + delta;
 }
 
-
-double transfer_function_sharp(double k, double alpha, double delta)
-{
-
-    //LOG_DEBUG("We enter this function, %e, %e, %e, %e", alpha, delta, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
+/*  
+    transfer_function_sharp(double k, double R, double frac)
     
-    if (k < 1.0/alpha) 
+    parametrises a simple transfer function
+
+    Params
+    ------
+    - k (double) mode in Mpc^{-1} 
+    - R (double) in Mpc (caracteristic scale)
+    - frac (fouble) percentage 
+*/
+double transfer_function_sharp(double k, double R, double frac)
+{
+    if (k < 1.0/R) 
         return 1.0; 
     else
-        return delta;
+        return frac;
 }
 
+/*
+    transfer_function_nCDM(double k)
 
+    returns the transfer function (ratio of true nCDM power spectrum 
+    to CDM power spectrum) for the different models chosen with the
+    flag option NCDM_MODEL
+
+    Params
+    ------
+    - k (double) mode in Mpc^{-1}
+*/
 double transfer_function_nCDM(double k)
 {
     if (!flag_options_ps->PS_CUTOFF)
@@ -457,7 +482,7 @@ double transfer_function_nCDM(double k)
         if (m_wdm > 3.0)
             alpha = (m_wdm < 6.0) ? 0.045 : 0.043;
 
-        alpha *= pow(omhh/0.25/m_wdm, 0.11) / m_wdm * 1.54518467138; // last term if 0.7^(-1.22)
+        alpha *= pow(omhh/0.25/m_wdm, 0.11) / m_wdm * 1.54518467138; // the last term is 0.7^(-1.22)
 
         // transfer function according to Viel,Lesgourgues, Haehnelt, Matarrese, Riotto arXiv:astro-ph/0501562
         return transfer_function_abgd(k, alpha, 2 * 1.12, -5.0 / 1.12, 0.0);
@@ -473,192 +498,6 @@ double transfer_function_nCDM(double k)
         Throw(ValueError);
     }     
 }
-
-
-/*
-    ComputeTransferFunctionNCDM(..., float *k, int length)
-
-    this function is called in the python wrapper transfer_function_nCDM()
-
-    returns a pointer to an array (to be freed in the python wrapper)
-    needs the length of the input array to allocate the output array
-*/
-float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
-{
-
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    init_ps();
-
-    float* result = malloc(length * sizeof(float));
-
-    for (int i = 0; i < length; i++) 
-        result[i] = (float) transfer_function_nCDM(k[i]);
-
-    return result;
-}
-
-
-
-/*
-    ComputeMatterPowerSpectrum(..., float *k, int length)
-
-    from the power_spectrum function evaluates the matter power spectrum
-    this function is called in the python wrapper matter_power_spectrum()
-
-    returns a pointer to an array (to be freed in the python wrapper)
-    needs the length of the input array to allocate the output array
-*/
-float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
-{
-
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    init_ps();
-
-    float* result = malloc(length * sizeof(float));
-
-    // Uncomment if you want to evaluate the power spectrum amplitude in the form As * D^2(0) where D is the growth function
-    // float k0 = 0.05; // reference value of k0 in Mpc^{-1}
-    // float AsD2 = 25.0 / 4.0 * 1e+28 * pow(sigma_norm * omhh / pow(C, 2), 2) * pow(k0, cosmo_params_ps->POWER_INDEX - 1.0);
-    
-    for (int i = 0; i < length; i++) 
-        result[i] = (float) (pow(sigma_norm, 2) * power_spectrum(k[i]));
-
-    return result;
-}
-
-
-
-/* 
-    window function(double kR)
-
-    returns the value of window function chosen according 
-    to the flag_option PS_FILTER
-*/
-double window_function(double kR)
-{
-
-    double w;
-
-    if ( (flag_options_ps->PS_FILTER == 0) || (sigma_norm < 0) ) // top hat
-    { 
-        if ( (kR) < 1.0e-4 ){ w = 1.0;} // w converges to 1 as (kR) -> 0
-        else { w = 3.0 * (sin(kR)/pow(kR, 3) - cos(kR)/pow(kR, 2));}
-    }
-    else if (flag_options_ps->PS_FILTER == 1)  // sharpK
-    {
-        kR <= 1 ? w = 1.0 : 0.0; // in practice we do not use that one but rather truncate the integrals
-    }
-    else if (flag_options_ps->PS_FILTER == 2)  // gaussian of width 1/R
-    {
-        w = pow(E, -kR*kR/2.0);
-    }
-    else 
-    {
-        LOG_ERROR("No such filter: %i. Output is bogus.", flag_options_ps->PS_FILTER);
-        Throw(ValueError);
-    }
-
-    return w;
-}
-
-
-
-// FUNCTION sigma_z0(M)
-// Returns the standard deviation of the normalized, density excess (delta(x)) field,
-// smoothed on the comoving scale of M (see filter definitions for M<->R conversion).
-// The sigma is evaluated at z=0, with the time evolution contained in the dicke(z) factor,
-// i.e. sigma(M,z) = sigma_z0(m) * dicke(z)
-
-// normalized so that sigma_z0(M->8/h Mpc) = SIGMA8 in ../Parameter_files/COSMOLOGY.H
-
-// NOTE: volume is normalized to = 1, so this is equvalent to the mass standard deviation
-
-// M is in solar masses
-
-// References: Padmanabhan, pg. 210, eq. 5.107
-double dsigma_dlnk(double lnk, void *params){
-   
-    double k = exp(lnk);
-    double p = power_spectrum(k);
-    double Radius = *(double *)params;
-    double kR = k*Radius;
-    double w = window_function(kR);
-
-    return k*k*p*w*w * k;  // k*k*p*w*w
-}
-
-double sigma_z0(double M){
-
-    double result, error, lower_limit, upper_limit;
-    gsl_function F;
-    double rel_tol  = FRACT_FLOAT_ERR*10; //<- relative tolerance
-    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
-    double kstart, kend;
-
-    double Radius = MtoR(M);
-
-    // now lets do the integral for sigma and scale it with sigma_norm
-    if(user_params_ps->POWER_SPECTRUM == 5){
-      kstart = fmax(1.0e-99/Radius, KBOT_CLASS);
-      kend = fmin(350.0/Radius, KTOP_CLASS);
-    }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at KBOT_CLASS,~1e-5 Mpc-1 since the CLASS transfer function has a max!
-    else{
-        kstart = 1.0e-99/Radius;
-        kend = 350.0/Radius;
-    }
-
-    lower_limit = log(kstart);
-
-    // for a sharp-k window function we truncate the intrgral
-    if (flag_options_ps->PS_FILTER == 1)  
-        upper_limit = log(fmin(kend, 1.0/Radius));
-    else
-        upper_limit = log(kend);
-
-    LOG_DEBUG("lower_limit = %e, upper_limit = %e, radius = %e, %e, %e", lower_limit, upper_limit, Radius, kend, log(fmin(kend, 1.0/Radius)));
-
-
-    F.function = &dsigma_dlnk;
-    F.params = &Radius;
-
-    int status;
-
-    gsl_set_error_handler_off();
-
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
-
-    if(status!=0) {
-        LOG_ERROR("gsl integration error occured!");
-        LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
-        LOG_ERROR("data: M=%e",M);
-        GSL_ERROR(status);
-    }
-
-    gsl_integration_workspace_free (w);
-
-    return sigma_norm * sqrt(result);
-}
-
-
-float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
-{
-
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
-    init_ps();
-
-    float* result = malloc(length * sizeof(float));
-
-    for (int i = 0; i < length; i++) 
-        result[i] = (float) sigma_z0(mass[i]);
-
-    return result;
-}
-
-
 
 
 /*
@@ -795,69 +634,127 @@ double power_in_vcb(double k){
 
 
 
-/* 
-    dsigma_dk_LCDM(double k, void *params)
 
-    returns the integrand of the smoothed variance
-    for a LCDM power spectrum
+//
+//
+// Part 2. 
+//
+// ------------------------------------- //
+// ------------------------------------- //
+/* Window function and smoothed variance */
+// ------------------------------------- //
+// ------------------------------------- //
+
+
+/* 
+    window function(double kR)
+
+    returns the value of window function chosen according 
+    to the flag_option PS_FILTER
+
+    Params
+    ------
+    - kR (double) product of the mode and radius (dimensionless)
 */
-double dsigma_dk_LCDM(double k, void *params)
+double window_function(double kR)
 {
+
+    double w;
+
+    if ( (flag_options_ps->PS_FILTER == 0) || (sigma_norm < 0) ) // top hat
+    { 
+        if ( (kR) < 1.0e-4 ){ w = 1.0;} // w converges to 1 as (kR) -> 0
+        else { w = 3.0 * (sin(kR)/pow(kR, 3) - cos(kR)/pow(kR, 2));}
+    }
+    else if (flag_options_ps->PS_FILTER == 1)  // sharpK
+    {
+        kR <= 1 ? w = 1.0 : 0.0; // in practice we do not use that one but rather truncate the integrals
+    }
+    else if (flag_options_ps->PS_FILTER == 2)  // gaussian of width 1/R
+    {
+        w = pow(E, -kR*kR/2.0);
+    }
+    else 
+    {
+        LOG_ERROR("No such filter: %i. Output is bogus.", flag_options_ps->PS_FILTER);
+        Throw(ValueError);
+    }
+
+    return w;
+}
+
+/*
+    dsigma_dlnk(double lnk, void *params)
+
+    derivative with respect to ln(k) of the smoothed
+    variance of the matter power spectrum    
+*/
+double dsigma_dlnk(double lnk, void *params){
    
+    double k = exp(lnk);
+    double p = power_spectrum(k);
     double Radius = *(double *)params;
     double kR = k*Radius;
     double w = window_function(kR);
-    double p = power_spectrum_LCDM(k);
-  
-    return k*k*p*w*w;
+
+    return k*k*p*w*w * k; 
 }
 
 
-void init_ps(){
+/*
+    sigma_z0(double M)
+
+    returns the standard deviation of the normalized, density excess (delta(x)) field,
+    smoothed on the comoving scale of M (see filter definitions for M<->R conversion).
+    The sigma is evaluated at z=0, with the time evolution contained in the dicke(z) factor,
+    i.e. sigma(M,z) = sigma_z0(m) * dicke(z)
+
+    normalized so that sigma_z0(M->8/h Mpc) = SIGMA8 in ../Parameter_files/COSMOLOGY.H
+    NOTE: volume is normalized to = 1, so this is equvalent to the mass standard deviation
+
+    Params
+    ------
+    - M (double) is in solar masses
+
+    References: Padmanabhan, pg. 210, eq. 5.107
+*/
+double sigma_z0(double M){
+
     double result, error, lower_limit, upper_limit;
     gsl_function F;
     double rel_tol  = FRACT_FLOAT_ERR*10; //<- relative tolerance
     gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
     double kstart, kend;
 
-    //we start the interpolator if using CLASS:
-    if (user_params_ps->POWER_SPECTRUM == 5){
-        LOG_DEBUG("Setting CLASS Transfer Function inits.");
-        TF_CLASS(1.0, 0, 0);
+    double Radius = MtoR(M);
+
+    // now lets do the integral for sigma and scale it with sigma_norm
+    /* 
+        we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and 
+        a minimum at KBOT_CLASS, ~1e-5 Mpc-1 since the CLASS 
+        transfer function has a max! 
+    */
+    if(user_params_ps->POWER_SPECTRUM == 5)
+    {
+      kstart = fmax(1.0e-99/Radius, KBOT_CLASS);
+      kend = fmin(350.0/Radius, KTOP_CLASS);
+    }
+    else
+    {
+        kstart = 1.0e-99/Radius;
+        kend = 350.0/Radius;
     }
 
-    omhh = cosmo_params_ps->OMm*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle;
-    theta_cmb = T_cmb / 2.7;
+    lower_limit = log(kstart);
 
-    // Translate Parameters into forms GLOBALVARIABLES form
-    f_nu = global_params.OMn/cosmo_params_ps->OMm;
-    f_baryon = cosmo_params_ps->OMb/cosmo_params_ps->OMm;
-    if (f_nu < TINY) f_nu = 1e-10;
-    if (f_baryon < TINY) f_baryon = 1e-10;
+    // for a sharp-k window function we truncate the intrgral
+    if (flag_options_ps->PS_FILTER == 1)  
+        upper_limit = log(fmin(kend, 1.0/Radius));
+    else
+        upper_limit = log(kend);
 
-    TFset_parameters();
-
-    sigma_norm = -1;
-
-    double Radius_8;
-    Radius_8 = 8.0/cosmo_params_ps->hlittle;
-
-    if(user_params_ps->POWER_SPECTRUM == 5){
-      kstart = fmax(1.0e-99/Radius_8, KBOT_CLASS);
-      kend = fmin(350.0/Radius_8, KTOP_CLASS);
-    }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at KBOT_CLASS,~1e-5 Mpc-1 since the CLASS transfer function has a max!
-    else{
-      kstart = 1.0e-99/Radius_8;
-      kend = 350.0/Radius_8;
-    }
-
-    lower_limit = kstart;
-    upper_limit = kend;
-
-    LOG_DEBUG("Initializing Power Spectrum with lower_limit=%e, upper_limit=%e, rel_tol=%e, radius_8=%g", lower_limit,upper_limit, rel_tol, Radius_8);
-
-    F.function = &dsigma_dk_LCDM;
-    F.params = &Radius_8;
+    F.function = &dsigma_dlnk;
+    F.params = &Radius;
 
     int status;
 
@@ -865,33 +762,18 @@ void init_ps(){
 
     status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
 
-    if(status!=0) {
+    if(status!=0) 
+    {
         LOG_ERROR("gsl integration error occured!");
         LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
+        LOG_ERROR("data: M=%e",M);
         GSL_ERROR(status);
     }
 
-    gsl_integration_workspace_free (w);
+    gsl_integration_workspace_free(w);
 
-    LOG_DEBUG("Initialized Power Spectrum.");
-
-    sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result); //takes care of volume factor
+    return sigma_norm * sqrt(result);
 }
-
-
-
-
-//function to free arrays related to the power spectrum
-void free_ps(){
-
-	//we free the PS interpolator if using CLASS:
-	if (user_params_ps->POWER_SPECTRUM == 5){
-		TF_CLASS(1.0, -1, 0);
-	}
-
-  return;
-}
-
 
 
 /*
@@ -995,24 +877,113 @@ double dsigmasqdm_z0(double M){
 }
 
 
-float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
-{
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
-    init_ps();
 
-    float* result = malloc(length * sizeof(float));
 
-    for (int i = 0; i < length; i++) 
-        result[i] = (float) dsigmasqdm_z0(mass[i]);
 
-    return result;
+
+
+//
+//
+// Part 3. 
+//
+// ------------------------------------- //
+// ------------------------------------- //
+/* initialisation of the power spectrum  */
+// ------------------------------------- //
+// ------------------------------------- //
+
+
+void init_ps(){
+    double result, error, lower_limit, upper_limit;
+    gsl_function F;
+    double rel_tol  = FRACT_FLOAT_ERR*10; //<- relative tolerance
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
+    double kstart, kend;
+
+    //we start the interpolator if using CLASS:
+    if (user_params_ps->POWER_SPECTRUM == 5){
+        LOG_DEBUG("Setting CLASS Transfer Function inits.");
+        TF_CLASS(1.0, 0, 0);
+    }
+
+    omhh = cosmo_params_ps->OMm*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle;
+    theta_cmb = T_cmb / 2.7;
+
+    // Translate Parameters into forms GLOBALVARIABLES form
+    f_nu = global_params.OMn/cosmo_params_ps->OMm;
+    f_baryon = cosmo_params_ps->OMb/cosmo_params_ps->OMm;
+    if (f_nu < TINY) f_nu = 1e-10;
+    if (f_baryon < TINY) f_baryon = 1e-10;
+
+    TFset_parameters();
+
+    sigma_norm = -1;
+
+    double Radius_8;
+    Radius_8 = 8.0/cosmo_params_ps->hlittle;
+
+    if(user_params_ps->POWER_SPECTRUM == 5){
+      kstart = fmax(1.0e-99/Radius_8, KBOT_CLASS);
+      kend = fmin(350.0/Radius_8, KTOP_CLASS);
+    }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at KBOT_CLASS,~1e-5 Mpc-1 since the CLASS transfer function has a max!
+    else{
+      kstart = 1.0e-99/Radius_8;
+      kend = 350.0/Radius_8;
+    }
+
+    lower_limit = kstart;
+    upper_limit = kend;
+
+    LOG_DEBUG("Initializing Power Spectrum with lower_limit=%e, upper_limit=%e, rel_tol=%e, radius_8=%g", lower_limit,upper_limit, rel_tol, Radius_8);
+
+    F.function = &dsigma_dk_LCDM;
+    F.params = &Radius_8;
+
+    int status;
+
+    gsl_set_error_handler_off();
+
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+
+    if(status!=0) {
+        LOG_ERROR("gsl integration error occured!");
+        LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
+        GSL_ERROR(status);
+    }
+
+    gsl_integration_workspace_free (w);
+
+    LOG_DEBUG("Initialized Power Spectrum.");
+
+    sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result); //takes care of volume factor
 }
 
 
 
+
+//function to free arrays related to the power spectrum
+void free_ps(){
+
+	//we free the PS interpolator if using CLASS:
+	if (user_params_ps->POWER_SPECTRUM == 5){
+		TF_CLASS(1.0, -1, 0);
+	}
+
+  return;
+}
+
+
+
+//
+//
+// Part 4. 
+//
+// ---------------//
+// -------------- //
+/* mass functions */
+// -------------- //
+// -------------- //
 
 
 
@@ -1062,39 +1033,19 @@ double dNdM_st(double growthf, double M){
     return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * sqrt(2./PI)*SHETH_A * (1+ pow(nuhat, -2*SHETH_p)) * nuhat * pow(E, -nuhat*nuhat/2.0);
 }
 
-float* ComputeDNDMST(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
-                        float *mass, float z, int length) 
-{
-
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
-    init_ps();
-
-    float* result = malloc(length * sizeof(float));
-
-    double growthf = dicke(z);
-
-    for (int i = 0; i < length; i++) 
-        result[i] = (float) dNdM_st(growthf, mass[i]);
-
-    return result;
-}
-
-
 
 
 /*
- FUNCTION dNdM_WatsonFOF(z, M)
- Computes the Press_schechter mass function with Warren et al. 2011 correction for ellipsoidal collapse at
- redshift z, and dark matter halo mass M (in solar masses).
+    dNdM_WatsonFOF(z, M)
 
- The Universial FOF function (Eq. 12) of Watson et al. 2013
+    Computes the Press_schechter mass function with Warren et al. 2011 correction for ellipsoidal collapse at
+    redshift z, and dark matter halo mass M (in solar masses).
+    The Universial FOF function (Eq. 12) of Watson et al. 2013
+    
+    The return value is the number density per unit mass of halos in the mass range M to M+dM in units of:
+    comoving Mpc^-3 Msun^-1
 
- The return value is the number density per unit mass of halos in the mass range M to M+dM in units of:
- comoving Mpc^-3 Msun^-1
-
- Reference: Watson et al. 2013
+    Reference: Watson et al. 2013
  */
 double dNdM_WatsonFOF(double growthf, double M){
 
@@ -1205,6 +1156,9 @@ double dNdM(double growthf, double M){
 
     return (-(cosmo_params_ps->OMm)*RHOcrit/M) * sqrt(2/PI) * (Deltac/(sigma*sigma)) * dsigmadm * pow(E, -(Deltac*Deltac)/(2*sigma*sigma));
 }
+
+
+
 
 /*
  FUNCTION FgtrM(z, M)
@@ -1370,8 +1324,7 @@ double FgtrM_General(double z, double M){
         double result, error, lower_limit, upper_limit;
         gsl_function F;
         double rel_tol  = 0.001; //<- relative tolerance
-        gsl_integration_workspace * w
-        = gsl_integration_workspace_alloc (1000);
+        gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
 
         F.function = &dFdlnM_General;
         F.params = &parameters_gsl_FgtrM;
@@ -4526,3 +4479,147 @@ void FreeTsInterpolationTables(struct FlagOptions *flag_options) {
     LOG_DEBUG("Done Freeing interpolation table memory.");
 	interpolation_tables_allocated = false;
 }
+
+
+// ----------------------------------------------- //
+// ----------------------------------------------- //
+/* Function called by the python wrapper interface */
+// ----------------------------------------------- //
+// ----------------------------------------------- //
+
+/*
+    ComputeTransferFunctionNCDM(..., float *k, int length)
+
+    this function is called in the python wrapper transfer_function_nCDM()
+
+    returns a pointer to an array (to be freed in the python wrapper)
+    needs the length of the input array to allocate the output array
+*/
+float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) transfer_function_nCDM(k[i]);
+
+    return result;
+}
+
+
+/*
+    ComputeMatterPowerSpectrum(..., float *k, int length)
+
+    from the power_spectrum function evaluates the matter power spectrum
+    this function is called in the python wrapper matter_power_spectrum()
+
+    returns a pointer to an array (to be freed in the python wrapper)
+    needs the length of the input array to allocate the output array
+*/
+float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    // Uncomment if you want to evaluate the power spectrum amplitude in the form As * D^2(0) where D is the growth function
+    // float k0 = 0.05; // reference value of k0 in Mpc^{-1}
+    // float AsD2 = 25.0 / 4.0 * 1e+28 * pow(sigma_norm * omhh / pow(C, 2), 2) * pow(k0, cosmo_params_ps->POWER_INDEX - 1.0);
+    
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) (pow(sigma_norm, 2) * power_spectrum(k[i]));
+
+    return result;
+}
+
+float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) sigma_z0(mass[i]);
+
+    return result;
+}
+
+
+float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) dsigmasqdm_z0(mass[i]);
+
+    return result;
+}
+
+
+float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *mass, float z, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    double growthf = dicke(z);
+
+    for (int i = 0; i < length; i++) 
+    {
+        if (user_params_ps->HMF == 0) // Press-Schechter
+            result[i] = (float) dNdM(growthf, mass[i]);
+        else if (user_params_ps->HMF == 1) // Seth Tormen
+            result[i] = (float) dNdM_st(growthf, mass[i]);
+        else if (user_params_ps->HMF == 2) // WatsonFOF
+            result[i] = (float) dNdM_WatsonFOF(growthf, mass[i]);
+        else if (user_params_ps->HMF == 3) // WatsonFOF-z
+            result[i] = (float) dNdM_WatsonFOF_z(z, growthf, mass[i]);
+        else
+        {
+            LOG_ERROR("Incorrect HMF selected: %i (should be between 0 and 3).", user_params_ps->HMF);
+            Throw(ValueError);
+        }
+    }
+
+    return result;
+}
+
+float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *mass, float z, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) FgtrM_General(z, mass[i]);
+
+    return result;
+}
+
