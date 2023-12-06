@@ -40,6 +40,9 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
         writeFlagOptions(flag_options);
     #endif
 
+
+    //LOG_ERROR("Here we have: %e, %e, %e, %e, %e", perturbed_field->density[0], previous_perturbed_field->density[0], spin_temp->Ts_box[0], previous_ionize_box->xH_box[0], ini_boxes->lowres_density[0]);
+    
     // Makes the parameter structs visible to a variety of functions/macros
     // Do each time to avoid Python garbage collection issues
     Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
@@ -613,7 +616,8 @@ LOG_SUPER_DEBUG("excursion set normalisation, mean_f_coll_MINI: %e", box->mean_f
 
 
     if (box->mean_f_coll * ION_EFF_FACTOR + box->mean_f_coll_MINI * ION_EFF_FACTOR_MINI< global_params.HII_ROUND_ERR){ // way too small to ionize anything...
-    //        printf( "The mean collapse fraction is %e, which is much smaller than the effective critical collapse fraction of %e\n I will just declare everything to be neutral\n", mean_f_coll, f_coll_crit);
+        
+        //LOG_ERROR( "The mean collapse fraction is %e, which is much smaller than the effective critical collapse fraction of %e\n I will just declare everything to be neutral\n", mean_f_coll, f_coll_crit);
 
         // find the neutral fraction
         if(flag_options->USE_TS_FLUCT) {

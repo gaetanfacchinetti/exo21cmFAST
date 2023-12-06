@@ -656,7 +656,7 @@ class FlagOptions(StructWithDefaults):
         "USE_CMB_HEATING": True,
         "USE_LYA_HEATING": True,
         "USE_MASS_DEPENDENT_ZETA": False,
-        "USE_VELS_AUX": False, # set by default to the same value than user_params.USE_RELATIVE_VELOCITIES
+        #"USE_VELS_AUX": False, # set by default to the same value than user_params.USE_RELATIVE_VELOCITIES
         "SUBCELL_RSD": False,
         "INHOMO_RECO": False,
         "USE_TS_FLUCT": False,
@@ -664,7 +664,7 @@ class FlagOptions(StructWithDefaults):
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
         "PS_FILTER": 0,
-        "PS_CUTOFF": 0,
+        "PS_CUTOFF": False,
         "NCDM_MODEL": 0,
     }
 
@@ -870,7 +870,7 @@ class AstroParams(StructWithDefaults):
         Volume factor relating the mass M to the size R when using a sharp-k window function to evaluate the variance of the smoothed density field
         Default value is set to the "theoretical" value used by Lacey & Cole (1994) = 6*PI^2
     M_WDM : float
-        Mass of WDM particle in keV. Ignored if `P_CUTOFF` is False.
+        Mass of WDM particle in keV. Ignored if `PS_CUTOFF` is False.
     """
 
     _ffi = ffi

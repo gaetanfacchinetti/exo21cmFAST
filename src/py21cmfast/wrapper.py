@@ -1040,9 +1040,7 @@ def initial_conditions(
         )
 
         # Initialize memory for the boxes that will be returned.
-        boxes = InitialConditions(
-            user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options = flag_options, random_seed=random_seed
-        )
+        boxes = InitialConditions(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options = flag_options, random_seed=random_seed)
 
         # Construct FFTW wisdoms. Only if required
         construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
@@ -1152,6 +1150,8 @@ def perturb_field(
             redshift=redshift,
             user_params=user_params,
             cosmo_params=cosmo_params,
+            astro_params=astro_params,
+            flag_options=flag_options,
             random_seed=random_seed,
         )
 
@@ -1175,6 +1175,8 @@ def perturb_field(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                astro_params=astro_params,
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1294,6 +1296,8 @@ def determine_halo_list(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                astro_params=astro_params,
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1412,6 +1416,8 @@ def perturb_halo_list(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                astro_params=astro_params,
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1681,6 +1687,8 @@ def ionize_box(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                astro_params=astro_params, 
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1695,7 +1703,7 @@ def ionize_box(
             # If we are beyond Z_HEAT_MAX, just make an empty box
             if prev_z == 0:
                 previous_ionize_box = IonizedBox(
-                    redshift=0, flag_options=flag_options, initial=True
+                    redshift=0, astro_params=astro_params, flag_options=flag_options, initial=True
                 )
 
             # Otherwise recursively create new previous box.
@@ -1768,6 +1776,7 @@ def ionize_box(
         elif spin_temp is None:
             spin_temp = spin_temperature(
                 perturbed_field=perturbed_field,
+                astro_params=astro_params,
                 flag_options=flag_options,
                 init_boxes=init_boxes,
                 direc=direc,
@@ -1776,6 +1785,7 @@ def ionize_box(
                 cleanup=cleanup,
             )
 
+        
         # Run the C Code
         return box.compute(
             perturbed_field=perturbed_field,
@@ -1786,6 +1796,8 @@ def ionize_box(
             ics=init_boxes,
             hooks=hooks,
         )
+
+
 
 
 def spin_temperature(
@@ -2013,6 +2025,8 @@ def spin_temperature(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                astro_params=astro_params,
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -2031,8 +2045,8 @@ def spin_temperature(
                     redshift=prev_z,  # redshift here is ignored
                     user_params=init_boxes.user_params,
                     cosmo_params=init_boxes.cosmo_params,
-                    astro_params=astro_params,
-                    flag_options=flag_options,
+                    astro_params=init_boxes.astro_params,
+                    flag_options=init_boxes.flag_options,
                     dummy=True,
                 )
             else:
@@ -2299,6 +2313,8 @@ def run_coeval(
             init_box = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                astro_params=astro_params,
+                flag_options=flag_options,
                 random_seed=random_seed,
                 hooks=hooks,
                 regenerate=regenerate,
@@ -2884,6 +2900,10 @@ def run_lightcone(
         brightness_files = []
         log10_mturnovers = np.zeros(len(scrollz))
         log10_mturnovers_mini = np.zeros(len(scrollz))
+
+        #### Main loop to compute the lightcone
+
+
         for iz, z in enumerate(scrollz):
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb[iz]
@@ -2942,6 +2962,7 @@ def run_lightcone(
                 direc=direc,
                 cleanup=(cleanup and iz == (len(scrollz) - 1)),
             )
+
             log10_mturnovers[iz] = ib2.log10_Mturnover_ave
             log10_mturnovers_mini[iz] = ib2.log10_Mturnover_MINI_ave
 

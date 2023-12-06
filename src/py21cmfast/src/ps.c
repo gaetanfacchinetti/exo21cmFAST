@@ -196,7 +196,7 @@ double power_spectrum(double k); // Defines the matter power-spectrum
 double power_spectrum_LCDM(double k); 
 
 double window_function(double kR);
-double dsigma_dk(double k, void *params);
+double dsigma_dlnk(double k, void *params);
 double dsigma_dk_LCDM(double k, void *params);
 double sigma_z0(double M); //calculates sigma at z=0 (no dicke)
 double power_in_k(double k); /* Returns the value of the linear power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
@@ -698,6 +698,22 @@ double dsigma_dlnk(double lnk, void *params){
     double w = window_function(kR);
 
     return k*k*p*w*w * k; 
+}
+
+/*
+    dsigma_dk_LCDM(double lnk, void *params)
+
+    derivative with respect to k of the smoothed
+    variance of the LCDM matter power spectrum    
+*/
+double dsigma_dk_LCDM(double k, void *params){
+   
+    double p = power_spectrum_LCDM(k);
+    double Radius = *(double *)params;
+    double kR = k*Radius;
+    double w = window_function(kR);
+
+    return k*k*p*w*w; 
 }
 
 
@@ -4534,7 +4550,7 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
     // float AsD2 = 25.0 / 4.0 * 1e+28 * pow(sigma_norm * omhh / pow(C, 2), 2) * pow(k0, cosmo_params_ps->POWER_INDEX - 1.0);
     
     for (int i = 0; i < length; i++) 
-        result[i] = (float) (pow(sigma_norm, 2) * power_spectrum(k[i]));
+        result[i] = (float) power_in_k(k[i]);
 
     return result;
 }
