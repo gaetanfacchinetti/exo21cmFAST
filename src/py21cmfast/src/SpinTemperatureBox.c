@@ -465,15 +465,15 @@ LOG_SUPER_DEBUG("Initialised heat");
 
         if(user_params->USE_INTERPOLATION_TABLES) {
           if(user_params->FAST_FCOLL_TABLES){
-            initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1e20);
+            initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2e20);
           }
           else{
             if(flag_options->M_MIN_in_Mass || flag_options->USE_MASS_DEPENDENT_ZETA) {
                 if (flag_options->USE_MINI_HALOS){
-                    initialiseSigmaMInterpTable(global_params.M_MIN_INTEGRAL/50.,1e20);
+                    initialiseSigmaMInterpTable(global_params.M_MIN_INTEGRAL/50.,2e20);
                 }
                 else{
-                    initialiseSigmaMInterpTable(M_MIN,1e20);
+                    initialiseSigmaMInterpTable(M_MIN,2e20);
                 }
             }
             LOG_SUPER_DEBUG("Initialised sigmaM interp table");
@@ -516,10 +516,10 @@ LOG_SUPER_DEBUG("Initialised heat");
                       M_MIN, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
             if(user_params->USE_INTERPOLATION_TABLES) {
               if(user_params->FAST_FCOLL_TABLES){
-                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1e20);
+                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2e20);
               }
               else{
-                initialiseSigmaMInterpTable(M_MIN,1e20);
+                initialiseSigmaMInterpTable(M_MIN,2e20);
               }
             }
         }
@@ -713,10 +713,10 @@ LOG_SUPER_DEBUG("Initialised heat");
             M_MIN = (float)TtoM(determine_zpp_max, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
             if(user_params->USE_INTERPOLATION_TABLES) {
               if(user_params->FAST_FCOLL_TABLES){
-                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1e20);
+                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2e20);
               }
               else{
-                initialiseSigmaMInterpTable(M_MIN,1e20);
+                initialiseSigmaMInterpTable(M_MIN,2e20);
               }
             }
         }

@@ -215,10 +215,13 @@ float* ComputeRtoM(struct UserParams *user_params, struct CosmoParams *cosmo_par
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *radius, int length); 
 float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
-                        float *mass, float z, int length);
+                        float *mass, float *z, int length);
 float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
-                        float *mass, float z, int length);
+                        float *mass, float *z, int length);
+float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *mass, float *params, int length);
 /* ---------------------------------------------- */
 
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params,

@@ -59,6 +59,7 @@ from .wrapper import (
     mass_to_radius,
     radius_to_mass,
     f_gtr_mass,
+    nion_conditional_m,
 )
 
 configure_logging()
