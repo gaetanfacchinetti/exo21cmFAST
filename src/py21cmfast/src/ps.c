@@ -102,7 +102,7 @@ void bisection(float *x, float xlow, float xup, int *iter);
 float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
 
 double sheth_delc(double del, double sig);
-double dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2);
+float dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2);
 double dNion_ConditionallnM(double lnM, void *params);
 double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES);
 double dNion_ConditionallnM_MINI(double lnM, void *params);
@@ -670,6 +670,9 @@ double window_function(double kR)
     else if (flag_options_ps->PS_FILTER == 1)  // sharpK
     {
         kR <= 1 ? w = 1.0 : 0.0; // in practice we do not use that one but rather truncate the integrals
+
+        if (kR == 1)
+            w = 0.5;
     }
     else if (flag_options_ps->PS_FILTER == 2)  // gaussian of width 1/R
     {
@@ -842,11 +845,7 @@ double dsigmasqdm_z0(double M){
 
     // If the filter is sharp-k we do not need to integrate, the result is analytical
     if (flag_options_ps->PS_FILTER == 1) 
-    {
-        double _k = 1.0/Radius;
-        double dr_dm = 1.0 / ( astro_params_ps->VOLUME_FACTOR_SHARP_K * cosmo_params_ps->OMm*RHOcrit * Radius*Radius);
-        return -  sigma_norm * sigma_norm * pow(_k, 4) * power_spectrum(_k) * 2 * dr_dm;
-    }
+        return -  sigma_norm * sigma_norm * pow(Radius, -3) * power_spectrum(1.0/Radius) / (3.0*M);
 
 
     // now lets do the integral for sigma and scale it with sigma_norm
@@ -961,7 +960,8 @@ void init_ps(){
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 
+                         1000, GSL_INTEG_GAUSS61, w, &result, &error);
 
     if(status!=0) {
         LOG_ERROR("gsl integration error occured!");
@@ -1050,19 +1050,17 @@ double dNdM_st(double growthf, double M){
     return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * sqrt(2./PI)*SHETH_A * (1+ pow(nuhat, -2*SHETH_p)) * nuhat * pow(E, -nuhat*nuhat/2.0);
 }
 
-
-
 /*
-    dNdM_WatsonFOF(z, M)
+ FUNCTION dNdM_WatsonFOF(z, M)
+ Computes the Press_schechter mass function with Warren et al. 2011 correction for ellipsoidal collapse at
+ redshift z, and dark matter halo mass M (in solar masses).
 
-    Computes the Press_schechter mass function with Warren et al. 2011 correction for ellipsoidal collapse at
-    redshift z, and dark matter halo mass M (in solar masses).
-    The Universial FOF function (Eq. 12) of Watson et al. 2013
-    
-    The return value is the number density per unit mass of halos in the mass range M to M+dM in units of:
-    comoving Mpc^-3 Msun^-1
+ The Universial FOF function (Eq. 12) of Watson et al. 2013
 
-    Reference: Watson et al. 2013
+ The return value is the number density per unit mass of halos in the mass range M to M+dM in units of:
+ comoving Mpc^-3 Msun^-1
+
+ Reference: Watson et al. 2013
  */
 double dNdM_WatsonFOF(double growthf, double M){
 
@@ -1357,7 +1355,8 @@ double FgtrM_General(double z, double M){
         double result, error, lower_limit, upper_limit;
         gsl_function F;
         double rel_tol  = 0.001; //<- relative tolerance
-        gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+        gsl_integration_workspace * w 
+        = gsl_integration_workspace_alloc (1000);
 
         F.function = &dFdlnM_General;
         F.params = &parameters_gsl_FgtrM;
@@ -1671,8 +1670,6 @@ void initialiseSigmaMInterpTable(float M_Min, float M_Max)
     int i;
     float Mass;
 
-    //LOG_ERROR("We have: %e and %e", M_Min, M_Max);
-
     if (Mass_InterpTable == NULL){
       Mass_InterpTable = calloc(NMass,sizeof(float));
       Sigma_InterpTable = calloc(NMass,sizeof(float));
@@ -1963,8 +1960,7 @@ float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC){
     return(0.0);
 }
 
-int initialise_ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                        struct AstroParams *astro_params, struct FlagOptions *flag_options) {
+int initialise_ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options) {
 
     Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
     Broadcast_struct_global_UF(user_params,cosmo_params, astro_params, flag_options);
@@ -2214,7 +2210,7 @@ void initialiseGL_Nion_Xray(int n, float M_Min, float M_Max){
     gauleg(log(M_Min),log(M_Max),xi_SFR_Xray,wi_SFR_Xray,n);
 }
 
-double dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2){
+float dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2){
 
     float sigma1, dsigmadm,dsigma_val;
     float MassBinLow;
@@ -2238,17 +2234,17 @@ double dNdM_conditional(float growthf, float M1, float M2, float delta1, float d
     M1 = exp(M1);
     M2 = exp(M2);
 
-    //LOG_ERROR("We have M1= %e -> sigmam = %e and dsigma_dm = %e", M1, sigma1, dsigmadm);
-
     sigma1 = sigma1*sigma1;
     sigma2 = sigma2*sigma2;
 
     dsigmadm = dsigmadm/(2.0*sigma1); // This is actually sigma1^{2} as calculated above, however, it should just be sigma1. It cancels with the same factor below. Why I have decided to write it like that I don't know!
 
     if((sigma1 > sigma2)) {
+
         return -(( delta1 - delta2 )/growthf)*( 2.*sigma1*dsigmadm )*( exp( - ( delta1 - delta2 )*( delta1 - delta2 )/( 2.*growthf*growthf*( sigma1 - sigma2 ) ) ) )/(pow( sigma1 - sigma2, 1.5));
     }
     else if(sigma1==sigma2) {
+
         return -(( delta1 - delta2 )/growthf)*( 2.*sigma1*dsigmadm )*( exp( - ( delta1 - delta2 )*( delta1 - delta2 )/( 2.*growthf*growthf*( 1.e-6 ) ) ) )/(pow( 1.e-6, 1.5));
 
     }
@@ -2300,10 +2296,8 @@ double dNion_ConditionallnM_MINI(double lnM, void *params) {
     return M*exp(-MassTurnover/M)*exp(-M/MassTurnover_upper)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
 }
 
-double dNion_ConditionallnM(double lnM, void *params) 
-{
-    struct parameters_gsl_SFR_con_int_ vals = *(struct parameters_gsl_SFR_con_int_ *)params;
-    
+double dNion_ConditionallnM(double lnM, void *params) {
+    struct parameters_gsl_SFR_con_int_ vals = *(struct parameters_gsl_SFR_con_int_ *)params; 
     double M = exp(lnM); // linear scale
     double growthf = vals.gf_obs;
     double M2 = vals.Mval; // natural log scale
@@ -2404,10 +2398,7 @@ double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma
 
 
 
-double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, 
-                            double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, 
-                            double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES) 
-{
+double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES) {
 
 
   if (FAST_FCOLL_TABLES && global_params.USE_FAST_ATOMIC) { //JBM: Fast tables. Assume sharp Mturn, not exponential cutoff.
@@ -2419,7 +2410,8 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
     double result, error, lower_limit, upper_limit;
     gsl_function F;
     double rel_tol = 0.01; //<- relative tolerance
-    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
+    gsl_integration_workspace * w 
+    = gsl_integration_workspace_alloc (1000);
 
     struct parameters_gsl_SFR_con_int_ parameters_gsl_SFR_con = {
         .gf_obs = growthf,
@@ -2445,7 +2437,8 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag(&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 
+                         1000, GSL_INTEG_GAUSS61, w, &result, &error);
 
     if(status!=0) {
         LOG_ERROR("gsl integration error occured!");
@@ -2455,7 +2448,7 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
         GSL_ERROR(status);
     }
 
-    gsl_integration_workspace_free(w);
+    gsl_integration_workspace_free (w);
 
     if(delta2 > delta1) {
         result = 1.;
@@ -3643,10 +3636,10 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
         Mlim_Fstar = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR, astro_params->F_STAR10);
         Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_ESC, astro_params->F_ESC10);
         if(user_params->FAST_FCOLL_TABLES){
-          initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2e20);
+          initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2.0e+20);
         }
         else{
-          initialiseSigmaMInterpTable(M_MIN,2e20);
+          initialiseSigmaMInterpTable(M_MIN,2.0e+20);
         }
     }
     else {
@@ -3711,18 +3704,18 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
                 if(M_MIN_z0 < M_MIN_z1) {
                   if(user_params->FAST_FCOLL_TABLES){
-                    initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN_z0),2e20);
+                    initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN_z0),2.0e+20);
                   }
                   else{
-                    initialiseSigmaMInterpTable(M_MIN_z0,2e20);
+                    initialiseSigmaMInterpTable(M_MIN_z0,2.0e+20);
                   }
                 }
                 else {
                   if(user_params->FAST_FCOLL_TABLES){
-                    initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN_z1),2e20);
+                    initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN_z1),2.0e+20);
                   }
                   else{
-                    initialiseSigmaMInterpTable(M_MIN_z1,2e20);
+                    initialiseSigmaMInterpTable(M_MIN_z1,2.0e+20);
                   }
                 }
 
@@ -4586,7 +4579,7 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 1e+20);
+        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
     
     float* result = malloc(length * sizeof(float));
 
@@ -4595,6 +4588,8 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
             result[i] = (float) sigmaFromInterpolationTables(mass[i])[0];
         else
             result[i] = (float) sigma_z0(mass[i]);
+
+    freeSigmaMInterpTable();
 
     return result;
 }
@@ -4609,7 +4604,7 @@ float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *c
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 1e+20);
+        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
 
     float* result = malloc(length * sizeof(float));
 
@@ -4618,6 +4613,8 @@ float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *c
             result[i] = (float) sigmaFromInterpolationTables(mass[i])[1];
         else
             result[i] = (float) dsigmasqdm_z0(mass[i]);
+
+    freeSigmaMInterpTable();
 
     return result;
 }
@@ -4633,7 +4630,7 @@ float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_par
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 1e+20);
+        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
 
     float* result = malloc(length * sizeof(float));
 
@@ -4671,7 +4668,7 @@ float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *c
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2e+20);
+        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
 
     float* result = malloc(length * sizeof(float));
 
@@ -4694,10 +4691,7 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-    {
-        LOG_ERROR("The value is : %e", astro_params_ps->M_TURN/50.);
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2e+20);
-    }
+        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
 
     float* result = malloc(length * sizeof(float));
 

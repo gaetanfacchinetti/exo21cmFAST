@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: exo21cmFAST
-Version: 0.1.dev1752+g6563814.d20231206
+Version: 0.1.dev1754+g154e627.d20231208
 Summary: A semi-numerical cosmological simulation code for the 21cm signal with exotic energy injection
 Home-page: https://github.com/gaetanfacchinetti/exo21cmFAST
 Author: Gaétan Facchinetti
@@ -61,76 +61,35 @@ Requires-Dist: sphinx-rtd-theme; extra == "dev"
 
 # exo21cmFAST
 
-**A semi-numerical cosmological simulation code for the radio 21-cm signal including exotic sources of energy injection.**
+**A semi-numerical cosmological simulation code for the radio 21-cm signal including non cold dark matter scenarios.**
 
-In this code we introduce several features to [**21cmFAST**](https://github.com/21cmfast/21cmFAST)[^1][^2] related to dark matter energy injection via s-wave annihilation or decay. The energy deposition can be evaluated in two ways, either using the [**DarkHistory**](https://darkhistory.readthedocs.io/en/master/)[^3][^4] package or with template functions. Future updates will include other sources of energy injection not necessarily related to dark matter.
+In this code we introduce several features to [**21cmFAST**](https://github.com/21cmfast/21cmFAST)[^1][^2] related to non cold dark matter effects on the matter power spectrum and on structure formation.
 
 In the future, this code should be merged with the main branch of **21cmFAST**.
 
-## Installing exo21cmFAST
+## Installing the ncdm branch of exo21cmFAST
 
-To install **exo21cmFAST**, download the repository, on your terminal go to the main folder (containing the file `config.py`) and run
+To install this version of **exo21cmFAST**, download that branch with
+```
+$ git clone https://github.com/gaetanfacchinetti/exo21cmFAST.git --branch ncdm --single-branch
+```
+On your terminal then go to the main folder (containing the file `config.py`) and run
 
 ```bash
-$ pip install -e .
+$ pip install [-e] .
 ```
 
-To use **DarkHistory** (which is not necessary depending on what you want to do) you need to download the package (see information on the DarkHistory documentation) and add these two lines to your `PYTHONPATH`:
 
-```bash
-$ export PYTHONPATH=$PYTHONPATH:<folder containing DarkHistory>
-$ export PYTHONPATH=$PYTHONPATH:<folder containing DarkHistory>/DarkHistory
-```
+## The physics behind exo21cmFAST ncdm
 
-## The physics behind exo21cmFAST
+The physics behind exotic energy injection and notations and introduced in this section.
 
-The physics behind exotic energy injection and notations and introduced in this section. For more information please read the [companion paper](#credits) improving on a previous study[^5]. 
+### Matter power spectrum and transfer function
 
-### Energy injection and deposition
-
-Exotic energy is added to the simulation assuming a smooth homogeneous energy injection rate per number of baryon
-
-$$\epsilon_{\rm inj} \equiv \frac{1}{\overline{n_{\rm b}}} \frac{{\rm d} E_{\rm inj}}{{\rm d} t {\rm d V}}$$ 
-
-and several deposition fractions quantifying how much of the injected energy is deposited in the intergalactic medium at a given time. Here $\overline{n_{\rm b}}$ is the average number density of baryons. The deposition fractions are denoted $f_{\rm c}$ with c the corresponding deposition channel (*heating, ionization of hydrogen atoms, ionization of Helium atoms, and excitation*). They depend on the redshift and on $x_i$ the ionization levels of $i=$ neutral hydrogen HI, neutral helium HeI, or exited Helium HeII. The evolution equations of the intergalactic medium kinetic temperature $(T_{\rm k})$ and of the electron fraction $(x_{\rm e})$ as well as the Lyman-$\alpha$ flux $(J_\alpha)$ are then modified by respectively adding
-
-$$ \frac{\partial T_{\rm k}}{\partial t}  = ... + \frac{2}{3 k_{\rm B}(1+x_{\rm e})} \frac{1}{\overline{n_{\rm b}}} f_{\rm heat}(x_{i}, z) \epsilon_{\rm inj}$$
-
-$$ \frac{\partial x_{\rm e}}{\partial t}  = ... +  \left[ \frac{X_{\rm H}}{E_{\rm HI}} f_{\rm ion., HII}(x_{i}, z) + \frac{X_{\rm He}}{E_{\rm HI}} f_{\rm ion., HeII}(x_{i}, z) \right] \frac{1}{\overline{n_{\rm b}}}\epsilon_{\rm inj} $$
-
-$$ J_\alpha = ... + \frac{c}{4\pi H(z) h\nu_\alpha^2} f_{\rm exc.}(x_{i}, z) \epsilon_{\rm inj}\, ,$$
-
-to the *classical* sources. Here $H(z)$ is the Hubble rate, $h$ is the Planck constant, and $\nu_\alpha$ is the Lyman-$\alpha$ frequency. Moreover $X_{\rm H} = \overline{n_{\rm H}}/\overline{n_{\rm b}}$ and $X_{\rm He} = \overline{n_{\rm He}}/\overline{n_{\rm b}}$ are the hydrogen and helium number fractions. $E_{\rm HI}$ and $E_{\rm HeI}$ are the ionization energies of neutral hydrogen and helium. 
-
-### The specific cases of dark matter decay and annihilation
-
-
-In the case of dark matter decay the injected energy can be written in terms of the average dark matter energy density today $\overline{\rho_{\chi, 0}}$, the number density of baryons today $\overline{n_{\rm b, 0}}$ and the lifetime $\tau$ (or decay rate $\Gamma = 1/\tau$),
-$$\epsilon_{\rm inj.} = \frac{\overline{\rho_{\rm \chi, 0}}c^2}{\overline{n_{\rm b, 0}}}\frac{1}{\tau}$$
-
-In case of DM annihilation the relevant parameters are the annihilation cross-section $\left<\sigma v\right>$ and the dark matter mass $m_\chi$ and the smoothed energy injection rate reads
-$$\epsilon_{\rm inj.} = (1+z)^3 \frac{\overline{\rho_{\rm \chi, 0}}^2c^4}{\overline{n_{\rm b, 0}}} \frac{\left<\sigma v\right>}{m_\chi}$$
-
-**WARNING 1**: This is the smooth energy injection rate. The true energy injection rate depends on the average of the squared density $\overline{\rho_\chi(x, z)^2}$  and not on the square of the average density $\overline{\rho_{\chi}}^2$ (as used here). With the presence of dark matter halos, the two are not equal at small redshifts. The difference is accounted for with a boost function $\overline{\rho_\chi^2}(z) \simeq \overline{\rho_\chi}^2(1+\mathcal{B}(z))$ and included into the definition of the deposition functions $f_c$.
-
-**WARNING 2**: Dark matter annihilation and decay produce Standard Model particles that shower to electrons and photons which, in turn, electromagnetically interact with the intergalactic medium. The deposion fractions then depend on the Standard Model *primary* species that are produced. As the energy of the electrons and photons at the end of the chain impacts on the energy deposition, the deposition fraction also depends on the mass of the decaying or annihilating particles.
-
+### Non linear effects on structure collapse
 
 ### Effective parametrisation
-
-Based on observations of the evolution of the deposition fractions with the redshifts, one can often find $F$ a function, and  $c_1$, $c_2$, and $c_3$, three constants such that, in good approximation, 
-
-$$f_{\rm heat}(z) \simeq F(z) $$
-$$f_{\rm ion., HII}(z) \simeq c_1 f_{\rm heat}(z)$$
-$$f_{\rm ion., HeII}(z) \simeq c_2 f_{\rm heat}(z)$$
-$$f_{\rm exc.}(z) \simeq c_3 f_{\rm heat}(z)$$
-
-(at least for dark matter decay and annihilation). Pre-implemented functions in the code are
-
-$$F(z) = f_0$$
-$$F(z) = f_0 e^{a(z-15)}$$
-$$F(z) = f_0 e^{a(z-15)} \left(\frac{z}{15}\right)^b$$
-with $f_0$, $a$, and $b$ three constants. Using this parametrisation bypasses **DarkHistory** for the computation of the deposition functions. However, when active, **DarkHistory** also determines the initial condition for 21cmFAST at around redshift 35. Therefore using the effective parametrisation also implies that initial conditions must be set by hand. 
+ 
 
 ## What is new/different in exo21cmFAST?
 

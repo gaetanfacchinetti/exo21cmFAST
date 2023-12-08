@@ -868,7 +868,7 @@ class AstroParams(StructWithDefaults):
         Impact of the DM-baryon relative velocities on Mturn for minihaloes. Default is 1.0 and 1.8, and agrees between different sims. See Sec 2 of Muñoz+21 (2110.13919).
     VOLUME_FACTOR_SHARP_K: float, optional
         Volume factor relating the mass M to the size R when using a sharp-k window function to evaluate the variance of the smoothed density field
-        Default value is set to the "theoretical" value used by Lacey & Cole (1994) = 6*PI^2
+        Default value is set to the "theoretical" value used by Lacey & Cole (1994) = (9*pi/2)^{1/3} ~ 2.2.41798793102
     M_WDM : float
         Mass of WDM particle in keV. Ignored if `PS_CUTOFF` is False.
     """
@@ -899,7 +899,7 @@ class AstroParams(StructWithDefaults):
         "BETA_LW": 0.6,
         "A_VCB": 1.0,
         "BETA_VCB": 1.8,
-        "VOLUME_FACTOR_SHARP_K": 59.2176264065,
+        "VOLUME_FACTOR_SHARP_K": 2.41798793102,
         "M_WDM": 4.0,
         "ALPHA_NCDM_TF" : 1.0,
         "BETA_NCDM_TF" : 0.0,

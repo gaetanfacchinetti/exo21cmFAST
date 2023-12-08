@@ -167,7 +167,7 @@ double MtoR(double M){
         /* Sharp-k: M = (volume_factor) * PI <rho> R^3
          Note that for a Sharp-k window the relation between M and R is ill-defined
          This is the reason we need to introduce a volume factor */
-        return pow(M / (astro_params_ufunc->VOLUME_FACTOR_SHARP_K * cosmo_params_ufunc->OMm * RHOcrit), 1.0/3.0);
+        return pow(3.0*M / (4.0 *PI * cosmo_params_ufunc->OMm * RHOcrit), 1.0/3.0) / astro_params_ufunc->VOLUME_FACTOR_SHARP_K;
     else if (flag_options_ufunc->PS_FILTER == 2) //gaussian: M = (2PI)^1.5 <rho> R^3
         return pow( M/(pow(2*PI, 1.5) * cosmo_params_ufunc->OMm * RHOcrit), 1.0/3.0 );
     else // filter not defined
@@ -184,7 +184,7 @@ double RtoM(double R){
         /* Sharp-k: M = (volume_factor) * PI <rho> R^3
          Note that for a Sharp-k window the relation between M and R is ill-defined
          This is the reason we need to introduce a volume factor */
-        return astro_params_ufunc->VOLUME_FACTOR_SHARP_K * cosmo_params_ufunc->OMm*RHOcrit * pow(R, 3);
+        return (4.0/3.0) * PI  * cosmo_params_ufunc->OMm*RHOcrit * pow(astro_params_ufunc->VOLUME_FACTOR_SHARP_K * R, 3);
     else if (flag_options_ufunc->PS_FILTER == 2) //gaussian: M = (2PI)^1.5 <rho> R^3
         return pow(2*PI, 1.5) * cosmo_params_ufunc->OMm*RHOcrit * pow(R, 3);
     else // filter not defined

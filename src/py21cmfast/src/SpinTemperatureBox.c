@@ -58,7 +58,6 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     writeAstroParams(flag_options, astro_params);
 }
 
-
     // Makes the parameter structs visible to a variety of functions/macros
     // Do each time to avoid Python garbage collection issues
     Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
@@ -465,15 +464,15 @@ LOG_SUPER_DEBUG("Initialised heat");
 
         if(user_params->USE_INTERPOLATION_TABLES) {
           if(user_params->FAST_FCOLL_TABLES){
-            initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2e20);
+            initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2.0e+20);
           }
           else{
             if(flag_options->M_MIN_in_Mass || flag_options->USE_MASS_DEPENDENT_ZETA) {
                 if (flag_options->USE_MINI_HALOS){
-                    initialiseSigmaMInterpTable(global_params.M_MIN_INTEGRAL/50.,2e20);
+                    initialiseSigmaMInterpTable(global_params.M_MIN_INTEGRAL/50.,2.0e+20);
                 }
                 else{
-                    initialiseSigmaMInterpTable(M_MIN,2e20);
+                    initialiseSigmaMInterpTable(M_MIN,2.0e+20);
                 }
             }
             LOG_SUPER_DEBUG("Initialised sigmaM interp table");
@@ -516,10 +515,10 @@ LOG_SUPER_DEBUG("Initialised heat");
                       M_MIN, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
             if(user_params->USE_INTERPOLATION_TABLES) {
               if(user_params->FAST_FCOLL_TABLES){
-                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2e20);
+                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2.0e+20);
               }
               else{
-                initialiseSigmaMInterpTable(M_MIN,2e20);
+                initialiseSigmaMInterpTable(M_MIN,2.0e+20);
               }
             }
         }
@@ -713,10 +712,10 @@ LOG_SUPER_DEBUG("Initialised heat");
             M_MIN = (float)TtoM(determine_zpp_max, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
             if(user_params->USE_INTERPOLATION_TABLES) {
               if(user_params->FAST_FCOLL_TABLES){
-                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2e20);
+                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2.0e+20);
               }
               else{
-                initialiseSigmaMInterpTable(M_MIN,2e20);
+                initialiseSigmaMInterpTable(M_MIN,2.0e+20);
               }
             }
         }
