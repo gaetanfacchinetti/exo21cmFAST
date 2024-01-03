@@ -72,6 +72,9 @@ struct AstroParams{
     float BETA_NCDM_TF;
     float GAMMA_NCDM_TF;
     float DELTA_NCDM_TF;
+    float SHETH_a;
+    float SHETH_p;
+    float SHETH_A;
 };
 
 struct FlagOptions{
@@ -89,7 +92,7 @@ struct FlagOptions{
     bool PHOTON_CONS;
     bool FIX_VCB_AVG;
     int PS_FILTER;
-    int PS_CUTOFF;
+    int PS_SMALL_SCALE_MODIF;
     int NCDM_MODEL;
 };
 

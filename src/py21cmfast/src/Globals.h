@@ -79,6 +79,10 @@ struct GlobalParams{
 
     bool USE_FAST_ATOMIC; //whether to apply the fast fcoll tables for atomic cooling haloes, usually turned off as it's not a big computational cost and those can deviate ~5-10% at z<10.
     bool USE_ADIABATIC_FLUCTUATIONS;
+
+    float M_WDM; // kept for retro-compatibility issues, should be remove in later versions
+    int P_CUTOFF; // kept for retro-compatibility issues, should be remove in later versions
+    float g_X; // kept for retro-compatibility issues, should be remove in later versions
 };
 
 extern struct GlobalParams global_params = {
@@ -149,4 +153,8 @@ extern struct GlobalParams global_params = {
 
     .USE_FAST_ATOMIC = 0,
     .USE_ADIABATIC_FLUCTUATIONS = 1,
+
+    .M_WDM = 0.0,
+    .P_CUTOFF = 0,
+    .g_X = 0.0,
 };

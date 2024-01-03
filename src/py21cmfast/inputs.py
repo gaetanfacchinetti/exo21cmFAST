@@ -642,10 +642,10 @@ class FlagOptions(StructWithDefaults):
         0. TOPHAT
         1. SHARPK
         2. GAUSSIAN
-    PS_CUTOFF: bool, optional
-        Include the supression of power-spectrum on small scales see `NCDM_TRANSFER_FUNCTION`
+    PS_SMALL_SCALE_MODIF: bool, optional
+        Include the modification of the power-spectrum on small scales.
     NCDM_MODEL: int or str, optional
-        If `PS_CUTOFF`is true then tells the model we want to use for the power suppression
+        If `PS_SMALL_SCALE_MODIF`is true then tells the model we want to use for the power suppression
     """
 
     _ffi = ffi
@@ -656,7 +656,7 @@ class FlagOptions(StructWithDefaults):
         "USE_CMB_HEATING": True,
         "USE_LYA_HEATING": True,
         "USE_MASS_DEPENDENT_ZETA": False,
-        #"USE_VELS_AUX": False, # set by default to the same value than user_params.USE_RELATIVE_VELOCITIES
+        "USE_VELS_AUX": False, # set by default to the same value than user_params.USE_RELATIVE_VELOCITIES
         "SUBCELL_RSD": False,
         "INHOMO_RECO": False,
         "USE_TS_FLUCT": False,
@@ -664,7 +664,7 @@ class FlagOptions(StructWithDefaults):
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
         "PS_FILTER": 0,
-        "PS_CUTOFF": False,
+        "PS_SMALL_SCALE_MODIF": False,
         "NCDM_MODEL": 0,
     }
 
@@ -768,6 +768,15 @@ class FlagOptions(StructWithDefaults):
             raise ValueError(f"NCDM_MODEL must be an int between 0 and {len(self._ncdm_models) - 1}")
 
         return val
+    
+
+
+    @property
+    def ncdm_model(self):
+        """String representation of the ncdm model used."""
+        return self._ncdm_models[self.NCDM_MODEL]
+    
+
 
 
 
@@ -869,8 +878,14 @@ class AstroParams(StructWithDefaults):
     VOLUME_FACTOR_SHARP_K: float, optional
         Volume factor relating the mass M to the size R when using a sharp-k window function to evaluate the variance of the smoothed density field
         Default value is set to the "theoretical" value used by Lacey & Cole (1994) = (9*pi/2)^{1/3} ~ 2.2.41798793102
-    M_WDM : float
-        Mass of WDM particle in keV. Ignored if `PS_CUTOFF` is False.
+    M_WDM : float, optional
+        Mass of WDM particle in keV. Ignored if `PS_SMALL_SCALE_MODIF` is False.
+    SHETH_a : float, optional 
+        Parameter `a` of the HMF parametrisation by Sheth & Tormen. Default is 0.73 (from Jenkins et al. 2001).
+    SHETH_p: float, optional
+        Parameter `p` of the HMF parametrisation by Sheth and Tormen. Default is 0.175 (from Jenkins et al. 2001).
+    SHETH_A: float, optional
+        Parameter `A` of the HMF parametrisation by Sheth and Tormen. Default is 0.353 (from Jenkins et al. 2001).
     """
 
     _ffi = ffi
@@ -905,6 +920,9 @@ class AstroParams(StructWithDefaults):
         "BETA_NCDM_TF" : 0.0,
         "GAMMA_NCDM_TF" : 0.0,
         "DELTA_NCDM_TF" : 0.0, 
+        "SHETH_a" : 0.73,
+        "SHETH_p" : 0.175,
+        "SHETH_A" : 0.353,
     }
 
     def __init__(
@@ -1025,6 +1043,24 @@ def validate_all_inputs(
                 warnings.warn(msg)
             else:
                 raise ValueError(msg)
+            
+        # Check the value of the Sheth and Tormen parametrisation
+        if (flag_options is not None) and (user_params.HMF == 1) and (flag_options.PS_SMALL_SCALE_MODIF) and ( 
+            astro_params.SHETH_a == astro_params._defaults_["SHETH_a"] 
+            and astro_params.SHETH_p == astro_params._defaults_["SHETH_p"] 
+            and astro_params.SHETH_A == astro_params._defaults_["SHETH_A"] 
+            ):
+                logger.warning("You may want to use another parametrisation of Sheth and Tormen mass function (different from default) as there is a modification in the PS." )
+                
+                if flag_options.ncdm_model == "WDM" and ( 
+                astro_params.SHETH_a != 1.0 
+                or astro_params.SHETH_p != 0.3
+                or astro_params.SHETH_A != 0.322
+                ):
+                    logger.warning("For WDM forcing : SHETH_a = 1.0, SHETH_p = 0.2, and SHETH_A = 0.322")
+                    astro_params.SHETH_a = 1.0
+                    astro_params.SHETH_p = 0.3
+                    astro_params.SHETH_A = 0.322
 
     if flag_options is not None and (
         flag_options.USE_MINI_HALOS

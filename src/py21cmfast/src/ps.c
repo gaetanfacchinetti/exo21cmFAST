@@ -92,7 +92,9 @@ double *z_val, *z_X_val, *Nion_z_val, *SFRD_val;
 double *Nion_z_val_MINI, *SFRD_val_MINI;
 
 void initialiseSigmaMInterpTable(float M_Min, float M_Max);
-double* sigmaFromInterpolationTables(double M);
+double sigmaFromInterpolationTables(double M);
+double dsigmasqdmFromInterpolationTables(double M);
+void setFromInterpolationTables(double growthf, double M, double *sigma, double *dsigmadm);
 void freeSigmaMInterpTable();
 void initialiseGL_Nion(int n, float M_Min, float M_Max);
 void initialiseGL_Nion_Xray(int n, float M_Min, float M_Max);
@@ -471,7 +473,7 @@ double transfer_function_sharp(double k, double R, double frac)
 */
 double transfer_function_nCDM(double k)
 {
-    if (!flag_options_ps->PS_CUTOFF)
+    if (!flag_options_ps->PS_SMALL_SCALE_MODIF)
         return 1.0;
 
     if (flag_options_ps->NCDM_MODEL == 0) // vanilla warm dark matter
@@ -1006,8 +1008,9 @@ void free_ps(){
 
 /* sheth correction to delta crit */
 double sheth_delc(double del, double sig){
-    return sqrt(SHETH_a)*del*(1. + global_params.SHETH_b*pow(sig*sig/(SHETH_a*del*del), global_params.SHETH_c));
+    return sqrt(astro_params_ps->SHETH_a)*del*(1. + global_params.SHETH_b*pow(sig*sig/(astro_params_ps->SHETH_a*del*del), global_params.SHETH_c));
 }
+
 
 /*
  FUNCTION dNdM_st(z, M)
@@ -1024,30 +1027,10 @@ double sheth_delc(double del, double sig){
 double dNdM_st(double growthf, double M){
 
     double sigma, dsigmadm, nuhat;
+    setFromInterpolationTables(growthf, M, &sigma, &dsigmadm);  
+    nuhat = sqrt(astro_params_ps->SHETH_a) * Deltac / sigma;
 
-    float MassBinLow;
-    int MassBin;
-
-    if(user_params_ps->USE_INTERPOLATION_TABLES) {
-        MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
-
-        sigma = Sigma_InterpTable[MassBin] + ( log(M) - MassBinLow )*( Sigma_InterpTable[MassBin+1] - Sigma_InterpTable[MassBin] )*inv_mass_bin_width;
-
-        dsigmadm = dSigmadm_InterpTable[MassBin] + ( log(M) - MassBinLow )*( dSigmadm_InterpTable[MassBin+1] - dSigmadm_InterpTable[MassBin] )*inv_mass_bin_width;
-        dsigmadm = -pow(10.,dsigmadm);
-    }
-    else {
-        sigma = sigma_z0(M);
-        dsigmadm = dsigmasqdm_z0(M);
-    }
-
-    sigma = sigma * growthf;
-    dsigmadm = dsigmadm * (growthf*growthf/(2.*sigma));
-
-    nuhat = sqrt(SHETH_a) * Deltac / sigma;
-
-    return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * sqrt(2./PI)*SHETH_A * (1+ pow(nuhat, -2*SHETH_p)) * nuhat * pow(E, -nuhat*nuhat/2.0);
+    return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * sqrt(2./PI)*astro_params_ps->SHETH_A * (1+ pow(nuhat, -2*astro_params_ps->SHETH_p)) * nuhat * pow(E, -nuhat*nuhat/2.0);
 }
 
 /*
@@ -1065,26 +1048,7 @@ double dNdM_st(double growthf, double M){
 double dNdM_WatsonFOF(double growthf, double M){
 
     double sigma, dsigmadm, f_sigma;
-
-    float MassBinLow;
-    int MassBin;
-
-    if(user_params_ps->USE_INTERPOLATION_TABLES) {
-        MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
-
-        sigma = Sigma_InterpTable[MassBin] + ( log(M) - MassBinLow )*( Sigma_InterpTable[MassBin+1] - Sigma_InterpTable[MassBin] )*inv_mass_bin_width;
-
-        dsigmadm = dSigmadm_InterpTable[MassBin] + ( log(M) - MassBinLow )*( dSigmadm_InterpTable[MassBin+1] - dSigmadm_InterpTable[MassBin] )*inv_mass_bin_width;
-        dsigmadm = -pow(10.,dsigmadm);
-    }
-    else {
-        sigma = sigma_z0(M);
-        dsigmadm = dsigmasqdm_z0(M);
-    }
-    sigma = sigma * growthf;
-    dsigmadm = dsigmadm * (growthf*growthf/(2.*sigma));
-
+    setFromInterpolationTables(growthf, M, &sigma, &dsigmadm);  
     f_sigma = Watson_A * ( pow( Watson_beta/sigma, Watson_alpha) + 1. ) * exp( - Watson_gamma/(sigma*sigma) );
 
     return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * f_sigma;
@@ -1105,24 +1069,7 @@ double dNdM_WatsonFOF(double growthf, double M){
 double dNdM_WatsonFOF_z(double z, double growthf, double M){
 
     double sigma, dsigmadm, A_z, alpha_z, beta_z, Omega_m_z, f_sigma;
-    float MassBinLow;
-    int MassBin;
-
-    if(user_params_ps->USE_INTERPOLATION_TABLES) {
-        MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
-
-        sigma = Sigma_InterpTable[MassBin] + ( log(M) - MassBinLow )*( Sigma_InterpTable[MassBin+1] - Sigma_InterpTable[MassBin] )*inv_mass_bin_width;
-
-        dsigmadm = dSigmadm_InterpTable[MassBin] + ( log(M) - MassBinLow )*( dSigmadm_InterpTable[MassBin+1] - dSigmadm_InterpTable[MassBin] )*inv_mass_bin_width;
-        dsigmadm = -pow(10.,dsigmadm);
-    }
-    else {
-        sigma = sigma_z0(M);
-        dsigmadm = dsigmasqdm_z0(M);
-    }
-    sigma = sigma * growthf;
-    dsigmadm = dsigmadm * (growthf*growthf/(2.*sigma));
+    setFromInterpolationTables(growthf, M, &sigma, &dsigmadm);  
 
     Omega_m_z = (cosmo_params_ps->OMm)*pow(1.+z,3.) / ( (cosmo_params_ps->OMl) + (cosmo_params_ps->OMm)*pow(1.+z,3.) + (global_params.OMr)*pow(1.+z,4.) );
 
@@ -1148,48 +1095,60 @@ double dNdM_WatsonFOF_z(double z, double growthf, double M){
  Reference: Padmanabhan, pg. 214
  */
 double dNdM(double growthf, double M){
+   
     double sigma, dsigmadm;
-    float MassBinLow;
-    int MassBin;
-
-    if(user_params_ps->USE_INTERPOLATION_TABLES) {
-        MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
-
-        sigma = Sigma_InterpTable[MassBin] + ( log(M) - MassBinLow )*( Sigma_InterpTable[MassBin+1] - Sigma_InterpTable[MassBin] )*inv_mass_bin_width;
-
-        dsigmadm = dSigmadm_InterpTable[MassBin] + ( log(M) - MassBinLow )*( dSigmadm_InterpTable[MassBin+1] - dSigmadm_InterpTable[MassBin] )*inv_mass_bin_width;
-        dsigmadm = -pow(10.,dsigmadm);
-    }
-    else {
-        sigma = sigma_z0(M);
-        dsigmadm = dsigmasqdm_z0(M);
-    }
-
-    sigma = sigma * growthf;
-    dsigmadm = dsigmadm * (growthf*growthf/(2.*sigma));
+    setFromInterpolationTables(growthf, M, &sigma, &dsigmadm);    
 
     return (-(cosmo_params_ps->OMm)*RHOcrit/M) * sqrt(2/PI) * (Deltac/(sigma*sigma)) * dsigmadm * pow(E, -(Deltac*Deltac)/(2*sigma*sigma));
 }
 
 
-
-double* sigmaFromInterpolationTables(double M)
+double sigmaFromInterpolationTables(double M)
 {
-    int MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-    float MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+    if(user_params_ps->USE_INTERPOLATION_TABLES)
+    {
+        int MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
+        float MassBinLow = MinMass + mass_bin_width*(float)MassBin;
 
-    double sigma = Sigma_InterpTable[MassBin] + ( log(M) - MassBinLow )*( Sigma_InterpTable[MassBin+1] - Sigma_InterpTable[MassBin] )*inv_mass_bin_width;
-    double dsigmadm = dSigmadm_InterpTable[MassBin] + ( log(M) - MassBinLow )*( dSigmadm_InterpTable[MassBin+1] - dSigmadm_InterpTable[MassBin] )*inv_mass_bin_width;
-    dsigmadm = -pow(10.,dsigmadm);
-
-    double* result = malloc(2 * sizeof(double));
+        return Sigma_InterpTable[MassBin] + ( log(M) - MassBinLow )*( Sigma_InterpTable[MassBin+1] - Sigma_InterpTable[MassBin] )*inv_mass_bin_width;
+    }
     
-    result[0] = sigma;
-    result[1] = dsigmadm;
-
-    return result;
+    return sigma_z0(M);
 }
+
+double dsigmasqdmFromInterpolationTables(double M)
+{
+    if(user_params_ps->USE_INTERPOLATION_TABLES)
+    {
+        int MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
+        float MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+
+        return -pow(10, dSigmadm_InterpTable[MassBin] + ( log(M) - MassBinLow )*( dSigmadm_InterpTable[MassBin+1] - dSigmadm_InterpTable[MassBin] )*inv_mass_bin_width);
+
+    }
+
+    return dsigmasqdm_z0(M);
+}
+
+void setFromInterpolationTables(double growthf, double M, double *sigma, double *dsigmadm)
+{
+    if(user_params_ps->USE_INTERPOLATION_TABLES)
+    {
+        int MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
+        float MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+
+        *sigma = growthf * (Sigma_InterpTable[MassBin] + ( log(M) - MassBinLow )*( Sigma_InterpTable[MassBin+1] - Sigma_InterpTable[MassBin] )*inv_mass_bin_width) ;
+        *dsigmadm = - (growthf*growthf/(2.* (*sigma))) * pow(10, dSigmadm_InterpTable[MassBin] + ( log(M) - MassBinLow )*( dSigmadm_InterpTable[MassBin+1] - dSigmadm_InterpTable[MassBin] )*inv_mass_bin_width);
+    }
+    else
+    {
+        *sigma =  growthf * sigma_z0(M);
+        *dsigmadm = (growthf*growthf/(2.*(* sigma))) * dsigmasqdm_z0(M);
+    }
+
+
+}
+
 
 /*
  FUNCTION FgtrM(z, M)
@@ -4584,12 +4543,10 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
     float* result = malloc(length * sizeof(float));
 
     for (int i = 0; i < length; i++) 
-        if (user_params_ps->USE_INTERPOLATION_TABLES)
-            result[i] = (float) sigmaFromInterpolationTables(mass[i])[0];
-        else
-            result[i] = (float) sigma_z0(mass[i]);
+        result[i] = (float) sigmaFromInterpolationTables(mass[i]);
 
-    freeSigmaMInterpTable();
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        freeSigmaMInterpTable();
 
     return result;
 }
@@ -4609,12 +4566,10 @@ float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *c
     float* result = malloc(length * sizeof(float));
 
     for (int i = 0; i < length; i++) 
-        if (user_params_ps->USE_INTERPOLATION_TABLES)
-            result[i] = (float) sigmaFromInterpolationTables(mass[i])[1];
-        else
-            result[i] = (float) dsigmasqdm_z0(mass[i]);
+        result[i] = (float) dsigmasqdmFromInterpolationTables(mass[i]);
 
-    freeSigmaMInterpTable();
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        freeSigmaMInterpTable();
 
     return result;
 }
@@ -4653,7 +4608,8 @@ float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_par
         }
     }
 
-    freeSigmaMInterpTable();
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        freeSigmaMInterpTable();
 
     return result;
 }
@@ -4675,7 +4631,8 @@ float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *c
     for (int i = 0; i < length; i++) 
         result[i] = (float) FgtrM_General(z[0], mass[i]);
 
-    freeSigmaMInterpTable();
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        freeSigmaMInterpTable();
 
     return result;
 }
@@ -4712,7 +4669,8 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
         result[i] = (float) Nion_ConditionalM(growthf, (double) mass[i], m2, sigma2, delta1, delta2, m_turn, alpha_s, alpha_e, f_star_10, f_esc_10, mlim_fs, mlim_fe, user_params_ps-> FAST_FCOLL_TABLES);
 
     // freeing the interpolation tables
-    freeSigmaMInterpTable();
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        freeSigmaMInterpTable();
 
     return result;
 }

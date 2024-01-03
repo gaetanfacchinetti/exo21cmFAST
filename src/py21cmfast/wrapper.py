@@ -96,6 +96,15 @@ from copy import deepcopy
 from scipy.interpolate import interp1d
 from typing import Any, Callable, Sequence
 
+# If the user wants to use class and has installed it
+# we try to import its python wrapper
+try:
+    from classy import Class
+    _CLASS_IMPORTED = True
+except ImportError:
+    _CLASS_IMPORTED = False
+
+
 from ._cfg import config
 from ._utils import OutputStruct, _check_compatible_inputs, _process_exitcode
 from .c_21cmfast import ffi, lib
@@ -3333,11 +3342,16 @@ def calibrate_photon_cons(
         astro_params_photoncons = deepcopy(astro_params)
         astro_params_photoncons._R_BUBBLE_MAX = astro_params.R_BUBBLE_MAX
 
-        flag_options_photoncons = FlagOptions(
-            USE_MASS_DEPENDENT_ZETA=flag_options.USE_MASS_DEPENDENT_ZETA,
-            M_MIN_in_Mass=flag_options.M_MIN_in_Mass,
-            USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES,
-        )
+        # Gaetan
+        if flag_options is not None:
+            flag_options_photoncons = flag_options
+            flag_options_photoncons.update(USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
+        else:
+            flag_options_photoncons = FlagOptions(
+                USE_MASS_DEPENDENT_ZETA=flag_options.USE_MASS_DEPENDENT_ZETA,
+                M_MIN_in_Mass=flag_options.M_MIN_in_Mass,
+                USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES,
+            )
 
         ib = None
         prev_perturb = None

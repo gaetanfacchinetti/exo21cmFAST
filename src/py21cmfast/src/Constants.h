@@ -61,10 +61,6 @@
 #define BODE_e (0.361) // Epsilon parameter in Bode et al. 2000 trans. funct.
 #define BODE_n (5.0) // Eda parameter in Bode et al. 2000 trans. funct.
 #define BODE_v (1.2) // Nu parameter in Bode et al. 2000 trans. funct.
-// SHETH params gotten from barkana et al. 2001, pg. 487
-#define SHETH_a (0.73) // Sheth and Tormen a parameter (from Jenkins et al. 2001)
-#define SHETH_p (0.175) // Sheth and Tormen p parameter (from Jenkins et al. 2001)
-#define SHETH_A (0.353) // Sheth and Tormen A parameter (from Jenkins et al. 2001)
 
 
 #define SIGMAVCB (29.0) //rms value of the DM-b relative velocity [im km/s]
