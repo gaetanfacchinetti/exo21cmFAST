@@ -75,6 +75,8 @@ struct AstroParams{
     float SHETH_a;
     float SHETH_p;
     float SHETH_A;
+    double SIGMA_B_0;
+    double B_INDEX;
 };
 
 struct FlagOptions{
@@ -92,8 +94,7 @@ struct FlagOptions{
     bool PHOTON_CONS;
     bool FIX_VCB_AVG;
     int PS_FILTER;
-    int PS_SMALL_SCALE_MODIF;
-    int NCDM_MODEL;
+    int PS_SMALL_SCALES_MODEL;
 };
 
 
@@ -225,6 +226,10 @@ float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *c
 float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                         float *mass, float *params, int length);
+float* ComputeGrowthFunctionFromPMF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length);
+float* ComputePMFInducedMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
 /* ---------------------------------------------- */
 
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params,

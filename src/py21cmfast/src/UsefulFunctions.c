@@ -154,6 +154,7 @@ double alpha_B(double T);
 double HeI_ion_crosssec(double nu);
 double HeII_ion_crosssec(double nu);
 double HI_ion_crosssec(double nu);
+double growth_from_pmf(double z);
 
 
 
@@ -303,6 +304,85 @@ double dicke(double z){
     LOG_ERROR("No growth function!");
     Throw ValueError;
 }
+
+
+/* 
+    Solves the equation M'' + 2HM' + 4*pi*Gn*rho_m M = 1/a^3 
+    where M is the growth function for matter radiation induced
+    by the presence of primordial magnetic fields 
+    from eq. (4) of arXiv:2306.11319 
+    
+    Here M has dimension of time to the power 2 result is in s^2 */
+double growth_from_pmf(double z)
+{
+    /* 
+        define x = ln(a) and y = M/a*H0^2
+        solve the equation in terms of these variables
+    */
+    
+    if (z >= 1100)
+        return 0.0;
+    
+    if (z < 1e-2)
+        z = 1e-2;
+
+    double x = log(1.0/(1.0 + 1100));
+    double dx = 0.001;
+    double y = 0.0;
+    double dy = 0.0;
+
+
+    double pn1, qn1, rn1, omz, orz, z_p, disc, y_new, dy_new;
+
+    // use a implicit Euler scheme to solve the equation
+    while (x < log(1.0/(1.0 + z)))
+    {
+        x = x + dx;
+
+        z_p = exp(-x)-1.0;
+        omz = cosmo_params_ufunc->OMm*pow(1+z_p,3) / ( cosmo_params_ufunc->OMl + cosmo_params_ufunc->OMm*pow(1+z_p,3) + global_params.OMr*pow(1+z_p,4) );
+        orz = global_params.OMr*pow(1+z_p,4) / ( cosmo_params_ufunc->OMl + cosmo_params_ufunc->OMm*pow(1+z_p,3) + global_params.OMr*pow(1+z_p,4) );
+        
+        /*
+            in practice we solve the coupled system
+            | u' = p(x) * u + q(x) * y + r(x)
+            | y' = u
+            where p, q and r are computed according to the
+            change of variables x = ln(a) and y = M/a*H0^2
+        */
+        pn1 = -(4.0 - 3.0/2.0 * omz - 2.0 * orz);
+        qn1 = -(3.0* (1.0 - omz) - 2.0 * orz);
+        rn1 = omz / cosmo_params_ufunc->OMm * exp(-x);
+
+        disc = 1.0 - dx * pn1 - dx * dx * qn1;
+
+        y_new  = (dx * dy + (1.0 - dx * pn1) * y) / disc;
+        dy_new = (dy  + dx * rn1 + dx * qn1 * y) / disc;
+
+        y  = y_new;
+        dy = dy_new;
+
+    }
+
+    return y * exp(x) / pow(Ho, 2);
+
+}
+
+float* ComputeGrowthFunctionFromPMF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length) 
+{
+
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) growth_from_pmf(z[i]);
+
+    return result;
+}
+
+
 
 /* function DTDZ returns the value of dt/dz at the redshift parameter z. */
 double dtdz(float z){
@@ -1001,3 +1081,7 @@ int FunctionThatCatches(bool sub_func, bool pass, double *result){
     *result = 5.0;
     return 0;
 }
+
+
+
+

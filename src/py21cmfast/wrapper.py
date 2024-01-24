@@ -528,6 +528,13 @@ def nion_conditional_m(mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, 
     params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
     return _generic_c_call_params(mass, params, lib.ComputeNionConditionalM, user_params, cosmo_params, astro_params, flag_options)
 
+def growth_from_pmf(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    return  _generic_c_call(z, lib.ComputeGrowthFunctionFromPMF, user_params, cosmo_params, astro_params, flag_options)
+
+def pmf_induced_matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    return  _generic_c_call(k, lib.ComputePMFInducedMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
 
 def _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options):
     user_params, cosmo_params, astro_params, flag_options = _setup_inputs(

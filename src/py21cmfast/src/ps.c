@@ -1,3 +1,5 @@
+#include <gsl/gsl_sf_gamma.h>
+
 /*** Some usefull math macros ***/
 #define SIGN(a,b) ((b) >= 0.0 ? fabs(a) : -fabs(a))
 
@@ -181,6 +183,15 @@ struct parameters_gsl_SFR_con_int_{
     double LimitMass_Fesc;
 };
 
+struct parameters_gsl_pmf_induced_power_int_{
+    double nB;
+    double x1;
+    double x;
+};
+
+
+
+
 unsigned long *lvector(long nl, long nh);
 void free_lvector(unsigned long *v, long nl, long nh);
 
@@ -197,6 +208,9 @@ void init_ps(); /* initialize global variables, MUST CALL THIS FIRST!!! */
 void free_ps(); /* deallocates the gsl structures from init_ps */
 double power_spectrum(double k); // Defines the matter power-spectrum
 double power_spectrum_LCDM(double k); 
+
+double transfer_function_PMF(double k);
+double pmf_induced_power_spectrum(double k);
 
 double window_function(double kR);
 double dsigma_dlnk(double k, void *params);
@@ -460,23 +474,40 @@ double transfer_function_sharp(double k, double R, double frac)
         return frac;
 }
 
+/* 
+    transfer_function_PMF(double k)
+
+    paremtrises a transfer function for the (Primordial Magnetic Field)-induced matter power spectrum
+
+    Here we assume that the effect of PMF can be caracterised by a transfer function
+    that is redshift independant. In full generality, one should include redshift differences using
+    the growth_from_pmf function. However growth_from_pmf and the standard growth function only differ
+    at large redshifts (at most by 5% - 7% at redshift 35). We have checked, recalculing the excursion
+    set theory expression with a moving barrier that is then mass dependent that this does not really
+    change anything for the mass function on the redshift and mass ranges that matters for 21cm physics 
+
+*/
+double transfer_function_PMF(double k)
+{
+    return sqrt(1.0 + pmf_induced_power_spectrum(k) * pow(k, -cosmo_params_ps->POWER_INDEX) / (TWOPI * PI) / (sigma_norm * sigma_norm)  * pow(transfer_function(k), -2));
+}
+
 /*
     transfer_function_nCDM(double k)
 
     returns the transfer function (ratio of true nCDM power spectrum 
     to CDM power spectrum) for the different models chosen with the
-    flag option NCDM_MODEL
+    flag option PS_SMALL_SCALES_MODEL
 
     Params
     ------
     - k (double) mode in Mpc^{-1}
 */
 double transfer_function_nCDM(double k)
-{
-    if (!flag_options_ps->PS_SMALL_SCALE_MODIF)
+{  
+    if (flag_options_ps->PS_SMALL_SCALES_MODEL == 0) // classical LCDM model
         return 1.0;
-
-    if (flag_options_ps->NCDM_MODEL == 0) // vanilla warm dark matter
+    if (flag_options_ps->PS_SMALL_SCALES_MODEL == 1) // vanilla warm dark matter
     {
         double m_wdm = astro_params_ps->M_WDM;
         
@@ -491,16 +522,20 @@ double transfer_function_nCDM(double k)
         return transfer_function_abgd(k, alpha, 2 * 1.12, -5.0 / 1.12, 0.0);
 
     }
-    else if (flag_options_ps->NCDM_MODEL == 1) // alpha beta gamma delta parametrisation of cutoff
+    else if (flag_options_ps->PS_SMALL_SCALES_MODEL == 2) // alpha beta gamma delta parametrisation of cutoff
         return transfer_function_abgd(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->BETA_NCDM_TF, astro_params_ps->GAMMA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
-    else if (flag_options_ps->NCDM_MODEL == 2) // sharp transfer function
+    else if (flag_options_ps->PS_SMALL_SCALES_MODEL == 3) // sharp transfer function
         return transfer_function_sharp(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
+    else if (flag_options_ps->PS_SMALL_SCALES_MODEL == 4) // primordial magnetic fields
+        return transfer_function_PMF(k);
     else
     {
-        LOG_ERROR("No such NCDM_MODEL defined: %i. Output is bogus.", flag_options_ps->NCDM_MODEL);
+        LOG_ERROR("No such PS_SMALL_SCALES_MODEL defined: %i. Output is bogus.", flag_options_ps->PS_SMALL_SCALES_MODEL);
         Throw(ValueError);
     }     
 }
+
+
 
 
 /*
@@ -613,6 +648,7 @@ double power_in_k(double k)
 }
 
 
+
 /*
   Returns the value of the linear power spectrum of the DM-b relative velocity
   at kinematic decoupling (which we set at zkin=1010)
@@ -635,7 +671,106 @@ double power_in_vcb(double k){
 }
 
 
+/* Below we compute all quantities related to the matter power spectrum induced by the presence of primordial magnetic fields */
 
+double _int1_pmf_induced_power(double mu, void *params)
+{   
+    struct parameters_gsl_pmf_induced_power_int_ vals = *(struct parameters_gsl_pmf_induced_power_int_ *)params;
+
+    double x1 = vals.x1;
+    double nB = vals.nB;
+    double x = vals.x;
+
+    double y = sqrt(x*x + x1*x1 - 2*x*x1*mu);
+    return pow(y, nB) * exp(-2.0*y*y) * (x*x + (x*x - 2*x*x1*mu)*mu*mu);
+}
+
+double _int2_pmf_induced_power(double lnx1, void *params)
+{
+    struct parameters_gsl_pmf_induced_power_int_ vals = *(struct parameters_gsl_pmf_induced_power_int_ *)params;
+
+    double nB = vals.nB;
+    double x = vals.x;
+    double x1 = exp(lnx1);
+
+    struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_1 = {.x1 = x1, .nB = nB, .x  = x};
+    
+    gsl_function F;
+    F.function = _int1_pmf_induced_power;
+    F.params = &parameters_gsl_pmf_1;
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
+    double rel_tol = 1e-3;
+    double result, error;
+    double lower_limit = -1.0;
+    double upper_limit = 1.0;
+    int status;
+
+    gsl_set_error_handler_off();
+
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+
+    if(status!=0) {
+        LOG_ERROR("gsl integration error occured!");
+        LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
+        GSL_ERROR(status);
+    }
+
+    gsl_integration_workspace_free(w);
+
+    return x1*x1 *  pow(x1, nB) * exp(-2.0*x1*x1) * result * x1;
+    // last exp(lnx1) = x1 is here because we integrate over lnx1 and not x1)
+}
+
+/* 
+    Returns the matter power spectrum enhencement induced by the presence of primordial magnetic fields
+    Output is the dimensionful power spectrum in Mpc^3
+*/
+double pmf_induced_power_spectrum(double k)
+{
+    double sB0 = astro_params_ps->SIGMA_B_0;
+    double nB  = astro_params_ps->B_INDEX;
+
+    double kA_approx = pow(sB0*sB0 / pow(2*PI, 3.0 + nB) / 4.2e+5, -1.0/(5.0 + nB));
+    double amplitude = pow(2*PI * sB0, 2) / gsl_sf_gamma((nB+3.0)/2.0);
+
+
+
+    struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .x  = k/kA_approx,};
+
+    gsl_function F;
+    F.function = _int2_pmf_induced_power;
+    F.params = &parameters_gsl_pmf_2;
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+    double rel_tol  = 1e-3; //10.0 * FRACT_FLOAT_ERR;
+    double result, error;
+    double lower_limit = -3.0-log(kA_approx);
+    double upper_limit = 3.0;
+    int status;
+
+    gsl_set_error_handler_off();
+
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+
+    if(status!=0) {
+        LOG_ERROR("gsl integration error occured!");
+        LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
+        GSL_ERROR(status);
+    }
+
+    gsl_integration_workspace_free(w);
+    
+    double result_int = pow(amplitude, 2) * pow(kA_approx, 5.0+2*nB) * result;
+
+    double fb = cosmo_params_ps->OMb / cosmo_params_ps->OMm;
+    double rhob_0 = cosmo_params_ps->OMb  * RHOcrit;
+    double rhom_0 = cosmo_params_ps->OMm  * RHOcrit;
+    double kB = 2*PI * pow(16.0*PI/25.0 * sB0 * sB0 * 2.7338505671410205e+19 / rhob_0 / rhom_0 , -1.0/(5.0+nB)) ;
+
+    double power = pow(fb * k /rhob_0, 2) * result_int  * 9.657168589894663e-59; // The last numerical term is a conversion factor to get the correct units of Mpc^{3} in the end
+
+    return power * pow(growth_from_pmf(0), 2) * pow(1.0  + pow(k / kB, 2), -2);
+
+}
 
 
 //
@@ -2728,7 +2863,7 @@ float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sig
 }
 
 
-#include <gsl/gsl_sf_gamma.h>
+
 //JBM: Integral of a power-law times exponential for EPS: \int dnu nu^beta * exp(-nu/2)/sqrt(nu) from numin to infty.
 double Fcollapprox (double numin, double beta){
 //nu is deltacrit^2/sigma^2, corrected by delta(R) and sigma(R)
@@ -4490,6 +4625,7 @@ float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoP
 {
 
     Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
     init_ps();
 
     float* result = malloc(length * sizeof(float));
@@ -4515,6 +4651,7 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
 {
 
     Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
     init_ps();
 
     float* result = malloc(length * sizeof(float));
@@ -4528,6 +4665,24 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
 
     return result;
 }
+
+
+float* ComputePMFInducedMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) pmf_induced_power_spectrum(k[i]);
+
+    return result;
+}
+
 
 float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
@@ -4550,6 +4705,7 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
 
     return result;
 }
+
 
 
 float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 

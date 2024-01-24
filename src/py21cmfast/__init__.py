@@ -60,6 +60,8 @@ from .wrapper import (
     radius_to_mass,
     f_gtr_mass,
     nion_conditional_m,
+    growth_from_pmf,
+    pmf_induced_matter_power_spectrum,
 )
 
 configure_logging()

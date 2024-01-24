@@ -642,10 +642,13 @@ class FlagOptions(StructWithDefaults):
         0. TOPHAT
         1. SHARPK
         2. GAUSSIAN
-    PS_SMALL_SCALE_MODIF: bool, optional
-        Include the modification of the power-spectrum on small scales.
-    NCDM_MODEL: int or str, optional
-        If `PS_SMALL_SCALE_MODIF`is true then tells the model we want to use for the power suppression
+    PS_SMALL_SCALES_MODEL: int or str, optional
+        Defines the model of PS at small scales with transfer functions
+        0 or "LCDM". Classical lambda CDM model for the power spectrum on small scales
+        1 or "WDM". WDM model T = pow(1 + pow(alpha * k, beta), gamma) with alpha, beta, and delta according to arXiv:astro-ph/0501562
+        2 or "ABGD". Generic transfer function  T = (1-delta) * pow(1 + pow(alpha * k, beta), gamma) + delta
+        3 or "SHARP". Generic transfer function T = Theta(1-k * alpha) + Theta(k * alpha -1) * delta
+        4 or "PMF". Inclusion of primordial magnetic fields effects according to arXiv:2306.11319
     """
 
     _ffi = ffi
@@ -664,12 +667,11 @@ class FlagOptions(StructWithDefaults):
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
         "PS_FILTER": 0,
-        "PS_SMALL_SCALE_MODIF": False,
-        "NCDM_MODEL": 0,
+        "PS_SMALL_SCALES_MODEL": 0,
     }
 
     _ps_filter_models = ["TOPHAT", "SHARPK", "GAUSSIAN"]
-    _ncdm_models = ["WDM", "ABGD", "SHARP"]
+    _ps_small_scales_model = ["LCDM", "WDM", "ABGD", "SHARP", "PMF"]
 
     @property
     def USE_HALO_FIELD(self):
@@ -751,30 +753,30 @@ class FlagOptions(StructWithDefaults):
         return val
     
     @property
-    def NCDM_MODEL(self): 
-        """ Translate NCDM_MODEL string into an int """
+    def PS_SMALL_SCALES_MODEL(self): 
+        """ Translate PS_SMALL_SCALES_MODEL string into an int """
 
-        if isinstance(self._NCDM_MODEL, str): 
-            val = self._ncdm_models.index(self._NCDM_MODEL.upper())
+        if isinstance(self._PS_SMALL_SCALES_MODEL, str): 
+            val = self._ps_small_scales_model.index(self._PS_SMALL_SCALES_MODEL.upper())
         else:
-            val = self._NCDM_MODEL
+            val = self._PS_SMALL_SCALES_MODEL
 
         try:
             val = int(val)
         except (ValueError, TypeError) as e:
-            raise ValueError("Invalid value for NCDM_MODEL") from e
+            raise ValueError("Invalid value for PS_SMALL_SCALES_MODEL") from e
 
-        if not 0 <= val < len(self._ncdm_models):
-            raise ValueError(f"NCDM_MODEL must be an int between 0 and {len(self._ncdm_models) - 1}")
+        if not 0 <= val < len(self._ps_small_scales_model):
+            raise ValueError(f"PS_SMALL_SCALES_MODEL must be an int between 0 and {len(self._ps_small_scales_model) - 1}")
 
         return val
     
 
 
     @property
-    def ncdm_model(self):
+    def ps_small_scales_model(self):
         """String representation of the ncdm model used."""
-        return self._ncdm_models[self.NCDM_MODEL]
+        return self._ps_small_scales_model[self.PS_SMALL_SCALES_MODEL]
     
 
 
@@ -879,13 +881,19 @@ class AstroParams(StructWithDefaults):
         Volume factor relating the mass M to the size R when using a sharp-k window function to evaluate the variance of the smoothed density field
         Default value is set to the "theoretical" value used by Lacey & Cole (1994) = (9*pi/2)^{1/3} ~ 2.2.41798793102
     M_WDM : float, optional
-        Mass of WDM particle in keV. Ignored if `PS_SMALL_SCALE_MODIF` is False.
+        Mass of WDM particle in keV. Ignored if `PS_SMALL_SCALES_MODEL` is not "WDM" is False
     SHETH_a : float, optional 
-        Parameter `a` of the HMF parametrisation by Sheth & Tormen. Default is 0.73 (from Jenkins et al. 2001).
+        Parameter `a` of the HMF parametrisation by Sheth & Tormen. Default is 0.73 (from Jenkins et al. 2001)
     SHETH_p: float, optional
-        Parameter `p` of the HMF parametrisation by Sheth and Tormen. Default is 0.175 (from Jenkins et al. 2001).
+        Parameter `p` of the HMF parametrisation by Sheth and Tormen. Default is 0.175 (from Jenkins et al. 2001)
     SHETH_A: float, optional
-        Parameter `A` of the HMF parametrisation by Sheth and Tormen. Default is 0.353 (from Jenkins et al. 2001).
+        Parameter `A` of the HMF parametrisation by Sheth and Tormen. Default is 0.353 (from Jenkins et al. 2001)
+    SIGMA_B_0: float, optional
+        Value of the variance of the primoridal magnetic field (in nG)
+        Only used if `PRIMORDIAL_MAGNETIC_FIELDS`set to True in `FlagOptions`
+    B_INDEX: float, optional
+        Index of the power spectrum of primordial magnetic fields
+        Only used if `PRIMORDIAL_MAGNETIC_FIELDS`set to True in `FlagOptions`
     """
 
     _ffi = ffi
@@ -923,6 +931,8 @@ class AstroParams(StructWithDefaults):
         "SHETH_a" : 0.73,
         "SHETH_p" : 0.175,
         "SHETH_A" : 0.353,
+        "SIGMA_B_0" : 0.1,
+        "B_INDEX" : -2.5,
     }
 
     def __init__(
@@ -1045,14 +1055,14 @@ def validate_all_inputs(
                 raise ValueError(msg)
             
         # Check the value of the Sheth and Tormen parametrisation
-        if (flag_options is not None) and (user_params.HMF == 1) and (flag_options.PS_SMALL_SCALE_MODIF) and ( 
+        if (flag_options is not None) and (user_params.HMF == 1) and (flag_options.PS_SMALL_SCALES_MODEL > 0) and ( 
             astro_params.SHETH_a == astro_params._defaults_["SHETH_a"] 
             and astro_params.SHETH_p == astro_params._defaults_["SHETH_p"] 
             and astro_params.SHETH_A == astro_params._defaults_["SHETH_A"] 
             ):
                 logger.warning("You may want to use another parametrisation of Sheth and Tormen mass function (different from default) as there is a modification in the PS." )
                 
-                if flag_options.ncdm_model == "WDM" and ( 
+                if flag_options.ps_small_scales_model == "WDM" and ( 
                 astro_params.SHETH_a != 1.0 
                 or astro_params.SHETH_p != 0.3
                 or astro_params.SHETH_A != 0.322
