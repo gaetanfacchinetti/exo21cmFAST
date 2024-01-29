@@ -1,4 +1,6 @@
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_interp2d.h>
+#include <gsl/gsl_spline2d.h>
 
 /*** Some usefull math macros ***/
 #define SIGN(a,b) ((b) >= 0.0 ? fabs(a) : -fabs(a))
@@ -57,6 +59,10 @@ gsl_spline *LF_spline;
 
 gsl_interp_accel *deriv_spline_acc;
 gsl_spline *deriv_spline;
+
+
+gsl_spline2d *spline_log10_ps_v;
+gsl_interp_accel *acc_nB, *acc_w;
 
 struct CosmoParams *cosmo_params_ps;
 struct UserParams *user_params_ps;
@@ -211,6 +217,7 @@ double power_spectrum_LCDM(double k);
 
 double transfer_function_PMF(double k);
 double pmf_induced_power_spectrum(double k);
+void interpolate_power_spectrum_from_pmf(bool free_tables);
 
 double window_function(double kR);
 double dsigma_dlnk(double k, void *params);
@@ -509,7 +516,12 @@ double transfer_function_nCDM(double k)
         return 1.0;
     if (flag_options_ps->PS_SMALL_SCALES_MODEL == 1) // vanilla warm dark matter
     {
-        double m_wdm = astro_params_ps->M_WDM;
+        double m_wdm;
+
+        if (!flag_options_ps->USE_INVERSE_PARAMS)
+            m_wdm = astro_params_ps->M_WDM;
+        else
+            m_wdm = astro_params_ps->INVERSE_M_WDM;
         
         // cutoff parameter according to Q. Decant PhD thesis (in Mpc)
         double alpha = 0.049;
@@ -536,6 +548,86 @@ double transfer_function_nCDM(double k)
 }
 
 
+
+void interpolate_power_spectrum_from_pmf(bool free_tables)
+{
+
+    if (free_tables == false)
+    { 
+        double log10_w_array[300], nB_array[50];
+
+        const size_t nx = sizeof(nB_array) / sizeof(double); /* x grid points */
+        const size_t ny = sizeof(log10_w_array) / sizeof(double); /* y grid points */
+        double *log10_ps_array = malloc(nx * ny * sizeof(double));
+
+        gsl_set_error_handler_off();
+     
+         const gsl_interp2d_type *T = gsl_interp2d_bilinear;
+        spline_log10_ps_v = gsl_spline2d_alloc(T, nx, ny);
+        
+        acc_nB = gsl_interp_accel_alloc();
+        acc_w  = gsl_interp_accel_alloc();
+
+
+        //LOG_DEBUG("We have %d, %d", nx, ny);
+
+        FILE *F;
+        char filename[500];
+
+        sprintf(filename, "%s/%s", global_params.external_table_path, "dimensionless_power_spectrum_v_PMF.txt");
+
+        if (!(F = fopen(filename, "r"))) {
+                LOG_ERROR("Unable to open file: %s for reading.", filename);
+                Throw(IOError);
+            }
+
+        // Passing the first two lines of comments
+        fscanf(F, "%*[^\n]\n");
+        fscanf(F, "%*[^\n]\n");
+    
+        int nscans, i, j;
+        float temp_nB, temp_w, temp_log10_ps;
+
+        for (int p = 0; p < (nx*ny); p++)
+        {
+            nscans = fscanf(F, "%e %e %e ", &temp_nB, &temp_w, &temp_log10_ps);
+            if (nscans != 3) {
+                LOG_ERROR("Reading PS_v for PMF failed: %d", nscans);
+                Throw(IOError);
+            }
+
+            j = (int) p % ny; // index along w
+            i = (int)((p - j)/(1.0 * ny)); // index along nB
+
+            //LOG_DEBUG("Looping over the table: i = %d, j = %d", i, j);
+            //LOG_DEBUG("We have read here, %e, %e, %e", temp_nB, log10(temp_w), temp_log10_ps);
+
+            if (i == 0)
+                log10_w_array[j] = log10(temp_w);
+
+            if (j==0)
+                nB_array[i] = temp_nB;
+
+            gsl_spline2d_set(spline_log10_ps_v, log10_ps_array, i , j, temp_log10_ps);
+
+            //LOG_DEBUG("We are here");
+        }
+
+        fclose(F);
+
+        int gsl_status = gsl_spline2d_init(spline_log10_ps_v, nB_array, log10_w_array, log10_ps_array, nx, ny);
+        GSL_ERROR(gsl_status);
+
+        free(log10_ps_array);
+    }
+    else
+    {
+        gsl_spline2d_free(spline_log10_ps_v);
+        gsl_interp_accel_free(acc_w);
+        gsl_interp_accel_free(acc_nB);
+    }
+
+}
 
 
 /*
@@ -733,40 +825,58 @@ double pmf_induced_power_spectrum(double k)
     double kA_approx = pow(sB0*sB0 / pow(2*PI, 3.0 + nB) / 4.2e+5, -1.0/(5.0 + nB));
     double amplitude = pow(2*PI * sB0, 2) / gsl_sf_gamma((nB+3.0)/2.0);
 
+    double dimensionless_power_spectrum_v = 0;
+    double log10_w = log10(k/kA_approx);
 
+    if (user_params_ps->USE_PMF_TABLES == true)
+    {   
+        if (nB < -2.9 || nB > 0)
+            LOG_ERROR("Cannot use PMF_TABLES for B_INDEX < -2.9 or > 0.0");
 
-    struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .x  = k/kA_approx,};
+        if (log10_w < -3.5)
+            dimensionless_power_spectrum_v = 0;
+        else if (log10_w > 0.8)
+            dimensionless_power_spectrum_v = 0;
+        else
+            dimensionless_power_spectrum_v = pow(10, gsl_spline2d_eval(spline_log10_ps_v, nB, log10_w, acc_nB, acc_w));
+    }
+    else
+    {
+        struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .x  = k/kA_approx,};
 
-    gsl_function F;
-    F.function = _int2_pmf_induced_power;
-    F.params = &parameters_gsl_pmf_2;
-    gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
-    double rel_tol  = 1e-3; //10.0 * FRACT_FLOAT_ERR;
-    double result, error;
-    double lower_limit = -3.0-log(kA_approx);
-    double upper_limit = 3.0;
-    int status;
+        gsl_function F;
+        F.function = _int2_pmf_induced_power;
+        F.params = &parameters_gsl_pmf_2;
+        gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+        double rel_tol  = 1e-3; //10.0 * FRACT_FLOAT_ERR;
+        double result, error;
+        double lower_limit = -3.0-log(kA_approx);
+        double upper_limit = 3.0;
+        int status;
 
-    gsl_set_error_handler_off();
+        gsl_set_error_handler_off();
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+        status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
 
-    if(status!=0) {
-        LOG_ERROR("gsl integration error occured!");
-        LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
-        GSL_ERROR(status);
+        if(status!=0) {
+            LOG_ERROR("gsl integration error occured!");
+            LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
+            GSL_ERROR(status);
+        }
+
+        gsl_integration_workspace_free(w);
+
+        dimensionless_power_spectrum_v =  pow(10, 2*log10_w) * result / pow(4*PI, 2);
     }
 
-    gsl_integration_workspace_free(w);
+    double power_spectrum_v = pow(amplitude, 2) * pow(kA_approx, 7.0+2*nB) * dimensionless_power_spectrum_v;
     
-    double result_int = pow(amplitude, 2) * pow(kA_approx, 5.0+2*nB) * result;
-
     double fb = cosmo_params_ps->OMb / cosmo_params_ps->OMm;
     double rhob_0 = cosmo_params_ps->OMb  * RHOcrit;
     double rhom_0 = cosmo_params_ps->OMm  * RHOcrit;
     double kB = 2*PI * pow(16.0*PI/25.0 * sB0 * sB0 * 2.7338505671410205e+19 / rhob_0 / rhom_0 , -1.0/(5.0+nB)) ;
 
-    double power = pow(fb * k /rhob_0, 2) * result_int  * 9.657168589894663e-59; // The last numerical term is a conversion factor to get the correct units of Mpc^{3} in the end
+    double power = pow(fb /rhob_0, 2) * power_spectrum_v  * 1.5249989378701802e-56; // The last numerical term is a conversion factor to get the correct units of Mpc^{3} in the end
 
     return power * pow(growth_from_pmf(0), 2) * pow(1.0  + pow(k / kB, 2), -2);
 
@@ -1060,6 +1170,9 @@ void init_ps(){
         TF_CLASS(1.0, 0, 0);
     }
 
+    if (flag_options_ps->PS_SMALL_SCALES_MODEL == 4) // PMF
+        interpolate_power_spectrum_from_pmf(false);
+
     omhh = cosmo_params_ps->OMm*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle;
     theta_cmb = T_cmb / 2.7;
 
@@ -1123,6 +1236,10 @@ void free_ps(){
 	if (user_params_ps->POWER_SPECTRUM == 5){
 		TF_CLASS(1.0, -1, 0);
 	}
+
+    // we free the PS interpolator if using PMF
+    if (flag_options_ps->PS_SMALL_SCALES_MODEL == 4)
+        interpolate_power_spectrum_from_pmf(true);
 
   return;
 }
@@ -4633,6 +4750,8 @@ float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoP
     for (int i = 0; i < length; i++) 
         result[i] = (float) transfer_function_nCDM(k[i]);
 
+    free_ps();
+
     return result;
 }
 
@@ -4663,6 +4782,8 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
     for (int i = 0; i < length; i++) 
         result[i] = (float) power_in_k(k[i]);
 
+    free_ps();
+
     return result;
 }
 
@@ -4675,10 +4796,14 @@ float* ComputePMFInducedMatterPowerSpectrum(struct UserParams *user_params, stru
     Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
     init_ps();
 
+    interpolate_power_spectrum_from_pmf(false);
+
     float* result = malloc(length * sizeof(float));
 
     for (int i = 0; i < length; i++) 
         result[i] = (float) pmf_induced_power_spectrum(k[i]);
+
+    free_ps();
 
     return result;
 }
@@ -4703,6 +4828,8 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
     if (user_params_ps->USE_INTERPOLATION_TABLES)
         freeSigmaMInterpTable();
 
+    free_ps();
+
     return result;
 }
 
@@ -4726,6 +4853,8 @@ float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *c
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
         freeSigmaMInterpTable();
+    
+    free_ps();
 
     return result;
 }
@@ -4766,6 +4895,8 @@ float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_par
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
         freeSigmaMInterpTable();
+    
+    free_ps();
 
     return result;
 }
@@ -4789,6 +4920,8 @@ float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *c
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
         freeSigmaMInterpTable();
+    
+    free_ps();
 
     return result;
 }
@@ -4827,6 +4960,8 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
     // freeing the interpolation tables
     if (user_params_ps->USE_INTERPOLATION_TABLES)
         freeSigmaMInterpTable();
+
+    free_ps();
 
     return result;
 }

@@ -449,6 +449,9 @@ class UserParams(StructWithDefaults):
     MINIMIZE_MEMORY: bool, optional
         If set, the code will run in a mode that minimizes memory usage, at the expense
         of some CPU/disk-IO. Good for large boxes / small computers.
+    USE_PMF_TABLES: bool, optional
+        If set, computes the matter power spectrum from PMF (see `PS_SMALL_SCALES_MODEL` option 4)
+        using precomputed tables (default is `True`).
     """
 
     _ffi = ffi
@@ -469,6 +472,7 @@ class UserParams(StructWithDefaults):
         "FAST_FCOLL_TABLES": False,
         "USE_2LPT": True,
         "MINIMIZE_MEMORY": False,
+        "USE_PMF_TABLES": True,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -649,6 +653,9 @@ class FlagOptions(StructWithDefaults):
         2 or "ABGD". Generic transfer function  T = (1-delta) * pow(1 + pow(alpha * k, beta), gamma) + delta
         3 or "SHARP". Generic transfer function T = Theta(1-k * alpha) + Theta(k * alpha -1) * delta
         4 or "PMF". Inclusion of primordial magnetic fields effects according to arXiv:2306.11319
+    USE_INVERSE_PARAMS: bool, optional
+        If true, then the warm dark matter mass is set using INVERSE_M_WDM instead of M_WDM
+        This is useful for Fisher Matrix analysis where the fiducial value of the parameters is infinite
     """
 
     _ffi = ffi
@@ -668,6 +675,7 @@ class FlagOptions(StructWithDefaults):
         "FIX_VCB_AVG": False,
         "PS_FILTER": 0,
         "PS_SMALL_SCALES_MODEL": 0,
+        "USE_INVERSE_PARAMS" : False,
     }
 
     _ps_filter_models = ["TOPHAT", "SHARPK", "GAUSSIAN"]
@@ -881,7 +889,9 @@ class AstroParams(StructWithDefaults):
         Volume factor relating the mass M to the size R when using a sharp-k window function to evaluate the variance of the smoothed density field
         Default value is set to the "theoretical" value used by Lacey & Cole (1994) = (9*pi/2)^{1/3} ~ 2.2.41798793102
     M_WDM : float, optional
-        Mass of WDM particle in keV. Ignored if `PS_SMALL_SCALES_MODEL` is not "WDM" is False
+        Mass of WDM particle in keV. Ignored if `PS_SMALL_SCALES_MODEL` is not "WDM"
+    INVERSE_M_WDM: float, optional
+        Inverse of WDM particle mass in KeV^{-1}. Usefull for some computations. Ignored if `PS_SMALL_SCALES_MODEL` is not "WDM"
     SHETH_a : float, optional 
         Parameter `a` of the HMF parametrisation by Sheth & Tormen. Default is 0.73 (from Jenkins et al. 2001)
     SHETH_p: float, optional
@@ -924,6 +934,7 @@ class AstroParams(StructWithDefaults):
         "BETA_VCB": 1.8,
         "VOLUME_FACTOR_SHARP_K": 2.41798793102,
         "M_WDM": 4.0,
+        "INVERSE_M_WDM" : 0.25,
         "ALPHA_NCDM_TF" : 1.0,
         "BETA_NCDM_TF" : 0.0,
         "GAMMA_NCDM_TF" : 0.0,
@@ -1080,3 +1091,5 @@ def validate_all_inputs(
         logger.warning(
             "USE_MINI_HALOS needs USE_RELATIVE_VELOCITIES to get the right evolution!"
         )
+
+        

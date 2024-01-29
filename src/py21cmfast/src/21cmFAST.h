@@ -33,6 +33,7 @@ struct UserParams{
     bool FAST_FCOLL_TABLES; //Whether to use the fast Fcoll table approximation in EPS
     bool USE_2LPT;
     bool MINIMIZE_MEMORY;
+    bool USE_PMF_TABLES;
 };
 
 struct AstroParams{
@@ -68,6 +69,7 @@ struct AstroParams{
 
     float VOLUME_FACTOR_SHARP_K;
     float M_WDM;
+    float INVERSE_M_WDM;
     float ALPHA_NCDM_TF;
     float BETA_NCDM_TF;
     float GAMMA_NCDM_TF;
@@ -95,6 +97,7 @@ struct FlagOptions{
     bool FIX_VCB_AVG;
     int PS_FILTER;
     int PS_SMALL_SCALES_MODEL;
+    bool USE_INVERSE_PARAMS;
 };
 
 
