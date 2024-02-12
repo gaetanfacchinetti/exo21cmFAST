@@ -2393,10 +2393,11 @@ def run_coeval(
                 cosmo_params,
                 astro_params,
                 flag_options,
-                init_box,
                 regenerate,
                 write,
                 direc,
+                random_seed,
+                always_purge
             )
 
         if not hasattr(redshift, "__len__"):
@@ -2898,10 +2899,11 @@ def run_lightcone(
                 cosmo_params,
                 astro_params,
                 flag_options,
-                init_box,
                 regenerate,
                 write,
                 direc,
+                random_seed,
+                always_purge,
             )
 
         d_at_redshift, lc_distances, n_lightcone = _setup_lightcone(
@@ -3301,10 +3303,11 @@ def calibrate_photon_cons(
     cosmo_params,
     astro_params,
     flag_options,
-    init_box,
     regenerate,
     write,
     direc,
+    random_seed,
+    always_purge,
     **global_kwargs,
 ):
     r"""
@@ -3349,16 +3352,43 @@ def calibrate_photon_cons(
         astro_params_photoncons = deepcopy(astro_params)
         astro_params_photoncons._R_BUBBLE_MAX = astro_params.R_BUBBLE_MAX
 
-        # Gaetan
-        if flag_options is not None:
-            flag_options_photoncons = flag_options
-            flag_options_photoncons.update(USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
-        else:
-            flag_options_photoncons = FlagOptions(
-                USE_MASS_DEPENDENT_ZETA=flag_options.USE_MASS_DEPENDENT_ZETA,
-                M_MIN_in_Mass=flag_options.M_MIN_in_Mass,
-                USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES,
+        flag_options_photoncons = deepcopy(flag_options)
+        flag_options_photoncons.update(INHOMO_RECO = False, USE_TS_FLUCT = False, PHOTON_CONS = False, USE_MASS_DEPENDENT_ZETA = True, 
+                                    M_MIN_in_Mass = True, USE_HALO_FIELD = False, USE_MINI_HALOS = False, SUBCELL_RSD = False, 
+                                    USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
+
+        # Start initial conditions for photoncons
+        # Here we do not need many of the flag options
+        # Many are deactivated below and new initial conditions are set
+        # We could use init_box defined in the main function 
+        # but then the flag options would be different and it produces
+        # an incompatibility error
+        init_box_photoncons = initial_conditions(
+            user_params=user_params,
+            cosmo_params=cosmo_params,
+            astro_params=astro_params_photoncons,
+            flag_options=flag_options_photoncons,
+            hooks=hooks,
+            regenerate=regenerate,
+            direc=direc,
+            random_seed=random_seed,
             )
+
+        # We can go ahead and purge some of the stuff in the init_box, but only if
+        # it is cached -- otherwise we could be losing information.
+        try:
+            # TODO: should really check that the file at path actually contains a fully
+            # working copy of the init_box.
+            init_box_photoncons.prepare_for_perturb(flag_options=flag_options, force=always_purge)
+        except OSError:
+            pass
+
+        # Very simple flag_options_photoncons
+        #flag_options_photoncons = FlagOptions(
+        #        USE_MASS_DEPENDENT_ZETA=flag_options.USE_MASS_DEPENDENT_ZETA,
+        #        M_MIN_in_Mass=flag_options.M_MIN_in_Mass,
+        #        USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES,
+        #    )
 
         ib = None
         prev_perturb = None
@@ -3386,7 +3416,7 @@ def calibrate_photon_cons(
             # turned off.
             this_perturb = perturb_field(
                 redshift=z,
-                init_boxes=init_box,
+                init_boxes=init_box_photoncons,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -3395,7 +3425,7 @@ def calibrate_photon_cons(
             ib2 = ionize_box(
                 redshift=z,
                 previous_ionize_box=ib,
-                init_boxes=init_box,
+                init_boxes=init_box_photoncons,
                 perturbed_field=this_perturb,
                 previous_perturbed_field=prev_perturb,
                 astro_params=astro_params_photoncons,

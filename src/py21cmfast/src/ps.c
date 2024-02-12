@@ -518,10 +518,10 @@ double transfer_function_nCDM(double k)
     {
         double m_wdm;
 
-        if (!flag_options_ps->USE_INVERSE_PARAMS)
-            m_wdm = astro_params_ps->M_WDM;
+        if (flag_options_ps->USE_INVERSE_PARAMS)
+            m_wdm = 1.0/astro_params_ps->INVERSE_M_WDM;
         else
-            m_wdm = astro_params_ps->INVERSE_M_WDM;
+            m_wdm = astro_params_ps->M_WDM;
         
         // cutoff parameter according to Q. Decant PhD thesis (in Mpc)
         double alpha = 0.049;
