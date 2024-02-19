@@ -36,12 +36,9 @@ from .inputs import AstroParams, CosmoParams, FlagOptions, UserParams, global_pa
 class _OutputStruct(_BaseOutputStruct):
     _global_params = global_params
 
-    def __init__(self, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None, **kwargs):
-        
+    def __init__(self, *, user_params=None, cosmo_params=None, **kwargs):
         self.cosmo_params = cosmo_params or CosmoParams()
         self.user_params = user_params or UserParams()
-        self.astro_params = astro_params or AstroParams()
-        self.flag_options = flag_options or FlagOptions()
 
         super().__init__(**kwargs)
 
@@ -175,8 +172,6 @@ class InitialConditions(_OutputStruct):
             self.random_seed,
             self.user_params,
             self.cosmo_params,
-            self.astro_params,
-            self.flag_options,
             hooks=hooks,
         )
 
@@ -258,8 +253,6 @@ class PerturbedField(_OutputStructZ):
             self.redshift,
             self.user_params,
             self.cosmo_params,
-            self.astro_params,
-            self.flag_options,
             ics,
             hooks=hooks,
         )
@@ -267,7 +260,7 @@ class PerturbedField(_OutputStructZ):
 
 class _AllParamsBox(_OutputStructZ):
     _meta = True
-    _inputs = _OutputStructZ._inputs
+    _inputs = _OutputStructZ._inputs + ("flag_options", "astro_params")
 
     _filter_params = _OutputStruct._filter_params + [
         "T_USE_VELOCITIES",  # bt
@@ -281,14 +274,15 @@ class _AllParamsBox(_OutputStructZ):
         flag_options: FlagOptions | None = None,
         **kwargs,
     ):
+        self.flag_options = flag_options or FlagOptions()
+        self.astro_params = astro_params or AstroParams(
+            INHOMO_RECO=self.flag_options.INHOMO_RECO
+        )
 
         self.log10_Mturnover_ave = 0.0
         self.log10_Mturnover_MINI_ave = 0.0
 
-        flag_options = flag_options or FlagOptions()
-
-        super().__init__(astro_params = astro_params or AstroParams(INHOMO_RECO=flag_options.INHOMO_RECO), flag_options = flag_options,  **kwargs)
-        #super().__init__(**kwargs)
+        super().__init__(**kwargs)
 
 
 class HaloField(_AllParamsBox):

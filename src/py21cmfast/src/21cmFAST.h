@@ -7,11 +7,26 @@
 struct CosmoParams{
 
     float SIGMA_8;
+    float Ln_1010_As;
     float hlittle;
     float OMm;
     float OMl;
     float OMb;
     float POWER_INDEX;
+    
+    float VOLUME_FACTOR_SHARP_K;
+    float M_WDM;
+    float INVERSE_M_WDM;
+    float FRAC_WDM;
+    float ALPHA_NCDM_TF;
+    float BETA_NCDM_TF;
+    float GAMMA_NCDM_TF;
+    float DELTA_NCDM_TF;
+    float SHETH_q;
+    float SHETH_p;
+    float SHETH_A;
+    double PMF_SIGMA_B_0;
+    double PMF_B_INDEX;
 
 };
 
@@ -34,6 +49,13 @@ struct UserParams{
     bool USE_2LPT;
     bool MINIMIZE_MEMORY;
     bool USE_PMF_TABLES;
+
+    int PS_FILTER;
+    int PS_SMALL_SCALES_MODEL;
+    bool USE_INVERSE_PARAMS;
+    bool USE_SIGMA_8_NORM;
+    int CLASS_FLUID_APPROX;
+    bool USE_CLASS_TABLES;
 };
 
 struct AstroParams{
@@ -66,19 +88,6 @@ struct AstroParams{
     float t_STAR;
 
     int N_RSD_STEPS;
-
-    float VOLUME_FACTOR_SHARP_K;
-    float M_WDM;
-    float INVERSE_M_WDM;
-    float ALPHA_NCDM_TF;
-    float BETA_NCDM_TF;
-    float GAMMA_NCDM_TF;
-    float DELTA_NCDM_TF;
-    float SHETH_a;
-    float SHETH_p;
-    float SHETH_A;
-    double SIGMA_B_0;
-    double B_INDEX;
 };
 
 struct FlagOptions{
@@ -95,9 +104,6 @@ struct FlagOptions{
     bool M_MIN_in_Mass;
     bool PHOTON_CONS;
     bool FIX_VCB_AVG;
-    int PS_FILTER;
-    int PS_SMALL_SCALES_MODEL;
-    bool USE_INVERSE_PARAMS;
 };
 
 
@@ -159,12 +165,9 @@ struct BrightnessTemp{
     float *brightness_temp;
 };
 
-int ComputeInitialConditions(unsigned long long random_seed, struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                            struct AstroParams *astro_params, struct FlagOptions *flag_options, struct InitialConditions *boxes);
+int ComputeInitialConditions(unsigned long long random_seed, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes);
 
-int ComputePerturbField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
-                        struct AstroParams *astro_params, struct FlagOptions *flag_options,
-                        struct InitialConditions *boxes, struct PerturbedField *perturbed_field);
+int ComputePerturbField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes, struct PerturbedField *perturbed_field);
 
 int ComputeHaloField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
                      struct AstroParams *astro_params, struct FlagOptions *flag_options,
@@ -233,19 +236,14 @@ float* ComputeGrowthFunctionFromPMF(struct UserParams *user_params, struct Cosmo
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length);
 float* ComputePMFInducedMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
+int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, int length);
 /* ---------------------------------------------- */
 
-int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params,
-                    struct AstroParams *astro_params, struct FlagOptions *flag_options);
+int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params);
 
-void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params,
-                                struct AstroParams *astro_params, struct FlagOptions *flag_options);
-void Broadcast_struct_global_UF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                                struct AstroParams *astro_params, struct FlagOptions *flag_options);
-void Broadcast_struct_global_HF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                                struct AstroParams *astro_params, struct FlagOptions *flag_options);
-
-
+void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params);
+void Broadcast_struct_global_UF(struct UserParams *user_params, struct CosmoParams *cosmo_params);
+void Broadcast_struct_global_HF(struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options);
 
 void free_TsCalcBoxes(struct UserParams *user_params, struct FlagOptions *flag_options);
 void FreePhotonConsMemory();

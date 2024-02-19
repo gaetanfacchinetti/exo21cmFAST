@@ -62,6 +62,7 @@ from .wrapper import (
     nion_conditional_m,
     growth_from_pmf,
     pmf_induced_matter_power_spectrum,
+    init_TF_CLASS,
 )
 
 configure_logging()

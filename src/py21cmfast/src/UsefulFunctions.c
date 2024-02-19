@@ -12,15 +12,10 @@
 
 struct CosmoParams *cosmo_params_ufunc;
 struct UserParams *user_params_ufunc;
-struct AstroParams *astro_params_ufunc;
-struct FlagOptions *flag_options_ufunc;
 
-void Broadcast_struct_global_UF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-                                struct AstroParams *astro_params, struct FlagOptions *flag_options){
+void Broadcast_struct_global_UF(struct UserParams *user_params, struct CosmoParams *cosmo_params){
     cosmo_params_ufunc = cosmo_params;
     user_params_ufunc = user_params;
-    astro_params_ufunc = astro_params;
-    flag_options_ufunc = flag_options;
 }
 
 float ComputeFullyIoinizedTemperature(float z_re, float z, float delta){
@@ -162,34 +157,34 @@ double growth_from_pmf(double z);
 double MtoR(double M){
 
     // set R according to M to R conversion defined by the filter type in ../Parameter_files/COSMOLOGY.H
-    if (flag_options_ufunc->PS_FILTER == 0) //top hat M = (4/3) PI <rho> R^3
+    if (user_params_ufunc->PS_FILTER == 0) //top hat M = (4/3) PI <rho> R^3
         return pow(3*M/(4*PI*cosmo_params_ufunc->OMm*RHOcrit), 1.0/3.0);
-    else if(flag_options_ufunc->PS_FILTER == 1) 
+    else if(user_params_ufunc->PS_FILTER == 1) 
         /* Sharp-k: M = (volume_factor) * PI <rho> R^3
          Note that for a Sharp-k window the relation between M and R is ill-defined
          This is the reason we need to introduce a volume factor */
-        return pow(3.0*M / (4.0 *PI * cosmo_params_ufunc->OMm * RHOcrit), 1.0/3.0) / astro_params_ufunc->VOLUME_FACTOR_SHARP_K;
-    else if (flag_options_ufunc->PS_FILTER == 2) //gaussian: M = (2PI)^1.5 <rho> R^3
+        return pow(3.0*M / (4.0 *PI * cosmo_params_ufunc->OMm * RHOcrit), 1.0/3.0) / cosmo_params_ufunc->VOLUME_FACTOR_SHARP_K;
+    else if (user_params_ufunc->PS_FILTER == 2) //gaussian: M = (2PI)^1.5 <rho> R^3
         return pow( M/(pow(2*PI, 1.5) * cosmo_params_ufunc->OMm * RHOcrit), 1.0/3.0 );
     else // filter not defined
-        LOG_ERROR("No such filter = %i. Results are bogus.", flag_options_ufunc->PS_FILTER);
+        LOG_ERROR("No such filter = %i. Results are bogus.", user_params_ufunc->PS_FILTER);
     Throw ValueError;
 }
 
 /* R in Mpc, M in Msun */
 double RtoM(double R){
     // set M according to M<->R conversion defined by the filter type in ../Parameter_files/COSMOLOGY.H
-    if (flag_options_ufunc->PS_FILTER == 0) //top hat M = (4/3) PI <rho> R^3
+    if (user_params_ufunc->PS_FILTER == 0) //top hat M = (4/3) PI <rho> R^3
         return (4.0/3.0)*PI*pow(R,3)*(cosmo_params_ufunc->OMm*RHOcrit);
-    else if (flag_options_ufunc->PS_FILTER == 1) 
+    else if (user_params_ufunc->PS_FILTER == 1) 
         /* Sharp-k: M = (volume_factor) * PI <rho> R^3
          Note that for a Sharp-k window the relation between M and R is ill-defined
          This is the reason we need to introduce a volume factor */
-        return (4.0/3.0) * PI  * cosmo_params_ufunc->OMm*RHOcrit * pow(astro_params_ufunc->VOLUME_FACTOR_SHARP_K * R, 3);
-    else if (flag_options_ufunc->PS_FILTER == 2) //gaussian: M = (2PI)^1.5 <rho> R^3
+        return (4.0/3.0) * PI  * cosmo_params_ufunc->OMm*RHOcrit * pow(cosmo_params_ufunc->VOLUME_FACTOR_SHARP_K * R, 3);
+    else if (user_params_ufunc->PS_FILTER == 2) //gaussian: M = (2PI)^1.5 <rho> R^3
         return pow(2*PI, 1.5) * cosmo_params_ufunc->OMm*RHOcrit * pow(R, 3);
     else // filter not defined
-        LOG_ERROR("No such filter = %i. Results are bogus.", flag_options_ufunc->PS_FILTER);
+        LOG_ERROR("No such filter = %i. Results are bogus.", user_params_ufunc->PS_FILTER);
     Throw ValueError;
 }
 
@@ -197,7 +192,7 @@ float* ComputeMtoR(struct UserParams *user_params, struct CosmoParams *cosmo_par
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
 {
 
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     float* result = malloc(length * sizeof(float));
 
     for (int i = 0; i < length; i++) 
@@ -211,7 +206,7 @@ float* ComputeRtoM(struct UserParams *user_params, struct CosmoParams *cosmo_par
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *radius, int length) 
 {
 
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     float* result = malloc(length * sizeof(float));
 
     for (int i = 0; i < length; i++) 
@@ -372,7 +367,7 @@ float* ComputeGrowthFunctionFromPMF(struct UserParams *user_params, struct Cosmo
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length) 
 {
 
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
 
     float* result = malloc(length * sizeof(float));
 
@@ -658,7 +653,7 @@ float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_param
     int i;
     float tau;
 
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
 
     tau = tau_e(0, redshifts[NPoints-1], redshifts, global_xHI, NPoints);
 
@@ -1081,7 +1076,3 @@ int FunctionThatCatches(bool sub_func, bool pass, double *result){
     *result = 5.0;
     return 0;
 }
-
-
-
-

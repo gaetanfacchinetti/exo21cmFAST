@@ -240,7 +240,7 @@ double transfer_function_nCDM(double k);
 void TFset_parameters();
 
 
-double TF_CLASS(double k, int flag_int, int flag_dv); //transfer function of matter (flag_dv=0) and relative velocities (flag_dv=1) fluctuations from CLASS
+double TF_CLASS(double k, int flag_dv); //transfer function of matter (flag_dv=0) and relative velocities (flag_dv=1) fluctuations from CLASS
 double power_in_vcb(double k); /* Returns the value of the DM-b relative velocity power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
 
 
@@ -255,13 +255,10 @@ float erfcc(float x);
 double splined_erfc(double x);
 
 
-void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
-            struct AstroParams *astro_params, struct FlagOptions *flag_options){
+void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params){
 
     cosmo_params_ps = cosmo_params;
     user_params_ps = user_params;
-    astro_params_ps = astro_params;
-    flag_options_ps = flag_options;
 }
 
 //
@@ -433,7 +430,7 @@ double transfer_function_WF(double k)
 // Transfer function from CLASS - k in Mpc^{-1}
 double transfer_function_CLASS(double k)
 {
-    double T = TF_CLASS(k, 1, 0);
+    double T = TF_CLASS(k, 0);
     if(user_params_ps->USE_RELATIVE_VELOCITIES) // Add average relvel suppression
         T *= sqrt(1.0 - A_VCB_PM*exp( -pow(log(k/KP_VCB_PM),2.0)/(2.0*SIGMAK_VCB_PM*SIGMAK_VCB_PM))); //for v=vrms
 
@@ -512,16 +509,21 @@ double transfer_function_PMF(double k)
 */
 double transfer_function_nCDM(double k)
 {  
-    if (flag_options_ps->PS_SMALL_SCALES_MODEL == 0) // classical LCDM model
+    if (user_params_ps->PS_SMALL_SCALES_MODEL == 0) // classical LCDM model
         return 1.0;
-    if (flag_options_ps->PS_SMALL_SCALES_MODEL == 1) // vanilla warm dark matter
+    if (user_params_ps->PS_SMALL_SCALES_MODEL == 1) // vanilla warm dark matter
     {
         double m_wdm;
 
-        if (flag_options_ps->USE_INVERSE_PARAMS)
-            m_wdm = 1.0/astro_params_ps->INVERSE_M_WDM;
+        if (user_params_ps->USE_INVERSE_PARAMS)
+        {
+            if (cosmo_params_ps->INVERSE_M_WDM == 0)
+                return 1.0;
+            
+            m_wdm = 1.0/cosmo_params_ps->INVERSE_M_WDM;
+        }
         else
-            m_wdm = astro_params_ps->M_WDM;
+            m_wdm = cosmo_params_ps->M_WDM;
         
         // cutoff parameter according to Q. Decant PhD thesis (in Mpc)
         double alpha = 0.049;
@@ -534,15 +536,15 @@ double transfer_function_nCDM(double k)
         return transfer_function_abgd(k, alpha, 2 * 1.12, -5.0 / 1.12, 0.0);
 
     }
-    else if (flag_options_ps->PS_SMALL_SCALES_MODEL == 2) // alpha beta gamma delta parametrisation of cutoff
-        return transfer_function_abgd(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->BETA_NCDM_TF, astro_params_ps->GAMMA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
-    else if (flag_options_ps->PS_SMALL_SCALES_MODEL == 3) // sharp transfer function
-        return transfer_function_sharp(k, astro_params_ps->ALPHA_NCDM_TF, astro_params_ps->DELTA_NCDM_TF);
-    else if (flag_options_ps->PS_SMALL_SCALES_MODEL == 4) // primordial magnetic fields
+    else if (user_params_ps->PS_SMALL_SCALES_MODEL == 2) // alpha beta gamma delta parametrisation of cutoff
+        return transfer_function_abgd(k, cosmo_params_ps->ALPHA_NCDM_TF, cosmo_params_ps->BETA_NCDM_TF, cosmo_params_ps->GAMMA_NCDM_TF, cosmo_params_ps->DELTA_NCDM_TF);
+    else if (user_params_ps->PS_SMALL_SCALES_MODEL == 3) // sharp transfer function
+        return transfer_function_sharp(k, cosmo_params_ps->ALPHA_NCDM_TF, cosmo_params_ps->DELTA_NCDM_TF);
+    else if (user_params_ps->PS_SMALL_SCALES_MODEL == 4) // primordial magnetic fields
         return transfer_function_PMF(k);
     else
     {
-        LOG_ERROR("No such PS_SMALL_SCALES_MODEL defined: %i. Output is bogus.", flag_options_ps->PS_SMALL_SCALES_MODEL);
+        LOG_ERROR("No such PS_SMALL_SCALES_MODEL defined: %i. Output is bogus.", user_params_ps->PS_SMALL_SCALES_MODEL);
         Throw(ValueError);
     }     
 }
@@ -562,7 +564,7 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 
         gsl_set_error_handler_off();
      
-         const gsl_interp2d_type *T = gsl_interp2d_bilinear;
+        const gsl_interp2d_type *T = gsl_interp2d_bilinear;
         spline_log10_ps_v = gsl_spline2d_alloc(T, nx, ny);
         
         acc_nB = gsl_interp_accel_alloc();
@@ -629,6 +631,104 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 
 }
 
+static const double *kclass, *Tmclass, *Tvclass_vcb;
+static gsl_interp_accel *acc_density, *acc_vcb;
+static gsl_spline *spline_density, *spline_vcb;
+static TABLE_CLASS_LENGTH;
+
+int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, int length)
+{  
+
+    if (user_params->USE_CLASS_TABLES)
+        length = CLASS_LENGTH;
+
+    const table_length = length;
+    TABLE_CLASS_LENGTH = table_length;
+
+    kclass      = malloc(table_length * sizeof(double));
+    Tmclass     = malloc(table_length * sizeof(double));
+    Tvclass_vcb = malloc(table_length * sizeof(double));
+
+    float currk, currTm, currTv;
+    int gsl_status;
+
+    if (!user_params->USE_CLASS_TABLES)
+    {
+        for (int i = 0; i < table_length; i++)
+        {
+            *((double *)kclass + i) = (double)k[i];
+            *((double *)Tmclass + i) = (double)Tm[i];
+            *((double *)Tvclass_vcb + i) = (double)Tvcb[i];
+        }
+    }
+    else
+    {
+        FILE *F;
+
+        char filename[500];
+        sprintf(filename,"%s/%s",global_params.external_table_path, CLASS_FILENAME);
+
+        if (!(F = fopen(filename, "r"))) {
+            LOG_ERROR("Unable to open file: %s for reading.", filename);
+            Throw(IOError);
+        }
+
+        int nscans;
+        for (int i = 0; i < table_length; i++) {
+            nscans = fscanf(F, "%e %e %e ", &currk, &currTm, &currTv);
+            if (nscans != 3) {
+                LOG_ERROR("Reading CLASS Transfer Function failed.");
+                Throw(IOError);
+            }
+            *((double *)kclass + i) = (double)currk;
+            *((double *)Tmclass + i) = (double)currTm;
+            *((double *)Tvclass_vcb + i) = (double) currTv;
+            if (i > 0 && kclass[i] <= kclass[i - 1]) {
+                LOG_WARNING("Tk table not ordered");
+                LOG_WARNING("k=%.1le kprev=%.1le", kclass[i], kclass[i - 1]);
+            }
+        }
+        fclose(F);
+
+        LOG_SUPER_DEBUG("Read CLASS Transfer file");
+    }
+
+    gsl_set_error_handler_off();
+    // Set up spline table for densities
+    acc_density   = gsl_interp_accel_alloc ();
+    spline_density  = gsl_spline_alloc (gsl_interp_cspline, table_length);
+    gsl_status = gsl_spline_init(spline_density, kclass, Tmclass, table_length);
+    GSL_ERROR(gsl_status);
+
+    LOG_SUPER_DEBUG("Generated CLASS Density Spline.");
+
+    //Set up spline table for velocities
+    acc_vcb   = gsl_interp_accel_alloc ();
+    spline_vcb  = gsl_spline_alloc (gsl_interp_cspline, table_length);
+    gsl_status = gsl_spline_init(spline_vcb, kclass, Tvclass_vcb, table_length);
+    GSL_ERROR(gsl_status);
+
+    LOG_SUPER_DEBUG("Generated CLASS velocity Spline.");
+
+    LOG_SUPER_DEBUG("%e, %e, %e, %e, %e, %e, %e", Tmclass[0], Tmclass[1], Tmclass[2], Tmclass[3], Tmclass[4], gsl_spline_eval (spline_density, 1.0, acc_density));
+
+    return 1;
+
+}
+
+
+void free_TF_CLASS()
+{
+    gsl_spline_free(spline_density);
+    gsl_interp_accel_free(acc_density);
+    gsl_spline_free (spline_vcb);
+    gsl_interp_accel_free(acc_vcb);
+
+    free((double *)kclass);
+    free((double *)Tmclass);
+    free((double *)Tvclass_vcb);
+}
+
 
 /*
   this function reads the z=0 matter (CDM+baryons)  and relative velocity transfer functions from CLASS (from a file)
@@ -637,81 +737,17 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
   similar to built-in function "double T_RECFAST(float z, int flag)"
 */
 
-double TF_CLASS(double k, int flag_int, int flag_dv)
+double TF_CLASS(double k, int flag_dv)
 {
-    static double kclass[CLASS_LENGTH], Tmclass[CLASS_LENGTH], Tvclass_vcb[CLASS_LENGTH];
-    static gsl_interp_accel *acc_density, *acc_vcb;
-    static gsl_spline *spline_density, *spline_vcb;
-    float trash, currk, currTm, currTv;
     double ans;
-    int i;
-    int gsl_status;
-    FILE *F;
 
-    char filename[500];
-    sprintf(filename,"%s/%s",global_params.external_table_path,CLASS_FILENAME);
-
-
-    if (flag_int == 0) {  // Initialize vectors and read file
-        if (!(F = fopen(filename, "r"))) {
-            LOG_ERROR("Unable to open file: %s for reading.", filename);
-            Throw(IOError);
-        }
-
-        int nscans;
-        for (i = 0; i < CLASS_LENGTH; i++) {
-            nscans = fscanf(F, "%e %e %e ", &currk, &currTm, &currTv);
-            if (nscans != 3) {
-                LOG_ERROR("Reading CLASS Transfer Function failed.");
-                Throw(IOError);
-            }
-            kclass[i] = currk;
-            Tmclass[i] = currTm;
-            Tvclass_vcb[i] = currTv;
-            if (i > 0 && kclass[i] <= kclass[i - 1]) {
-                LOG_WARNING("Tk table not ordered");
-                LOG_WARNING("k=%.1le kprev=%.1le", kclass[i], kclass[i - 1]);
-            }
-        }
-        fclose(F);
-
-
-        LOG_SUPER_DEBUG("Read CLASS Transfer file");
-
-        gsl_set_error_handler_off();
-        // Set up spline table for densities
-        acc_density   = gsl_interp_accel_alloc ();
-        spline_density  = gsl_spline_alloc (gsl_interp_cspline, CLASS_LENGTH);
-        gsl_status = gsl_spline_init(spline_density, kclass, Tmclass, CLASS_LENGTH);
-        GSL_ERROR(gsl_status);
-
-        LOG_SUPER_DEBUG("Generated CLASS Density Spline.");
-
-        //Set up spline table for velocities
-        acc_vcb   = gsl_interp_accel_alloc ();
-        spline_vcb  = gsl_spline_alloc (gsl_interp_cspline, CLASS_LENGTH);
-        gsl_status = gsl_spline_init(spline_vcb, kclass, Tvclass_vcb, CLASS_LENGTH);
-        GSL_ERROR(gsl_status);
-
-        LOG_SUPER_DEBUG("Generated CLASS velocity Spline.");
-        return 0;
-    }
-    else if (flag_int == -1) {
-        gsl_spline_free (spline_density);
-        gsl_interp_accel_free(acc_density);
-        gsl_spline_free (spline_vcb);
-        gsl_interp_accel_free(acc_vcb);
-        return 0;
-    }
-
-
-    if (k > kclass[CLASS_LENGTH-1]) { // k>kmax
+    if (k > kclass[TABLE_CLASS_LENGTH-1]) { // k>kmax
         LOG_WARNING("Called TF_CLASS with k=%f, larger than kmax! Returning value at kmax.", k);
         if(flag_dv == 0){ // output is density
-            return (Tmclass[CLASS_LENGTH]/kclass[CLASS_LENGTH-1]/kclass[CLASS_LENGTH-1]);
+            return (Tmclass[TABLE_CLASS_LENGTH]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
         }
         else if(flag_dv == 1){ // output is rel velocity
-            return (Tvclass_vcb[CLASS_LENGTH]/kclass[CLASS_LENGTH-1]/kclass[CLASS_LENGTH-1]);
+            return (Tvclass_vcb[TABLE_CLASS_LENGTH]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
         }    //we just set it to the last value, since sometimes it wants large k for R<<cell_size, which does not matter much.
     }
     else { // Do spline
@@ -751,7 +787,7 @@ double power_in_vcb(double k){
 
     //only works if using CLASS
     if (user_params_ps->POWER_SPECTRUM == 5){ // CLASS
-        T = TF_CLASS(k, 1, 1); //read from CLASS file. flag_int=1 since we have initialized before, flag_vcb=1 for velocity
+        T = TF_CLASS(k, 1); //read from CLASS file. flag_int=1 since we have initialized before, flag_vcb=1 for velocity
         p = pow(k, cosmo_params_ps->POWER_INDEX) * T * T;
     }
     else{
@@ -819,8 +855,8 @@ double _int2_pmf_induced_power(double lnx1, void *params)
 */
 double pmf_induced_power_spectrum(double k)
 {
-    double sB0 = astro_params_ps->SIGMA_B_0;
-    double nB  = astro_params_ps->B_INDEX;
+    double sB0 = cosmo_params_ps->PMF_SIGMA_B_0;
+    double nB  = cosmo_params_ps->PMF_B_INDEX;
 
     double kA_approx = pow(sB0*sB0 / pow(2*PI, 3.0 + nB) / 4.2e+5, -1.0/(5.0 + nB));
     double amplitude = pow(2*PI * sB0, 2) / gsl_sf_gamma((nB+3.0)/2.0);
@@ -831,7 +867,7 @@ double pmf_induced_power_spectrum(double k)
     if (user_params_ps->USE_PMF_TABLES == true)
     {   
         if (nB < -2.9 || nB > 0)
-            LOG_ERROR("Cannot use PMF_TABLES for B_INDEX < -2.9 or > 0.0");
+            LOG_ERROR("Cannot use PMF_TABLES for PMF_B_INDEX < -2.9 or > 0.0");
 
         if (log10_w < -3.5)
             dimensionless_power_spectrum_v = 0;
@@ -909,25 +945,25 @@ double window_function(double kR)
 
     double w;
 
-    if ( (flag_options_ps->PS_FILTER == 0) || (sigma_norm < 0) ) // top hat
+    if ( (user_params_ps->PS_FILTER == 0) || (sigma_norm < 0) ) // top hat
     { 
         if ( (kR) < 1.0e-4 ){ w = 1.0;} // w converges to 1 as (kR) -> 0
         else { w = 3.0 * (sin(kR)/pow(kR, 3) - cos(kR)/pow(kR, 2));}
     }
-    else if (flag_options_ps->PS_FILTER == 1)  // sharpK
+    else if (user_params_ps->PS_FILTER == 1)  // sharpK
     {
         kR <= 1 ? w = 1.0 : 0.0; // in practice we do not use that one but rather truncate the integrals
 
         if (kR == 1)
             w = 0.5;
     }
-    else if (flag_options_ps->PS_FILTER == 2)  // gaussian of width 1/R
+    else if (user_params_ps->PS_FILTER == 2)  // gaussian of width 1/R
     {
         w = pow(E, -kR*kR/2.0);
     }
     else 
     {
-        LOG_ERROR("No such filter: %i. Output is bogus.", flag_options_ps->PS_FILTER);
+        LOG_ERROR("No such filter: %i. Output is bogus.", user_params_ps->PS_FILTER);
         Throw(ValueError);
     }
 
@@ -965,6 +1001,24 @@ double dsigma_dk_LCDM(double k, void *params){
     double w = window_function(kR);
 
     return k*k*p*w*w; 
+}
+
+/*
+    dsigma_dk_LCDM_Planck18(double lnk, void *params)
+
+    derivative with respect to k of the smoothed
+    variance of the LCDM matter power spectrum 
+    as defined in Planck18 (used for normalisation)  
+*/
+double dsigma_dk_LCDM_Planck18(double k, void * params) {
+    double ns = 0.9665;
+    double Radius = *(double *)params;
+    double kR = k*Radius;
+    double w = window_function(kR);
+
+    double p = pow(k, ns) * pow(transfer_function(k), 2);
+
+    return  k*k*p*w*w;
 }
 
 
@@ -1015,7 +1069,7 @@ double sigma_z0(double M){
     lower_limit = log(kstart);
 
     // for a sharp-k window function we truncate the intrgral
-    if (flag_options_ps->PS_FILTER == 1)  
+    if (user_params_ps->PS_FILTER == 1)  
         upper_limit = log(fmin(kend, 1.0/Radius));
     else
         upper_limit = log(kend);
@@ -1055,7 +1109,7 @@ double dsigmasq_dm(double k, void *params)
 
     // now get the value of the window function
     kR = k * Radius;
-    if (flag_options_ps->PS_FILTER == 0){ // top hat
+    if (user_params_ps->PS_FILTER == 0){ // top hat
         if ( (kR) < 1.0e-4 ){ w = 1.0; }// w converges to 1 as (kR) -> 0
         else { w = 3.0 * (sin(kR)/pow(kR, 3) - cos(kR)/pow(kR, 2));}
 
@@ -1066,13 +1120,13 @@ double dsigmasq_dm(double k, void *params)
         //     dwdr = -1e8 * k / (R*1e3);
         drdm = 1.0 / (4.0*PI * cosmo_params_ps->OMm*RHOcrit * Radius*Radius);
     }
-    else if (flag_options_ps->PS_FILTER == 2){ // gaussian of width 1/R
+    else if (user_params_ps->PS_FILTER == 2){ // gaussian of width 1/R
         w = pow(E, -kR*kR/2.0);
         dwdr = - k*kR * w;
         drdm = 1.0 / (pow(2*PI, 1.5) * cosmo_params_ps->OMm*RHOcrit * 3*Radius*Radius);
     }
     else {
-        LOG_ERROR("No such filter: %i. Output is bogus.", flag_options_ps->PS_FILTER);
+        LOG_ERROR("No such filter: %i. Output is bogus.", user_params_ps->PS_FILTER);
         Throw(ValueError);
     }
 
@@ -1091,7 +1145,7 @@ double dsigmasqdm_z0(double M){
     double Radius = MtoR(M);
 
     // If the filter is sharp-k we do not need to integrate, the result is analytical
-    if (flag_options_ps->PS_FILTER == 1) 
+    if (user_params_ps->PS_FILTER == 1) 
         return -  sigma_norm * sigma_norm * pow(Radius, -3) * power_spectrum(1.0/Radius) / (3.0*M);
 
 
@@ -1165,12 +1219,12 @@ void init_ps(){
     double kstart, kend;
 
     //we start the interpolator if using CLASS:
-    if (user_params_ps->POWER_SPECTRUM == 5){
-        LOG_DEBUG("Setting CLASS Transfer Function inits.");
-        TF_CLASS(1.0, 0, 0);
-    }
+    //if (user_params_ps->POWER_SPECTRUM == 5){
+    //    LOG_DEBUG("Setting CLASS Transfer Function inits.");
+    //    InitTFCLASS()
+    //}
 
-    if (flag_options_ps->PS_SMALL_SCALES_MODEL == 4) // PMF
+    if (user_params_ps->PS_SMALL_SCALES_MODEL == 4) // PMF
         interpolate_power_spectrum_from_pmf(false);
 
     omhh = cosmo_params_ps->OMm*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle;
@@ -1186,8 +1240,23 @@ void init_ps(){
 
     sigma_norm = -1;
 
-    double Radius_8;
-    Radius_8 = 8.0/cosmo_params_ps->hlittle;
+    double Ln_1010_As_Planck18 = 3.047;
+    double SIGMA_8_Planck18    = 0.8102;
+    double hlittle_Planck18    = 0.6766;
+    double ns_Planck18         = 0.9665;
+    double OMm_Planck18        = (0.02242 + 0.11933) / 0.6766 / 0.6766;
+
+    double Radius_8 = 0;
+
+    if (user_params_ps->USE_SIGMA_8_NORM)
+    {
+        Radius_8 = 8.0/cosmo_params_ps->hlittle;
+    }
+    else
+    {
+        Radius_8 = 8.0/hlittle_Planck18;
+    }
+   
 
     if(user_params_ps->POWER_SPECTRUM == 5){
       kstart = fmax(1.0e-99/Radius_8, KBOT_CLASS);
@@ -1203,7 +1272,15 @@ void init_ps(){
 
     LOG_DEBUG("Initializing Power Spectrum with lower_limit=%e, upper_limit=%e, rel_tol=%e, radius_8=%g", lower_limit,upper_limit, rel_tol, Radius_8);
 
-    F.function = &dsigma_dk_LCDM;
+    if (user_params_ps->USE_SIGMA_8_NORM)
+    {
+        F.function = &dsigma_dk_LCDM;
+    }
+    else
+    {
+        F.function = &dsigma_dk_LCDM_Planck18;
+    }
+    
     F.params = &Radius_8;
 
     int status;
@@ -1223,7 +1300,14 @@ void init_ps(){
 
     LOG_DEBUG("Initialized Power Spectrum.");
 
-    sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result); //takes care of volume factor
+    if (user_params_ps->USE_SIGMA_8_NORM){
+        sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result);} //takes care of volume factor
+
+
+    double k0 = 0.05; // reference value of k0 in Mpc^{-1}
+    if (!user_params_ps->USE_SIGMA_8_NORM){
+        sigma_norm = SIGMA_8_Planck18/sqrt(result) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * pow(k0, (ns_Planck18 - cosmo_params_ps->POWER_INDEX)/2.0) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);}
+
 }
 
 
@@ -1234,11 +1318,11 @@ void free_ps(){
 
 	//we free the PS interpolator if using CLASS:
 	if (user_params_ps->POWER_SPECTRUM == 5){
-		TF_CLASS(1.0, -1, 0);
+		free_TF_CLASS();
 	}
 
     // we free the PS interpolator if using PMF
-    if (flag_options_ps->PS_SMALL_SCALES_MODEL == 4)
+    if (user_params_ps->PS_SMALL_SCALES_MODEL == 4)
         interpolate_power_spectrum_from_pmf(true);
 
   return;
@@ -1260,7 +1344,7 @@ void free_ps(){
 
 /* sheth correction to delta crit */
 double sheth_delc(double del, double sig){
-    return sqrt(astro_params_ps->SHETH_a)*del*(1. + global_params.SHETH_b*pow(sig*sig/(astro_params_ps->SHETH_a*del*del), global_params.SHETH_c));
+    return sqrt(cosmo_params_ps->SHETH_q)*del*(1. + global_params.SHETH_b*pow(sig*sig/(cosmo_params_ps->SHETH_q*del*del), global_params.SHETH_c));
 }
 
 
@@ -1280,9 +1364,9 @@ double dNdM_st(double growthf, double M){
 
     double sigma, dsigmadm, nuhat;
     setFromInterpolationTables(growthf, M, &sigma, &dsigmadm);  
-    nuhat = sqrt(astro_params_ps->SHETH_a) * Deltac / sigma;
+    nuhat = sqrt(cosmo_params_ps->SHETH_q) * Deltac / sigma;
 
-    return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * sqrt(2./PI)*astro_params_ps->SHETH_A * (1+ pow(nuhat, -2*astro_params_ps->SHETH_p)) * nuhat * pow(E, -nuhat*nuhat/2.0);
+    return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * sqrt(2./PI)*cosmo_params_ps->SHETH_A * (1+ pow(nuhat, -2*cosmo_params_ps->SHETH_p)) * nuhat * pow(E, -nuhat*nuhat/2.0);
 }
 
 /*
@@ -2173,8 +2257,8 @@ float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC){
 
 int initialise_ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options) {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params, astro_params, flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
 
     lnMhalo_param = calloc(nbins,sizeof(double));
     Muv_param = calloc(nbins,sizeof(double));
@@ -3815,8 +3899,8 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
     int status;
     Try{  // this try wraps the whole function.
-    Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params, astro_params, flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
     //     To solve differentail equation, uses Euler's method.
     //     NOTE:
@@ -4741,8 +4825,8 @@ float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoP
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
 {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
 
     float* result = malloc(length * sizeof(float));
@@ -4769,8 +4853,8 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
 {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
 
     float* result = malloc(length * sizeof(float));
@@ -4792,8 +4876,8 @@ float* ComputePMFInducedMatterPowerSpectrum(struct UserParams *user_params, stru
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
 {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
 
     interpolate_power_spectrum_from_pmf(false);
@@ -4813,12 +4897,12 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
 {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
     
     float* result = malloc(length * sizeof(float));
 
@@ -4839,12 +4923,12 @@ float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *c
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length) 
 {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
 
     float* result = malloc(length * sizeof(float));
 
@@ -4865,12 +4949,12 @@ float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_par
                         float *mass, float *z, int length) 
 {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
 
     float* result = malloc(length * sizeof(float));
 
@@ -4906,12 +4990,12 @@ float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *c
                         float *mass, float *z, int length) 
 {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
 
     float* result = malloc(length * sizeof(float));
 
@@ -4932,12 +5016,12 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
                         float *mass, float *params, int length) 
 {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params_ps->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
 
     float* result = malloc(length * sizeof(float));
 
@@ -4955,7 +5039,7 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
     double mlim_fe   = (double) params[11];
 
     for (int i = 0; i < length; i++) 
-        result[i] = (float) Nion_ConditionalM(growthf, (double) mass[i], m2, sigma2, delta1, delta2, m_turn, alpha_s, alpha_e, f_star_10, f_esc_10, mlim_fs, mlim_fe, user_params_ps-> FAST_FCOLL_TABLES);
+        result[i] = (float) Nion_ConditionalM(growthf, (double) mass[i], m2, sigma2, delta1, delta2, m_turn, alpha_s, alpha_e, f_star_10, f_esc_10, mlim_fs, mlim_fe, user_params_ps->FAST_FCOLL_TABLES);
 
     // freeing the interpolation tables
     if (user_params_ps->USE_INTERPOLATION_TABLES)

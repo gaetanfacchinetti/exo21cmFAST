@@ -95,8 +95,7 @@ void adj_complex_conj(fftwf_complex *HIRES_box, struct UserParams *user_params, 
 
 int ComputeInitialConditions(
     unsigned long long random_seed, struct UserParams *user_params,
-    struct CosmoParams *cosmo_params, struct AstroParams *astro_params, 
-    struct FlagOptions *flag_options, struct InitialConditions *boxes
+    struct CosmoParams *cosmo_params, struct InitialConditions *boxes
 ){
 
 //     Generates the initial conditions: gaussian random density field (user_params->DIM^3) as well as the equal or lower resolution velocity fields, and smoothed density field (user_params->HII_DIM^3).
@@ -110,8 +109,8 @@ int ComputeInitialConditions(
 
     // Makes the parameter structs visible to a variety of functions/macros
     // Do each time to avoid Python garbage collection issues
-    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
-    Broadcast_struct_global_UF(user_params,cosmo_params,astro_params,flag_options);
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
 
     unsigned long long ct;
     int n_x, n_y, n_z, i, j, k, ii, thread_num, dimension;

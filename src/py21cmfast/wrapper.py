@@ -98,11 +98,13 @@ from typing import Any, Callable, Sequence
 
 # If the user wants to use class and has installed it
 # we try to import its python wrapper
+
+_CLASS_IMPORTED = False
 try:
     from classy import Class
     _CLASS_IMPORTED = True
 except ImportError:
-    _CLASS_IMPORTED = False
+    pass
 
 
 from ._cfg import config
@@ -410,7 +412,7 @@ def get_all_fieldnames(
 # ======================================================================================
 # WRAPPING FUNCTIONS
 # ======================================================================================
-def construct_fftw_wisdoms(*, user_params=None, cosmo_params=None, astro_params=None, flag_options = None):
+def construct_fftw_wisdoms(*, user_params=None, cosmo_params=None):
     """Construct all necessary FFTW wisdoms.
 
     Parameters
@@ -421,13 +423,10 @@ def construct_fftw_wisdoms(*, user_params=None, cosmo_params=None, astro_params=
     """
     user_params = UserParams(user_params)
     cosmo_params = CosmoParams(cosmo_params)
-    astro_params = AstroParams(astro_params)
-    flag_options = FlagOptions(flag_options)
-
 
     # Run the C code
     if user_params.USE_FFTW_WISDOM:
-        return lib.CreateFFTWWisdoms(user_params(), cosmo_params(), astro_params(), flag_options())
+        return lib.CreateFFTWWisdoms(user_params(), cosmo_params())
     else:
         return 0
 
@@ -480,34 +479,42 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None, a
 
 
 def matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(k, lib.ComputeMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
 
 def transfer_function_nCDM(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(k, lib.ComputeTransferFunctionNCDM, user_params, cosmo_params, astro_params, flag_options)
 
 def sigma_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(mass, lib.ComputeSigmaZ0, user_params, cosmo_params, astro_params, flag_options)
 
-def mass_to_radius(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+def mass_to_radius(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) :
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(mass, lib.ComputeMtoR, user_params, cosmo_params, astro_params, flag_options)
 
 def radius_to_mass(radius, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(radius, lib.ComputeRtoM, user_params, cosmo_params, astro_params, flag_options)
 
 def dsigmasqdm_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None,) : 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(mass, lib.ComputeDSigmaSqDmZ0, user_params, cosmo_params, astro_params, flag_options)
     
 def dndm(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call_params(mass, z, lib.ComputeDNDM, user_params, cosmo_params, astro_params, flag_options)
 
 def f_gtr_mass(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None): 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call_params(mass, z, lib.ComputeFgtrMGeneral, user_params, cosmo_params, astro_params, flag_options)
 
@@ -515,6 +522,7 @@ def nion_conditional_m(mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, 
                         *, m_turn = None, alpha_star = None, alpha_esc = None, f_star_10 = None, f_esc_10 = None, 
                         user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
     
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
 
     # defining default values for the parameters that have one in astro_params
@@ -526,13 +534,16 @@ def nion_conditional_m(mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, 
     f_esc_10  = f_esc_10 if (f_esc_10 is not None) else astro_params.convert("F_ESC10", astro_params.F_ESC10)
 
     params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
+    
     return _generic_c_call_params(mass, params, lib.ComputeNionConditionalM, user_params, cosmo_params, astro_params, flag_options)
 
 def growth_from_pmf(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(z, lib.ComputeGrowthFunctionFromPMF, user_params, cosmo_params, astro_params, flag_options)
 
 def pmf_induced_matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(k, lib.ComputePMFInducedMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
 
@@ -1029,8 +1040,6 @@ def initial_conditions(
     *,
     user_params=None,
     cosmo_params=None,
-    astro_params=None,
-    flag_options=None,
     random_seed=None,
     regenerate=None,
     write=None,
@@ -1076,16 +1085,17 @@ def initial_conditions(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
-            {"user_params": user_params, "cosmo_params": cosmo_params, 
-             "astro_params": astro_params, "flag_options" : flag_options}
+        user_params, cosmo_params = _setup_inputs(
+            {"user_params": user_params, "cosmo_params": cosmo_params}
         )
 
         # Initialize memory for the boxes that will be returned.
-        boxes = InitialConditions(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options = flag_options, random_seed=random_seed)
+        boxes = InitialConditions(
+            user_params=user_params, cosmo_params=cosmo_params, random_seed=random_seed
+        )
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
 
         # First check whether the boxes already exist.
         if not regenerate:
@@ -1107,8 +1117,6 @@ def perturb_field(
     init_boxes=None,
     user_params=None,
     cosmo_params=None,
-    astro_params=None,
-    flag_options=None,
     random_seed=None,
     regenerate=None,
     write=None,
@@ -1175,13 +1183,11 @@ def perturb_field(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        random_seed, user_params, cosmo_params, astro_params, flag_options, redshift = _setup_inputs(
+        random_seed, user_params, cosmo_params, redshift = _setup_inputs(
             {
                 "random_seed": random_seed,
                 "user_params": user_params,
                 "cosmo_params": cosmo_params,
-                "astro_params": astro_params,
-                "flag_options": flag_options
             },
             input_boxes={"init_boxes": init_boxes},
             redshift=redshift,
@@ -1192,8 +1198,6 @@ def perturb_field(
             redshift=redshift,
             user_params=user_params,
             cosmo_params=cosmo_params,
-            astro_params=astro_params,
-            flag_options=flag_options,
             random_seed=random_seed,
         )
 
@@ -1210,15 +1214,13 @@ def perturb_field(
                 pass
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options = flag_options)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
 
         # Make sure we've got computed init boxes.
         if init_boxes is None or not init_boxes.is_computed:
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
-                astro_params=astro_params,
-                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1331,15 +1333,13 @@ def determine_halo_list(
                 pass
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
 
         # Make sure we've got computed init boxes.
         if init_boxes is None or not init_boxes.is_computed:
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
-                astro_params=astro_params,
-                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1458,8 +1458,6 @@ def perturb_halo_list(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
-                astro_params=astro_params,
-                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1707,7 +1705,7 @@ def ionize_box(
         )
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
 
         # Check whether the boxes already exist
         if not regenerate:
@@ -1729,8 +1727,6 @@ def ionize_box(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
-                astro_params=astro_params, 
-                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1745,7 +1741,7 @@ def ionize_box(
             # If we are beyond Z_HEAT_MAX, just make an empty box
             if prev_z == 0:
                 previous_ionize_box = IonizedBox(
-                    redshift=0, astro_params=astro_params, flag_options=flag_options, initial=True
+                    redshift=0, flag_options=flag_options, initial=True
                 )
 
             # Otherwise recursively create new previous box.
@@ -1818,7 +1814,6 @@ def ionize_box(
         elif spin_temp is None:
             spin_temp = spin_temperature(
                 perturbed_field=perturbed_field,
-                astro_params=astro_params,
                 flag_options=flag_options,
                 init_boxes=init_boxes,
                 direc=direc,
@@ -1827,7 +1822,6 @@ def ionize_box(
                 cleanup=cleanup,
             )
 
-        
         # Run the C Code
         return box.compute(
             perturbed_field=perturbed_field,
@@ -1838,8 +1832,6 @@ def ionize_box(
             ics=init_boxes,
             hooks=hooks,
         )
-
-
 
 
 def spin_temperature(
@@ -2046,7 +2038,7 @@ def spin_temperature(
         )
 
         # Construct FFTW wisdoms. Only if required
-        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options)
+        construct_fftw_wisdoms(user_params=user_params, cosmo_params=cosmo_params)
 
         # Check whether the boxes already exist on disk.
         if not regenerate:
@@ -2067,8 +2059,6 @@ def spin_temperature(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
-                astro_params=astro_params,
-                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -2087,8 +2077,8 @@ def spin_temperature(
                     redshift=prev_z,  # redshift here is ignored
                     user_params=init_boxes.user_params,
                     cosmo_params=init_boxes.cosmo_params,
-                    astro_params=init_boxes.astro_params,
-                    flag_options=init_boxes.flag_options,
+                    astro_params=astro_params,
+                    flag_options=flag_options,
                     dummy=True,
                 )
             else:
@@ -2191,8 +2181,7 @@ def brightness_temperature(
 
         # Construct FFTW wisdoms. Only if required
         construct_fftw_wisdoms(
-            user_params=ionized_box.user_params, cosmo_params=ionized_box.cosmo_params,
-            astro_params=ionized_box.astro_params, flag_options = ionized_box.flag_options
+            user_params=ionized_box.user_params, cosmo_params=ionized_box.cosmo_params
         )
 
         # Check whether the boxes already exist on disk.
@@ -2355,8 +2344,6 @@ def run_coeval(
             init_box = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
-                astro_params=astro_params,
-                flag_options=flag_options,
                 random_seed=random_seed,
                 hooks=hooks,
                 regenerate=regenerate,
@@ -2393,11 +2380,10 @@ def run_coeval(
                 cosmo_params,
                 astro_params,
                 flag_options,
+                init_box,
                 regenerate,
                 write,
                 direc,
-                random_seed,
-                always_purge
             )
 
         if not hasattr(redshift, "__len__"):
@@ -2660,6 +2646,99 @@ def _get_required_redshifts_coeval(flag_options, redshift) -> list[float]:
     return redshifts.tolist()
 
 
+
+def _c_call_init_TF_CLASS(user_params, cosmo_params, k, Tm, Tvcb):
+
+    # Convert the data to the right type
+    k = np.array(k, dtype="float32")
+    _k = ffi.cast("float *", ffi.from_buffer(k))
+
+    Tm = np.array(Tm, dtype="float32")
+    _Tm = ffi.cast("float *", ffi.from_buffer(Tm))
+
+    Tvcb = np.array(Tvcb, dtype="float32")
+    _Tvcb = ffi.cast("float *", ffi.from_buffer(Tvcb))
+
+    # Run the C code
+    status = lib.InitTFCLASS(user_params(), cosmo_params(), _k, _Tm, _Tvcb, len(k))
+
+
+
+
+def init_TF_CLASS(*, user_params = None, cosmo_params = None, **global_kwargs):
+
+    with global_params.use(**global_kwargs) : 
+        (user_params, cosmo_params,) = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params,})
+
+        if user_params.power_spectrum_model != "CLASS":
+            return None
+        
+        if user_params.USE_CLASS_TABLES is True:
+            return _c_call_init_TF_CLASS(user_params, cosmo_params, [0], [0], [0])
+
+        _h = cosmo_params.hlittle
+        _omega_cdm = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
+        _omega_ncdm = 0
+        _n_ncdm = 0
+        _m_ncdm = 0.0
+        _T_ncdm = 0.71611
+
+        if user_params.ps_small_scales_model == "WDM":
+            _n_ncdm = 1
+            _f_wdm = cosmo_params.FRAC_WDM
+            _omega_cdm = (1.0 - _f_wdm) * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
+            _omega_ncdm =  _f_wdm * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
+            _m_ncdm = (cosmo_params.M_WDM if (user_params.USE_INVERSE_PARAMS is False) else 1.0/cosmo_params.INVERSE_M_WDM)*1e+3
+            _T_ncdm = 0.71611 * (_omega_ncdm * 93.14 / _m_ncdm)**(1./3.)
+
+        if _omega_cdm < 0:
+            raise ValueError("The abundance of cold dark matter cannot go below 0")
+
+        if _CLASS_IMPORTED is True:
+
+            params_class = {'output' : 'dTk, vTk',
+                'h': cosmo_params.hlittle,
+                'YHe' : global_params.Y_He,
+                'omega_b': cosmo_params.OMb * _h**2,
+                'omega_cdm' : _omega_cdm,
+                'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
+                'n_s': cosmo_params.POWER_INDEX,
+                'P_k_max_h/Mpc': 1e+2 / _h
+                }
+            
+            if _n_ncdm > 0:
+                params_class =  params_class | {'N_ncdm' : _n_ncdm,
+                                                'T_ncdm' : _T_ncdm,
+                                                'm_ncdm' : _m_ncdm,    
+                                                'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX,
+                }
+        
+
+            cosmo_CLASS = Class()
+            cosmo_CLASS.set(params_class)
+            cosmo_CLASS.compute()
+            
+            # Get the thermodynamical quantities
+            _thermo  = cosmo_CLASS.get_thermodynamics()
+            z   = _thermo['z']
+            x_e = _thermo['x_e']
+            T_b = _thermo['Tb [K]']
+
+            # Get the transfer functions
+            _transfer = cosmo_CLASS.get_transfer()
+            _k_array = _transfer['k (h/Mpc)'] * _h
+            _Tm_array  = _transfer['d_m']
+            _Tvcb_array = _transfer['t_b']
+
+            status = _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array)
+
+            return z, x_e, T_b
+        
+        else:
+            logger.warning("Classy module not found, use precomputed table for the computation")
+            user_params.update(USE_CLASS_TABLES = True)
+
+
 def run_lightcone(
     *,
     redshift=None,
@@ -2778,20 +2857,27 @@ def run_lightcone(
             random_seed,
             user_params,
             cosmo_params,
-            astro_params,
             flag_options,
+            astro_params,
             redshift,
         ) = _setup_inputs(
             {
                 "random_seed": random_seed,
                 "user_params": user_params,
                 "cosmo_params": cosmo_params,
-                "astro_params": astro_params,
                 "flag_options": flag_options,
+                "astro_params": astro_params,
             },
             {"init_box": init_box, "perturb": perturb},
             redshift=redshift,
         )
+        
+        #############################################################################
+        # Gaétan modification for implementation with CLASS
+        
+        init_TF_CLASS(user_params=user_params, cosmo_params=cosmo_params, global_kwargs=global_kwargs)
+
+        #############################################################################
 
         if user_params.MINIMIZE_MEMORY and not write:
             raise ValueError(
@@ -2841,8 +2927,6 @@ def run_lightcone(
             init_box = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
-                astro_params=astro_params,
-                flag_options=flag_options,
                 hooks=hooks,
                 regenerate=regenerate,
                 direc=direc,
@@ -2899,11 +2983,10 @@ def run_lightcone(
                 cosmo_params,
                 astro_params,
                 flag_options,
+                init_box,
                 regenerate,
                 write,
                 direc,
-                random_seed,
-                always_purge,
             )
 
         d_at_redshift, lc_distances, n_lightcone = _setup_lightcone(
@@ -3006,7 +3089,6 @@ def run_lightcone(
                 direc=direc,
                 cleanup=(cleanup and iz == (len(scrollz) - 1)),
             )
-
             log10_mturnovers[iz] = ib2.log10_Mturnover_ave
             log10_mturnovers_mini[iz] = ib2.log10_Mturnover_MINI_ave
 
@@ -3303,11 +3385,10 @@ def calibrate_photon_cons(
     cosmo_params,
     astro_params,
     flag_options,
+    init_box,
     regenerate,
     write,
     direc,
-    random_seed,
-    always_purge,
     **global_kwargs,
 ):
     r"""
@@ -3352,6 +3433,8 @@ def calibrate_photon_cons(
         astro_params_photoncons = deepcopy(astro_params)
         astro_params_photoncons._R_BUBBLE_MAX = astro_params.R_BUBBLE_MAX
 
+
+        """
         flag_options_photoncons = deepcopy(flag_options)
         flag_options_photoncons.update(INHOMO_RECO = False, USE_TS_FLUCT = False, PHOTON_CONS = False, USE_MASS_DEPENDENT_ZETA = True, 
                                     M_MIN_in_Mass = True, USE_HALO_FIELD = False, USE_MINI_HALOS = False, SUBCELL_RSD = False, 
@@ -3383,12 +3466,13 @@ def calibrate_photon_cons(
         except OSError:
             pass
 
-        # Very simple flag_options_photoncons
-        #flag_options_photoncons = FlagOptions(
-        #        USE_MASS_DEPENDENT_ZETA=flag_options.USE_MASS_DEPENDENT_ZETA,
-        #        M_MIN_in_Mass=flag_options.M_MIN_in_Mass,
-        #        USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES,
-        #    )
+       """
+        
+        flag_options_photoncons = FlagOptions(
+            USE_MASS_DEPENDENT_ZETA=flag_options.USE_MASS_DEPENDENT_ZETA,
+            M_MIN_in_Mass=flag_options.M_MIN_in_Mass,
+            USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES,
+        )
 
         ib = None
         prev_perturb = None
@@ -3416,7 +3500,7 @@ def calibrate_photon_cons(
             # turned off.
             this_perturb = perturb_field(
                 redshift=z,
-                init_boxes=init_box_photoncons,
+                init_boxes=init_box,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -3425,7 +3509,7 @@ def calibrate_photon_cons(
             ib2 = ionize_box(
                 redshift=z,
                 previous_ionize_box=ib,
-                init_boxes=init_box_photoncons,
+                init_boxes=init_box,
                 perturbed_field=this_perturb,
                 previous_perturbed_field=prev_perturb,
                 astro_params=astro_params_photoncons,
