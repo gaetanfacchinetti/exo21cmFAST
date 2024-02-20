@@ -482,8 +482,8 @@ LOG_SUPER_DEBUG("Initialised heat");
 
     if (redshift >= global_params.Z_HEAT_MAX){
         LOG_SUPER_DEBUG("redshift %f >= Z_HEAT_MAX. Doing fast initial heating.", redshift);
-        xe = xion_RECFAST(redshift,0);
-        TK = T_RECFAST(redshift,0);
+        xe = xion_IGM_TABLE(redshift);
+        TK = T_IGM_TABLE(redshift);
         cT_ad = cT_approx(redshift); //finding the adiabatic index at the initial redshift from 2302.08506 to fix adiabatic fluctuations.
         growth_factor_zp = dicke(redshift);
 
@@ -2753,6 +2753,6 @@ void free_TsCalcBoxes(struct UserParams *user_params, struct FlagOptions *flag_o
     free(freq_int_ion_tbl_diff);
     free(freq_int_lya_tbl_diff);
 
-    destruct_heat();
+    // destruct_heat(); Gaetan
     TsInterpArraysInitialised = false;
 }

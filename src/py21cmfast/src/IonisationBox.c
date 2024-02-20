@@ -104,7 +104,7 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
 LOG_SUPER_DEBUG("initing heat");
     init_heat();
     float TK;
-    TK = T_RECFAST(redshift,0);
+    TK = T_IGM_TABLE(redshift);
     float cT_ad; //finding the adiabatic index at the initial redshift from 2302.08506 to fix adiabatic fluctuations.
     cT_ad = cT_approx(redshift);
 LOG_SUPER_DEBUG("inited heat");
@@ -629,7 +629,7 @@ LOG_SUPER_DEBUG("excursion set normalisation, mean_f_coll_MINI: %e", box->mean_f
             global_xH /= (double)HII_TOT_NUM_PIXELS;
         }
         else {
-            global_xH = 1. - xion_RECFAST(redshift, 0);
+            global_xH = 1. - xion_IGM_TABLE(redshift);
 
 #pragma omp parallel shared(box,global_xH,TK,perturbed_field,cT_ad) private(ct) num_threads(user_params->N_THREADS)
             {
@@ -1522,7 +1522,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
         fftwf_forget_wisdom();
     }
 
-    destruct_heat();
+    //destruct_heat(); Gaetan
 
     for (i=0; i<user_params->N_THREADS; i++) {
         gsl_rng_free (r[i]);

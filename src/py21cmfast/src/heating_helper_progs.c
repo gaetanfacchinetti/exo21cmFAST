@@ -4,6 +4,11 @@ struct CosmoParams *cosmo_params_hf;
 struct AstroParams *astro_params_hf;
 struct FlagOptions *flag_options_hf;
 
+static const double *zt, *TK, *xion;
+static gsl_interp_accel *acc_TK, *acc_xion;
+static gsl_spline *spline_TK, *spline_xion;
+static TABLE_IGM_EVOL_NPTS;
+
 float determine_zpp_min, zpp_bin_width;
 
 double BinWidth_pH,inv_BinWidth_pH,BinWidth_elec,inv_BinWidth_elec,BinWidth_10,inv_BinWidth_10,PS_ION_EFF;
@@ -41,10 +46,10 @@ void destruct_heat();
 double spectral_emissivity(double nu_norm, int flag, int Population);
 
 // * Ionization fraction from RECFAST. * //
-double xion_RECFAST(float z, int flag);
+double xion_IGM_TABLE(float z);
 
 // * IGM temperature from RECFAST; includes Compton heating and adiabatic expansion only. * //
-double T_RECFAST(float z, int flag);
+double T_IGM_TABLE(float z);
 
 // approximation for the adiabatic index at z=6-50 from 2302.08506
 float cT_approx(float z);
@@ -94,10 +99,10 @@ int init_heat()
     kappa_10_elec(1.0,1);
     kappa_10_pH(1.0,1);
 
-    if (T_RECFAST(100, 1) < 0)
-        return -4;
-    if (xion_RECFAST(100, 1) < 0)
-        return -5;
+    //if (T_IGM_TABLE(100, 1) < 0)
+    //    return -4;
+    //if (xion_IGM_TABLE(100, 1) < 0)
+    //    return -5;
     if (spectral_emissivity(0,1,2) < 0)
         return -6;
     if( kappa_10_elec(1.0,1) < 0)
@@ -120,8 +125,19 @@ int init_heat()
 
 void destruct_heat()
 {
-  T_RECFAST(100.0,2);
-  xion_RECFAST(100.0,2);
+    gsl_spline_free (spline_TK);
+    gsl_interp_accel_free(acc_TK);
+    gsl_spline_free (spline_xion);
+    gsl_interp_accel_free(acc_xion);
+ 
+
+    free((double *)zt);
+    free((double *)TK);
+    free((double *)xion);
+
+    zt = NULL;
+    TK = NULL;
+    xion = NULL;
 }
 
 float get_Ts(float z, float delta, float TK, float xe, float Jalpha, float * curr_xalpha){
@@ -200,114 +216,136 @@ int init_FcollTable(float zmin, float zmax)
 
 
 // ******************************************************************** //
-// ************************ RECFAST quantities ************************ //
+// ************************** IGM quantities ************************** //
 // ******************************************************************** //
 
-// IGM temperature from RECFAST; includes Compton heating and adiabatic expansion only.
-double T_RECFAST(float z, int flag)
+
+void prepare_tables_IGM_evolution(int table_length)
 {
-    double ans;
-    static double zt[RECFAST_NPTS], TK[RECFAST_NPTS];
-    static gsl_interp_accel *acc;
-    static gsl_spline *spline;
-    float currz, currTK, trash;
-    int i;
+
+    if (zt != NULL)
+    {
+        free((double *)zt);
+        zt = NULL;
+    }
+
+    if (TK != NULL)
+    {
+        free((double *)TK);
+        TK = NULL;
+    }
+
+    if (xion != NULL)
+    {
+        free((double *)xion);
+        xion = NULL;
+    }
+    
+
+    zt    = malloc(table_length * sizeof(double));
+    TK    = malloc(table_length * sizeof(double));
+    xion  = malloc(table_length * sizeof(double));
+}
+
+void init_spline_IGM_evolution()
+{
+    // Set up spline table
+    acc_TK   = gsl_interp_accel_alloc ();
+    spline_TK  = gsl_spline_alloc (gsl_interp_cspline, TABLE_IGM_EVOL_NPTS);
+    gsl_spline_init(spline_TK, zt, TK, TABLE_IGM_EVOL_NPTS);
+
+    acc_xion   = gsl_interp_accel_alloc ();
+    spline_xion  = gsl_spline_alloc (gsl_interp_cspline, TABLE_IGM_EVOL_NPTS);
+    gsl_spline_init(spline_xion, zt, xion, TABLE_IGM_EVOL_NPTS);
+}
+
+
+int InitIGMEvolutionTablesFromRECFAST()
+{
+    const table_length = RECFAST_NPTS;
+    TABLE_IGM_EVOL_NPTS = table_length;
+
+    prepare_tables_IGM_evolution(TABLE_IGM_EVOL_NPTS);
+
+    float currz, currTK, currxion, trash;
     FILE *F;
 
     char filename[500];
-
-    if (flag == 1) {
-        // Read in the recfast data
-        sprintf(filename,"%s/%s",global_params.external_table_path,RECFAST_FILENAME);
-        if ( !(F=fopen(filename, "r")) ){
-            LOG_ERROR("T_RECFAST: Unable to open file: %s for reading.", filename);
-            Throw(IOError);
-        }
-
-        for (i=(RECFAST_NPTS-1);i>=0;i--) {
-            fscanf(F, "%f %E %E %E", &currz, &trash, &trash, &currTK);
-            zt[i] = currz;
-            TK[i] = currTK;
-        }
-        fclose(F);
-
-        // Set up spline table
-        acc   = gsl_interp_accel_alloc ();
-        spline  = gsl_spline_alloc (gsl_interp_cspline, RECFAST_NPTS);
-        gsl_spline_init(spline, zt, TK, RECFAST_NPTS);
-
-        return 0;
+    // Read in the recfast data
+    sprintf(filename,"%s/%s",global_params.external_table_path,RECFAST_FILENAME);
+    if ( !(F=fopen(filename, "r")) ){
+        LOG_ERROR("T_IGM_TABLE: Unable to open file: %s for reading.", filename);
+        Throw(IOError);
     }
 
-    if (flag == 2) {
-        // Free memory
-        gsl_spline_free (spline);
-        gsl_interp_accel_free(acc);
-        return 0;
+    for (int i=(RECFAST_NPTS-1);i>=0;i--) {
+        fscanf(F, "%f %E %E %E", &currz, &currxion, &trash, &currTK);
+        *((double *)zt + i) = currz;
+        *((double *)TK + i) = currTK;
+        *((double *)xion + i) = currxion;
     }
 
-    if (z > zt[RECFAST_NPTS-1]) { // Called at z>500! Bail out
-        LOG_ERROR("Called xion_RECFAST with z=%f.", z);
+    fclose(F);
+
+    init_spline_IGM_evolution();
+
+    return 1;
+}
+
+
+int InitIGMEvolutionTablesFromInput(float *z, float *igm_temp, float *igm_xe, int length)
+{
+    const table_length = length;
+    TABLE_IGM_EVOL_NPTS = table_length;
+
+    prepare_tables_IGM_evolution(TABLE_IGM_EVOL_NPTS);
+
+    for (int i = 0; i < table_length; i++)
+    {
+        *((double *)zt + i) = (double)z[i];
+        *((double *)TK + i) = (double)igm_temp[i];
+        *((double *)xion + i) = (double)igm_xe[i];
+    }
+    
+    init_spline_IGM_evolution();
+
+    return 1;
+}
+
+
+
+
+// IGM temperature from RECFAST; includes Compton heating and adiabatic expansion only.
+//double T_RECFAST(float z, int flag)
+double T_IGM_TABLE(float z)
+{   
+    double ans;
+    if (z > zt[TABLE_IGM_EVOL_NPTS-1]) { // Called at z>500! Bail out
+        LOG_ERROR("Called xion_IGM_TABLE with z=%f.", z);
         Throw 1;
     }
     else { // Do spline
-        ans = gsl_spline_eval (spline, z, acc);
+        ans = gsl_spline_eval (spline_TK, z, acc_TK);
     }
     return ans;
 }
 
 
 // Ionization fraction from RECFAST. //
-double xion_RECFAST(float z, int flag)
+//double xion_RECFAST(float z, int flag)
+double xion_IGM_TABLE(float z)
 {
-    static double zt[RECFAST_NPTS], xion[RECFAST_NPTS];
-    static gsl_interp_accel *acc;
-    static gsl_spline *spline;
-    float trash, currz, currxion;
     double ans;
-    int i;
-    FILE *F;
-
-    char filename[500];
-
-    if (flag == 1) {
-        // Initialize vectors
-        sprintf(filename,"%s/%s",global_params.external_table_path,RECFAST_FILENAME);
-        if ( !(F=fopen(filename, "r")) ){
-            LOG_ERROR("xion_RECFAST: Unable to open file: %s for reading.", RECFAST_FILENAME);
-            Throw IOError;
-        }
-
-        for (i=(RECFAST_NPTS-1);i>=0;i--) {
-            fscanf(F, "%f %E %E %E", &currz, &currxion, &trash, &trash);
-            zt[i] = currz;
-            xion[i] = currxion;
-        }
-        fclose(F);
-
-        // Set up spline table
-        acc   = gsl_interp_accel_alloc ();
-        spline  = gsl_spline_alloc (gsl_interp_cspline, RECFAST_NPTS);
-        gsl_spline_init(spline, zt, xion, RECFAST_NPTS);
-
-        return 0;
-    }
-
-    if (flag == 2) {
-        gsl_spline_free (spline);
-        gsl_interp_accel_free(acc);
-        return 0;
-    }
-
-    if (z > zt[RECFAST_NPTS-1]) { // Called at z>500! Bail out
-        LOG_ERROR("Called xion_RECFAST with z=%f", z);
+    if (z > zt[TABLE_IGM_EVOL_NPTS-1]) { // Called at z>500! Bail out
+        LOG_ERROR("Called xion_IGM_TABLE with z=%f", z);
         Throw ValueError;
     }
     else { // Do spline
-        ans = gsl_spline_eval (spline, z, acc);
+        ans = gsl_spline_eval (spline_xion, z, acc_xion);
     }
     return ans;
 }
+
 
 // approximation for the adiabatic index at z=6-50 from 2302.08506 (also 1506.04152). Linear only, used to initialize the Tk box at high z so it's not homogeneous. Otherwise half of the adiabatic fluctuations are missing. Definition is \delta Tk = Tk * cT * \delta (at each z).
 float cT_approx(float z)
@@ -1465,4 +1503,36 @@ double interpolate_heating_efficiencies(double tk, double ts, double taugp, doub
 
     c = c0*(1.-zd) + c1*zd;
     return c;
+}
+
+
+
+float* ComputeTKFromTable(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length) 
+{
+
+    Broadcast_struct_global_HF(user_params,cosmo_params, astro_params, flag_options);
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) T_IGM_TABLE(z[i]);
+
+    destruct_heat();
+
+    return result;
+}
+
+float* ComputeXionFromTable(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length) 
+{
+
+    Broadcast_struct_global_HF(user_params,cosmo_params, astro_params, flag_options);
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) xion_IGM_TABLE(z[i]);
+
+    destruct_heat();
+
+    return result;
 }

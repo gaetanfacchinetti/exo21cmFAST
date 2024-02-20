@@ -509,6 +509,11 @@ double transfer_function_PMF(double k)
 */
 double transfer_function_nCDM(double k)
 {  
+    // CLASS output the total TF, no need to add an analytical nCDM
+    // Transfer function (already computed by CLASS)
+    if (user_params_ps->POWER_SPECTRUM == 5)
+        return 1.0;
+
     if (user_params_ps->PS_SMALL_SCALES_MODEL == 0) // classical LCDM model
         return 1.0;
     if (user_params_ps->PS_SMALL_SCALES_MODEL == 1) // vanilla warm dark matter
@@ -639,11 +644,31 @@ static TABLE_CLASS_LENGTH;
 int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, int length)
 {  
 
+    LOG_DEBUG("INITIALISING TF CLASS");
+
     if (user_params->USE_CLASS_TABLES)
         length = CLASS_LENGTH;
 
     const table_length = length;
     TABLE_CLASS_LENGTH = table_length;
+
+    if (kclass != NULL)
+    {
+        free((double *)kclass);
+        kclass = NULL;
+    }
+
+    if (Tmclass != NULL)
+    {
+        free((double *)Tmclass);
+        Tmclass = NULL;
+    }
+
+    if (Tvclass_vcb != NULL)
+    {
+        free((double *)Tvclass_vcb);
+        Tvclass_vcb = NULL;
+    }
 
     kclass      = malloc(table_length * sizeof(double));
     Tmclass     = malloc(table_length * sizeof(double));
@@ -710,15 +735,19 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
 
     LOG_SUPER_DEBUG("Generated CLASS velocity Spline.");
 
-    LOG_SUPER_DEBUG("%e, %e, %e, %e, %e, %e, %e", Tmclass[0], Tmclass[1], Tmclass[2], Tmclass[3], Tmclass[4], gsl_spline_eval (spline_density, 1.0, acc_density));
-
     return 1;
 
 }
 
 
-void free_TF_CLASS()
+int free_TF_CLASS()
 {
+
+    if (user_params_ps->POWER_SPECTRUM != 5)
+        return 0;
+
+    LOG_DEBUG("FREEING TF CLASS POINTERS");
+    
     gsl_spline_free(spline_density);
     gsl_interp_accel_free(acc_density);
     gsl_spline_free (spline_vcb);
@@ -727,6 +756,12 @@ void free_TF_CLASS()
     free((double *)kclass);
     free((double *)Tmclass);
     free((double *)Tvclass_vcb);
+
+    kclass = NULL;
+    Tmclass = NULL;
+    Tvclass_vcb = NULL;
+
+    return 1;
 }
 
 
@@ -1052,12 +1087,12 @@ double sigma_z0(double M){
     // now lets do the integral for sigma and scale it with sigma_norm
     /* 
         we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and 
-        a minimum at KBOT_CLASS, ~1e-5 Mpc-1 since the CLASS 
+        a minimum at kclass[0], ~1e-5 Mpc-1 since the CLASS 
         transfer function has a max! 
     */
     if(user_params_ps->POWER_SPECTRUM == 5)
     {
-      kstart = fmax(1.0e-99/Radius, KBOT_CLASS);
+      kstart = fmax(1.0e-99/Radius, kclass[0]);
       kend = fmin(350.0/Radius, KTOP_CLASS);
     }
     else
@@ -1151,9 +1186,9 @@ double dsigmasqdm_z0(double M){
 
     // now lets do the integral for sigma and scale it with sigma_norm
     if(user_params_ps->POWER_SPECTRUM == 5){
-      kstart = fmax(1.0e-99/Radius, KBOT_CLASS);
+      kstart = fmax(1.0e-99/Radius, kclass[0]);
       kend = fmin(350.0/Radius, KTOP_CLASS);
-    }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at KBOT_CLASS,~1e-5 Mpc-1 since the CLASS transfer function has a max!
+    }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at kclass[0],~1e-5 Mpc-1 since the CLASS transfer function has a max!
     else{
       kstart = 1.0e-99/Radius;
       kend = 350.0/Radius;
@@ -1259,9 +1294,9 @@ void init_ps(){
    
 
     if(user_params_ps->POWER_SPECTRUM == 5){
-      kstart = fmax(1.0e-99/Radius_8, KBOT_CLASS);
+      kstart = fmax(1.0e-99/Radius_8, kclass[0]);
       kend = fmin(350.0/Radius_8, KTOP_CLASS);
-    }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at KBOT_CLASS,~1e-5 Mpc-1 since the CLASS transfer function has a max!
+    }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at kclass[0],~1e-5 Mpc-1 since the CLASS transfer function has a max!
     else{
       kstart = 1.0e-99/Radius_8;
       kend = 350.0/Radius_8;
@@ -1315,11 +1350,6 @@ void init_ps(){
 
 //function to free arrays related to the power spectrum
 void free_ps(){
-
-	//we free the PS interpolator if using CLASS:
-	if (user_params_ps->POWER_SPECTRUM == 5){
-		free_TF_CLASS();
-	}
 
     // we free the PS interpolator if using PMF
     if (user_params_ps->PS_SMALL_SCALES_MODEL == 4)
@@ -4835,6 +4865,7 @@ float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoP
         result[i] = (float) transfer_function_nCDM(k[i]);
 
     free_ps();
+    free_TF_CLASS();
 
     return result;
 }
@@ -4867,6 +4898,7 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
         result[i] = (float) power_in_k(k[i]);
 
     free_ps();
+    free_TF_CLASS();
 
     return result;
 }
@@ -4888,6 +4920,7 @@ float* ComputePMFInducedMatterPowerSpectrum(struct UserParams *user_params, stru
         result[i] = (float) pmf_induced_power_spectrum(k[i]);
 
     free_ps();
+    free_TF_CLASS();
 
     return result;
 }
@@ -4913,6 +4946,7 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
         freeSigmaMInterpTable();
 
     free_ps();
+    free_TF_CLASS();
 
     return result;
 }
@@ -4939,6 +4973,7 @@ float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *c
         freeSigmaMInterpTable();
     
     free_ps();
+    free_TF_CLASS();
 
     return result;
 }
@@ -4981,6 +5016,7 @@ float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_par
         freeSigmaMInterpTable();
     
     free_ps();
+    free_TF_CLASS();
 
     return result;
 }
@@ -5006,6 +5042,7 @@ float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *c
         freeSigmaMInterpTable();
     
     free_ps();
+    free_TF_CLASS();
 
     return result;
 }
@@ -5046,6 +5083,7 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
         freeSigmaMInterpTable();
 
     free_ps();
+    free_TF_CLASS();
 
     return result;
 }

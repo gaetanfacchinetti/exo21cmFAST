@@ -236,7 +236,15 @@ float* ComputeGrowthFunctionFromPMF(struct UserParams *user_params, struct Cosmo
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length);
 float* ComputePMFInducedMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
+float* ComputeTKFromTable(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length); 
+float* ComputeXionFromTable(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length); 
 int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, int length);
+int InitIGMEvolutionTablesFromInput(float *z, float *igm_temp, float *igm_xe, int length);
+int InitIGMEvolutionTablesFromRECFAST();
+int free_TF_CLASS();
+void destruct_heat();
 /* ---------------------------------------------- */
 
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params);

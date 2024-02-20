@@ -479,42 +479,42 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None, a
 
 
 def matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(k, lib.ComputeMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
 
 def transfer_function_nCDM(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(k, lib.ComputeTransferFunctionNCDM, user_params, cosmo_params, astro_params, flag_options)
 
 def sigma_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(mass, lib.ComputeSigmaZ0, user_params, cosmo_params, astro_params, flag_options)
 
 def mass_to_radius(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) :
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(mass, lib.ComputeMtoR, user_params, cosmo_params, astro_params, flag_options)
 
 def radius_to_mass(radius, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(radius, lib.ComputeRtoM, user_params, cosmo_params, astro_params, flag_options)
 
 def dsigmasqdm_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None,) : 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(mass, lib.ComputeDSigmaSqDmZ0, user_params, cosmo_params, astro_params, flag_options)
     
 def dndm(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call_params(mass, z, lib.ComputeDNDM, user_params, cosmo_params, astro_params, flag_options)
 
 def f_gtr_mass(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None): 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call_params(mass, z, lib.ComputeFgtrMGeneral, user_params, cosmo_params, astro_params, flag_options)
 
@@ -522,7 +522,7 @@ def nion_conditional_m(mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, 
                         *, m_turn = None, alpha_star = None, alpha_esc = None, f_star_10 = None, f_esc_10 = None, 
                         user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
     
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
 
     # defining default values for the parameters that have one in astro_params
@@ -538,15 +538,26 @@ def nion_conditional_m(mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, 
     return _generic_c_call_params(mass, params, lib.ComputeNionConditionalM, user_params, cosmo_params, astro_params, flag_options)
 
 def growth_from_pmf(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(z, lib.ComputeGrowthFunctionFromPMF, user_params, cosmo_params, astro_params, flag_options)
 
 def pmf_induced_matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_CLASS(user_params=user_params, cosmo_params = cosmo_params)
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(k, lib.ComputePMFInducedMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
 
+
+def igm_temp_from_table(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    return  _generic_c_call(z, lib.ComputeTKFromTable, user_params, cosmo_params, astro_params, flag_options)
+    
+def igm_xe_from_table(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    return  _generic_c_call(z, lib.ComputeXionFromTable, user_params, cosmo_params, astro_params, flag_options)
+    
 def _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options):
     user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
         {"user_params": user_params, "cosmo_params": cosmo_params,
@@ -2337,6 +2348,12 @@ def run_coeval(
             },
         )
 
+        #############################################################################
+        # Gaétan modification for implementation with CLASS
+        init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, global_kwargs=global_kwargs)
+        #############################################################################
+
+
         if use_interp_perturb_field and flag_options.USE_MINI_HALOS:
             raise ValueError("Cannot use an interpolated perturb field with minihalos!")
 
@@ -2617,6 +2634,9 @@ def run_coeval(
 
         logger.debug("Returning from Coeval")
 
+        lib.free_TF_CLASS() # Gaétan added that here at the end of the code
+        lib.destruct_heat()
+    
         return coevals
 
 
@@ -2661,20 +2681,43 @@ def _c_call_init_TF_CLASS(user_params, cosmo_params, k, Tm, Tvcb):
 
     # Run the C code
     status = lib.InitTFCLASS(user_params(), cosmo_params(), _k, _Tm, _Tvcb, len(k))
+    assert status == 1, "FATAL ERROR: error in calling InitTFCLASS from ps.c"
+
+
+def _c_call_init_IGM_RECFAST():
+    status = lib.InitIGMEvolutionTablesFromRECFAST()
+    assert status == 1, "FATAL ERROR: error in calling InitIGMEvolutionTablesFromInput from heating_helper_prog.c"
+
+def _c_call_init_IGM_from_input(z, TK, xe):
+
+    # Convert the data to the right type
+    z = np.array(z, dtype="float32")
+    _z = ffi.cast("float *", ffi.from_buffer(z))
+
+    TK = np.array(TK, dtype="float32")
+    _TK = ffi.cast("float *", ffi.from_buffer(TK))
+
+    xe = np.array(xe, dtype="float32")
+    _xe = ffi.cast("float *", ffi.from_buffer(xe))
+
+    status = lib.InitIGMEvolutionTablesFromInput(_z, _TK, _xe, len(z))
+    assert status == 1, "FATAL ERROR: error in calling InitIGMEvolutionTablesFromInput from heating_helper_prog.c"
 
 
 
-
-def init_TF_CLASS(*, user_params = None, cosmo_params = None, **global_kwargs):
+def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_params = None, flag_options = None, **global_kwargs):
 
     with global_params.use(**global_kwargs) : 
-        (user_params, cosmo_params,) = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params,})
+        (user_params, cosmo_params, astro_params, flag_options) = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options})
 
-        if user_params.power_spectrum_model != "CLASS":
+        if user_params.power_spectrum_model != "CLASS" or _CLASS_IMPORTED is False:
+            _c_call_init_IGM_RECFAST()
             return None
         
-        if user_params.USE_CLASS_TABLES is True:
-            return _c_call_init_TF_CLASS(user_params, cosmo_params, [0], [0], [0])
+        if user_params.USE_CLASS_TABLES is True or _CLASS_IMPORTED is False:
+            _c_call_init_IGM_RECFAST()
+            _c_call_init_TF_CLASS(user_params, cosmo_params, [0], [0], [0])
+            return None
 
         _h = cosmo_params.hlittle
         _omega_cdm = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
@@ -2682,6 +2725,7 @@ def init_TF_CLASS(*, user_params = None, cosmo_params = None, **global_kwargs):
         _n_ncdm = 0
         _m_ncdm = 0.0
         _T_ncdm = 0.71611
+        _k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
 
         if user_params.ps_small_scales_model == "WDM":
             _n_ncdm = 1
@@ -2690,6 +2734,11 @@ def init_TF_CLASS(*, user_params = None, cosmo_params = None, **global_kwargs):
             _omega_ncdm =  _f_wdm * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
             _m_ncdm = (cosmo_params.M_WDM if (user_params.USE_INVERSE_PARAMS is False) else 1.0/cosmo_params.INVERSE_M_WDM)*1e+3
             _T_ncdm = 0.71611 * (_omega_ncdm * 93.14 / _m_ncdm)**(1./3.)
+            
+            # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
+            # we cut at 10 times the WDM cutoff
+            if _f_wdm == 1: #
+                _k_max = np.min([_k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/_m_ncdm, 0.11) / _m_ncdm * 1.54518467138)])
 
         if _omega_cdm < 0:
             raise ValueError("The abundance of cold dark matter cannot go below 0")
@@ -2703,7 +2752,8 @@ def init_TF_CLASS(*, user_params = None, cosmo_params = None, **global_kwargs):
                 'omega_cdm' : _omega_cdm,
                 'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
                 'n_s': cosmo_params.POWER_INDEX,
-                'P_k_max_h/Mpc': 1e+2 / _h
+                'P_k_max_h/Mpc': _k_max / _h,
+                'reio_parametrization': 'reio_none', # 21cmFAST will take care of the reionization
                 }
             
             if _n_ncdm > 0:
@@ -2720,9 +2770,9 @@ def init_TF_CLASS(*, user_params = None, cosmo_params = None, **global_kwargs):
             
             # Get the thermodynamical quantities
             _thermo  = cosmo_CLASS.get_thermodynamics()
-            z   = _thermo['z']
-            x_e = _thermo['x_e']
-            T_b = _thermo['Tb [K]']
+            _z   = _thermo['z']
+            _x_e = _thermo['x_e']
+            _T_b = _thermo['Tb [K]']
 
             # Get the transfer functions
             _transfer = cosmo_CLASS.get_transfer()
@@ -2730,10 +2780,10 @@ def init_TF_CLASS(*, user_params = None, cosmo_params = None, **global_kwargs):
             _Tm_array  = _transfer['d_m']
             _Tvcb_array = _transfer['t_b']
 
-            status = _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array)
 
-            return z, x_e, T_b
-        
+            _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array)
+            _c_call_init_IGM_from_input(_z, _T_b, _x_e)       
+
         else:
             logger.warning("Classy module not found, use precomputed table for the computation")
             user_params.update(USE_CLASS_TABLES = True)
@@ -2874,9 +2924,7 @@ def run_lightcone(
         
         #############################################################################
         # Gaétan modification for implementation with CLASS
-        
-        init_TF_CLASS(user_params=user_params, cosmo_params=cosmo_params, global_kwargs=global_kwargs)
-
+        init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, **global_kwargs)
         #############################################################################
 
         if user_params.MINIMIZE_MEMORY and not write:
@@ -3192,6 +3240,9 @@ def run_lightcone(
                 lib.FreePhotonConsMemory()
         else:
             photon_nonconservation_data = None
+
+        lib.free_TF_CLASS() # Gaétan added that here at the end of the code
+        lib.destruct_heat()
 
         if (
             flag_options.USE_TS_FLUCT
