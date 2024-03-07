@@ -28,6 +28,11 @@ struct CosmoParams{
     double PMF_SIGMA_B_0;
     double PMF_B_INDEX;
 
+    float NEUTRINO_MASS_1;
+    float NEUTRINO_MASS_2;
+    float NEUTRINO_MASS_3;
+
+
 };
 
 struct UserParams{
