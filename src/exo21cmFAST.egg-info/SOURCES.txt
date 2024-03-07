@@ -97,6 +97,7 @@ src/py21cmfast/yaml.py
 src/py21cmfast/_data/Lyman_alpha_heating_table.dat
 src/py21cmfast/_data/Transfers_z0.dat
 src/py21cmfast/_data/__init__.py
+src/py21cmfast/_data/dimensionless_power_spectrum_v_PMF.txt
 src/py21cmfast/_data/kappa_eH_table.dat
 src/py21cmfast/_data/kappa_pH_table.dat
 src/py21cmfast/_data/recfast_LCDM.dat

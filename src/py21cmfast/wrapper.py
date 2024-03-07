@@ -2740,6 +2740,12 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             if _f_wdm == 1: #
                 _k_max = np.min([_k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/_m_ncdm, 0.11) / _m_ncdm * 1.54518467138)])
 
+        if user_params.ps_small_scales_model == "MNU" and cosmo_params.NEUTRINO_MASS_1  > 0:
+            _n_ncdm = _n_ncdm
+            _m_ncdm = cosmo_params.NEUTRINO_MASS_1
+            _omega_ncdm =  _m_ncdm / 93.259 / (_h**2) 
+            _omega_cdm = _omega_cdm - _omega_ncdm
+
         if _omega_cdm < 0:
             raise ValueError("The abundance of cold dark matter cannot go below 0")
 
