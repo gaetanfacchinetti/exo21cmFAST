@@ -488,6 +488,18 @@ def transfer_function_nCDM(k, *, user_params=None, cosmo_params=None, astro_para
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return  _generic_c_call(k, lib.ComputeTransferFunctionNCDM, user_params, cosmo_params, astro_params, flag_options)
 
+def transfer_function_LCDM(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    return  _generic_c_call(k, lib.ComputeTransferFunctionLCDM, user_params, cosmo_params, astro_params, flag_options)
+
+
+def transfer_function(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    return  _generic_c_call(k, lib.ComputeTransferFunction, user_params, cosmo_params, astro_params, flag_options)
+
+
 def sigma_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
@@ -2667,7 +2679,7 @@ def _get_required_redshifts_coeval(flag_options, redshift) -> list[float]:
 
 
 
-def _c_call_init_TF_CLASS(user_params, cosmo_params, k, Tm, Tvcb):
+def _c_call_init_TF_CLASS(user_params, cosmo_params, k, Tm, Tvcb, k_LCDM, Tm_LCDM, Tvcb_LCDM):
 
     # Convert the data to the right type
     k = np.array(k, dtype="float32")
@@ -2679,8 +2691,17 @@ def _c_call_init_TF_CLASS(user_params, cosmo_params, k, Tm, Tvcb):
     Tvcb = np.array(Tvcb, dtype="float32")
     _Tvcb = ffi.cast("float *", ffi.from_buffer(Tvcb))
 
+    k_LCDM = np.array(k_LCDM, dtype="float32")
+    _k_LCDM = ffi.cast("float *", ffi.from_buffer(k_LCDM))
+
+    Tm_LCDM = np.array(Tm_LCDM, dtype="float32")
+    _Tm_LCDM = ffi.cast("float *", ffi.from_buffer(Tm_LCDM))
+
+    Tvcb_LCDM = np.array(Tvcb_LCDM, dtype="float32")
+    _Tvcb_LCDM = ffi.cast("float *", ffi.from_buffer(Tvcb_LCDM))
+
     # Run the C code
-    status = lib.InitTFCLASS(user_params(), cosmo_params(), _k, _Tm, _Tvcb, len(k))
+    status = lib.InitTFCLASS(user_params(), cosmo_params(), _k, _Tm, _Tvcb, _k_LCDM, _Tm_LCDM, _Tvcb_LCDM, len(k))
     assert status == 1, "FATAL ERROR: error in calling InitTFCLASS from ps.c"
 
 
@@ -2720,6 +2741,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             return None
 
         _h = cosmo_params.hlittle
+        _omega_cdm_LCDM = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
         _omega_cdm = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
         _omega_ncdm = 0
         _n_ncdm = 0
@@ -2741,53 +2763,83 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 _k_max = np.min([_k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/_m_ncdm, 0.11) / _m_ncdm * 1.54518467138)])
 
         if user_params.ps_small_scales_model == "MNU" and cosmo_params.NEUTRINO_MASS_1  > 0:
-            _n_ncdm = _n_ncdm
+            _n_ncdm = 1
             _m_ncdm = cosmo_params.NEUTRINO_MASS_1
-            _omega_ncdm =  _m_ncdm / 93.259 / (_h**2) 
-            _omega_cdm = _omega_cdm - _omega_ncdm
+            _omega_ncdm =  _m_ncdm / 93.14
+            _omega_cdm = _omega_cdm_LCDM - _omega_ncdm
 
         if _omega_cdm < 0:
             raise ValueError("The abundance of cold dark matter cannot go below 0")
 
+        # starting computation with CLASS
         if _CLASS_IMPORTED is True:
 
-            params_class = {'output' : 'dTk, vTk',
+            params_class_init = {'output' : 'dTk, vTk',
                 'h': cosmo_params.hlittle,
                 'YHe' : global_params.Y_He,
                 'omega_b': cosmo_params.OMb * _h**2,
-                'omega_cdm' : _omega_cdm,
                 'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
                 'n_s': cosmo_params.POWER_INDEX,
                 'P_k_max_h/Mpc': _k_max / _h,
                 'reio_parametrization': 'reio_none', # 21cmFAST will take care of the reionization
                 }
             
-            if _n_ncdm > 0:
-                params_class =  params_class | {'N_ncdm' : _n_ncdm,
-                                                'T_ncdm' : _T_ncdm,
-                                                'm_ncdm' : _m_ncdm,    
-                                                'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX,
-                }
-        
+            # Put the correct values for the parameters missing in the init params dict
+            params_class_LCDM = params_class_init | {'omega_cdm' : _omega_cdm_LCDM}
 
-            cosmo_CLASS = Class()
-            cosmo_CLASS.set(params_class)
-            cosmo_CLASS.compute()
+            if _n_ncdm > 0:
+                params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
+                                                    'N_ncdm' : _n_ncdm,
+                                                    'T_ncdm' : _T_ncdm,
+                                                    'm_ncdm' : _m_ncdm,    
+                                                    'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX,
+                }
+            else :
+                params_class = params_class_LCDM
+
+
+            # running CLASS
+            cosmo_CLASS_LCDM = Class()
+            cosmo_CLASS_LCDM.set(params_class_LCDM)
+            cosmo_CLASS_LCDM.compute()
+
+            # Get the transfer functions
+            _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
+            _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'] * _h
+            _Tm_array_LCDM  = _transfer_LCDM['d_m']
+            _Tvcb_array_LCDM = _transfer_LCDM['t_b']
+
+            
+            if _n_ncdm > 0: 
+
+                cosmo_CLASS = Class()
+                cosmo_CLASS.set(params_class)
+                cosmo_CLASS.compute()
+
+                # Get the transfer functions
+                _transfer = cosmo_CLASS.get_transfer()
+                _k_array  = _transfer['k (h/Mpc)'] * _h
+                _Tm_array  = _transfer['d_m']
+                _Tvcb_array = _transfer['t_b']
+
+                _thermo  = cosmo_CLASS.get_thermodynamics()
+
+            else:
+
+                _k_array = _k_array_LCDM
+                _Tm_array = _Tm_array_LCDM
+                _Tvcb_array = _Tvcb_array_LCDM
+
+                _thermo  = cosmo_CLASS_LCDM.get_thermodynamics()
+
+            # define
+            _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
             
             # Get the thermodynamical quantities
-            _thermo  = cosmo_CLASS.get_thermodynamics()
             _z   = _thermo['z']
             _x_e = _thermo['x_e']
             _T_b = _thermo['Tb [K]']
 
-            # Get the transfer functions
-            _transfer = cosmo_CLASS.get_transfer()
-            _k_array = _transfer['k (h/Mpc)'] * _h
-            _Tm_array  = _transfer['d_m']
-            _Tvcb_array = _transfer['t_b']
-
-
-            _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array)
             _c_call_init_IGM_from_input(_z, _T_b, _x_e)       
 
         else:

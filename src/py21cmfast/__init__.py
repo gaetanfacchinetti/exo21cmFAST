@@ -53,6 +53,8 @@ from .wrapper import (
     spin_temperature,
     matter_power_spectrum,
     transfer_function_nCDM,
+    transfer_function_LCDM,
+    transfer_function,
     sigma_z0,
     dsigmasqdm_z0,
     dndm,

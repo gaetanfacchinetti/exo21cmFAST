@@ -226,21 +226,24 @@ double sigma_z0(double M); //calculates sigma at z=0 (no dicke)
 double power_in_k(double k); /* Returns the value of the linear power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
 
 double transfer_function(double k);
+double transfer_function_LCDM(double k);
 double transfer_function_EH(double k);
 double transfer_function_BBKS(double k);
 double transfer_function_EBW(double k);
 double transfer_function_Peebles(double k);
 double transfer_function_WF(double k);
 double transfer_function_CLASS(double k);
+double transfer_function_CLASS_LCDM(double k);
 
 double transfer_function_abgd(double k, double alpha, double beta, double gamma, double delta);
 double transfer_function_sharp(double k, double alpha, double delta);
-double transfer_function_nCDM(double k);
+double analytical_transfer_function_nCDM(double k);
 
 void TFset_parameters();
 
 
 double TF_CLASS(double k, int flag_dv); //transfer function of matter (flag_dv=0) and relative velocities (flag_dv=1) fluctuations from CLASS
+double TF_CLASS_LCDM(double k, int flag_dv); //transfer function of matter (flag_dv=0) and relative velocities (flag_dv=1) fluctuations from CLASS for LCDM cosmology
 double power_in_vcb(double k); /* Returns the value of the DM-b relative velocity power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
 
 
@@ -284,16 +287,31 @@ void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoPara
 */
 double power_spectrum(double k)
 {   
-    return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function(k), 2) * pow(transfer_function_nCDM(k), 2);
+    return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function(k), 2);
 }
 
 double power_spectrum_LCDM(double k)
 {
-    return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function(k), 2);
+    return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function_LCDM(k), 2);
 }
 
+
+double transfer_function(double k)
+{
+    double T;
+
+    if (user_params_ps->POWER_SPECTRUM == 5) // CLASS
+        T = transfer_function_CLASS(k);
+    else
+        T = transfer_function_LCDM(k) * analytical_transfer_function_nCDM(k);
+
+
+    return T;
+}
+
+
 /* 
-    transfer_function(double k)
+    transfer_function_LCDM(double k)
 
     matter transfer function according to the chosen model by the user
 
@@ -301,7 +319,7 @@ double power_spectrum_LCDM(double k)
     ------
     - k (double) mode in Mpc^{-1}
 */
-double transfer_function(double k)
+double transfer_function_LCDM(double k)
 {
     switch(user_params_ps->POWER_SPECTRUM)
     {
@@ -326,7 +344,7 @@ double transfer_function(double k)
             break;
 
         case(5): // output of CLASS
-            return transfer_function_CLASS(k);
+            return transfer_function_CLASS_LCDM(k);
             break;
 
         default:
@@ -427,10 +445,21 @@ double transfer_function_WF(double k)
     
     return  139.2838 / (1.0 + aa*k + bb*pow(k, 1.5) + cc*k*k);
 }
+
 // Transfer function from CLASS - k in Mpc^{-1}
 double transfer_function_CLASS(double k)
 {
     double T = TF_CLASS(k, 0);
+    if(user_params_ps->USE_RELATIVE_VELOCITIES) // Add average relvel suppression
+        T *= sqrt(1.0 - A_VCB_PM*exp( -pow(log(k/KP_VCB_PM),2.0)/(2.0*SIGMAK_VCB_PM*SIGMAK_VCB_PM))); //for v=vrms
+
+    return T;
+}
+
+// Transfer function from CLASS - k in Mpc^{-1} for LCDM cosmology
+double transfer_function_CLASS_LCDM(double k)
+{
+    double T = TF_CLASS_LCDM(k, 0);
     if(user_params_ps->USE_RELATIVE_VELOCITIES) // Add average relvel suppression
         T *= sqrt(1.0 - A_VCB_PM*exp( -pow(log(k/KP_VCB_PM),2.0)/(2.0*SIGMAK_VCB_PM*SIGMAK_VCB_PM))); //for v=vrms
 
@@ -497,17 +526,17 @@ double transfer_function_PMF(double k)
 }
 
 /*
-    transfer_function_nCDM(double k)
+    analytical_transfer_function_nCDM(double k)
 
     returns the transfer function (ratio of true nCDM power spectrum 
     to CDM power spectrum) for the different models chosen with the
-    flag option PS_SMALL_SCALES_MODEL
+    flag option PS_SMALL_SCALES_MODEL (analytical formulas)
 
     Params
     ------
     - k (double) mode in Mpc^{-1}
 */
-double transfer_function_nCDM(double k)
+double analytical_transfer_function_nCDM(double k)
 {  
     // CLASS output the total TF, no need to add an analytical nCDM
     // Transfer function (already computed by CLASS)
@@ -516,7 +545,7 @@ double transfer_function_nCDM(double k)
 
     if (user_params_ps->PS_SMALL_SCALES_MODEL == 0) // classical LCDM model
         return 1.0;
-    if (user_params_ps->PS_SMALL_SCALES_MODEL == 1) // vanilla warm dark matter
+    else if (user_params_ps->PS_SMALL_SCALES_MODEL == 1) // vanilla warm dark matter
     {
         double m_wdm;
 
@@ -636,12 +665,12 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 
 }
 
-static const double *kclass, *Tmclass, *Tvclass_vcb;
-static gsl_interp_accel *acc_density, *acc_vcb;
-static gsl_spline *spline_density, *spline_vcb;
+static const double *kclass, *Tmclass, *Tvclass_vcb, *kclass_LCDM, *Tmclass_LCDM, *Tvclass_vcb_LCDM;
+static gsl_interp_accel *acc_density, *acc_vcb, *acc_density_LCDM, *acc_vcb_LCDM;
+static gsl_spline *spline_density, *spline_vcb, *spline_density_LCDM, *spline_vcb_LCDM;
 static TABLE_CLASS_LENGTH;
 
-int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, int length)
+int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb,  float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length)
 {  
 
     LOG_DEBUG("INITIALISING TF CLASS");
@@ -670,12 +699,34 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
         Tvclass_vcb = NULL;
     }
 
+    if (kclass_LCDM != NULL)
+    {
+        free((double *)kclass_LCDM);
+        kclass_LCDM = NULL;
+    }
+
+    if (Tmclass_LCDM != NULL)
+    {
+        free((double *)Tmclass_LCDM);
+        Tmclass_LCDM = NULL;
+    }
+
+    if (Tvclass_vcb_LCDM != NULL)
+    {
+        free((double *)Tvclass_vcb_LCDM);
+        Tvclass_vcb_LCDM = NULL;
+    }
+
     kclass      = malloc(table_length * sizeof(double));
     Tmclass     = malloc(table_length * sizeof(double));
     Tvclass_vcb = malloc(table_length * sizeof(double));
 
+    kclass_LCDM      = malloc(table_length * sizeof(double));
+    Tmclass_LCDM     = malloc(table_length * sizeof(double));
+    Tvclass_vcb_LCDM = malloc(table_length * sizeof(double));
+
     float currk, currTm, currTv;
-    int gsl_status;
+    int gsl_status, gsl_status_LCDM;
 
     if (!user_params->USE_CLASS_TABLES)
     {
@@ -684,6 +735,9 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
             *((double *)kclass + i) = (double)k[i];
             *((double *)Tmclass + i) = (double)Tm[i];
             *((double *)Tvclass_vcb + i) = (double)Tvcb[i];
+            *((double *)kclass_LCDM + i) = (double)k_LCDM[i];
+            *((double *)Tmclass_LCDM + i) = (double)Tm_LCDM[i];
+            *((double *)Tvclass_vcb_LCDM + i) = (double)Tvcb_LCDM[i];
         }
     }
     else
@@ -708,6 +762,9 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
             *((double *)kclass + i) = (double)currk;
             *((double *)Tmclass + i) = (double)currTm;
             *((double *)Tvclass_vcb + i) = (double) currTv;
+            *((double *)kclass_LCDM + i) = (double)currk;
+            *((double *)Tmclass_LCDM + i) = (double)currTm;
+            *((double *)Tvclass_vcb_LCDM + i) = (double) currTv;
             if (i > 0 && kclass[i] <= kclass[i - 1]) {
                 LOG_WARNING("Tk table not ordered");
                 LOG_WARNING("k=%.1le kprev=%.1le", kclass[i], kclass[i - 1]);
@@ -720,18 +777,26 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
 
     gsl_set_error_handler_off();
     // Set up spline table for densities
-    acc_density   = gsl_interp_accel_alloc ();
+    acc_density        = gsl_interp_accel_alloc ();
+    acc_density_LCDM   = gsl_interp_accel_alloc ();
     spline_density  = gsl_spline_alloc (gsl_interp_cspline, table_length);
+    spline_density_LCDM  = gsl_spline_alloc (gsl_interp_cspline, table_length);
     gsl_status = gsl_spline_init(spline_density, kclass, Tmclass, table_length);
+    gsl_status_LCDM = gsl_spline_init(spline_density_LCDM, kclass_LCDM, Tmclass_LCDM, table_length);
     GSL_ERROR(gsl_status);
+    GSL_ERROR(gsl_status_LCDM);
 
     LOG_SUPER_DEBUG("Generated CLASS Density Spline.");
 
     //Set up spline table for velocities
     acc_vcb   = gsl_interp_accel_alloc ();
+    acc_vcb_LCDM   = gsl_interp_accel_alloc ();
     spline_vcb  = gsl_spline_alloc (gsl_interp_cspline, table_length);
+    spline_vcb_LCDM  = gsl_spline_alloc (gsl_interp_cspline, table_length);
     gsl_status = gsl_spline_init(spline_vcb, kclass, Tvclass_vcb, table_length);
+    gsl_status_LCDM = gsl_spline_init(spline_vcb_LCDM, kclass_LCDM, Tvclass_vcb_LCDM, table_length);
     GSL_ERROR(gsl_status);
+    GSL_ERROR(gsl_status_LCDM);
 
     LOG_SUPER_DEBUG("Generated CLASS velocity Spline.");
 
@@ -753,13 +818,24 @@ int free_TF_CLASS()
     gsl_spline_free (spline_vcb);
     gsl_interp_accel_free(acc_vcb);
 
+    gsl_spline_free(spline_density_LCDM);
+    gsl_interp_accel_free(acc_density_LCDM);
+    gsl_spline_free (spline_vcb_LCDM);
+    gsl_interp_accel_free(acc_vcb_LCDM);
+
     free((double *)kclass);
     free((double *)Tmclass);
     free((double *)Tvclass_vcb);
+    free((double *)kclass_LCDM);
+    free((double *)Tmclass_LCDM);
+    free((double *)Tvclass_vcb_LCDM);
 
     kclass = NULL;
     Tmclass = NULL;
     Tvclass_vcb = NULL;
+    kclass_LCDM = NULL;
+    Tmclass_LCDM = NULL;
+    Tvclass_vcb_LCDM = NULL;
 
     return 1;
 }
@@ -791,6 +867,44 @@ double TF_CLASS(double k, int flag_dv)
         }
         else if(flag_dv == 1){ // output is relative velocity
             ans = gsl_spline_eval (spline_vcb, k, acc_vcb);
+        }
+        else{
+            ans=0.0; //neither densities not velocities?
+        }
+    }
+
+    return ans/k/k;
+    //we have to divide by k^2 to agree with the old-fashioned convention.
+
+}
+
+
+/*
+  this function reads the z=0 matter (CDM+baryons)  and relative velocity transfer functions from CLASS (from a file)
+  flag_int = 0 to initialize interpolator, flag_int = -1 to free memory, flag_int = else to interpolate.
+  flag_dv = 0 to output density, flag_dv = 1 to output velocity.
+  similar to built-in function "double T_RECFAST(float z, int flag)"
+*/
+
+double TF_CLASS_LCDM(double k, int flag_dv)
+{
+    double ans;
+
+    if (k > kclass_LCDM[TABLE_CLASS_LENGTH-1]) { // k>kmax
+        LOG_WARNING("Called TF_CLASS_LCDM with k=%f, larger than kmax! Returning value at kmax.", k);
+        if(flag_dv == 0){ // output is density
+            return (Tmclass_LCDM[TABLE_CLASS_LENGTH]/kclass_LCDM[TABLE_CLASS_LENGTH-1]/kclass_LCDM[TABLE_CLASS_LENGTH-1]);
+        }
+        else if(flag_dv == 1){ // output is rel velocity
+            return (Tvclass_vcb_LCDM[TABLE_CLASS_LENGTH]/kclass_LCDM[TABLE_CLASS_LENGTH-1]/kclass_LCDM[TABLE_CLASS_LENGTH-1]);
+        }    //we just set it to the last value, since sometimes it wants large k for R<<cell_size, which does not matter much.
+    }
+    else { // Do spline
+        if(flag_dv == 0){ // output is density
+            ans = gsl_spline_eval (spline_density_LCDM, k, acc_density_LCDM);
+        }
+        else if(flag_dv == 1){ // output is relative velocity
+            ans = gsl_spline_eval (spline_vcb_LCDM, k, acc_vcb_LCDM);
         }
         else{
             ans=0.0; //neither densities not velocities?
@@ -1051,7 +1165,7 @@ double dsigma_dk_LCDM_Planck18(double k, void * params) {
     double kR = k*Radius;
     double w = window_function(kR);
 
-    double p = pow(k, ns) * pow(transfer_function(k), 2);
+    double p = pow(k, ns) * pow(transfer_function_LCDM(k), 2);
 
     return  k*k*p*w*w;
 }
@@ -1294,7 +1408,7 @@ void init_ps(){
    
 
     if(user_params_ps->POWER_SPECTRUM == 5){
-      kstart = fmax(1.0e-99/Radius_8, kclass[0]);
+      kstart = fmax(1.0e-99/Radius_8, kclass_LCDM[0]);
       kend = fmin(350.0/Radius_8, KTOP_CLASS);
     }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at kclass[0],~1e-5 Mpc-1 since the CLASS transfer function has a max!
     else{
@@ -4846,7 +4960,7 @@ void FreeTsInterpolationTables(struct FlagOptions *flag_options) {
 /*
     ComputeTransferFunctionNCDM(..., float *k, int length)
 
-    this function is called in the python wrapper transfer_function_nCDM()
+    this function is called in the python wrapper analytical_transfer_function_nCDM()
 
     returns a pointer to an array (to be freed in the python wrapper)
     needs the length of the input array to allocate the output array
@@ -4862,13 +4976,70 @@ float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoP
     float* result = malloc(length * sizeof(float));
 
     for (int i = 0; i < length; i++) 
-        result[i] = (float) transfer_function_nCDM(k[i]);
+        result[i] = (float) analytical_transfer_function_nCDM(k[i]);
 
     free_ps();
     free_TF_CLASS();
 
     return result;
 }
+
+/*
+    ComputeTransferFunction(..., float *k, int length)
+
+    this function is called in the python wrapper transfer_function()
+
+    returns a pointer to an array (to be freed in the python wrapper)
+    needs the length of the input array to allocate the output array
+*/
+float* ComputeTransferFunction(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) transfer_function(k[i]);
+
+    free_ps();
+    free_TF_CLASS();
+
+    return result;
+}
+
+
+/*
+    ComputeTransferFunctionLCDM(..., float *k, int length)
+
+    this function is called in the python wrapper transfer_function_LCDM()
+
+    returns a pointer to an array (to be freed in the python wrapper)
+    needs the length of the input array to allocate the output array
+*/
+float* ComputeTransferFunctionLCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) transfer_function_LCDM(k[i]);
+
+    free_ps();
+    free_TF_CLASS();
+
+    return result;
+}
+
+
 
 
 /*

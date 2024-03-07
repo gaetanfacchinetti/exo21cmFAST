@@ -220,6 +220,10 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
 float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                                 struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length); 
+float* ComputeTransferFunctionLCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length); 
+float* ComputeTransferFunction(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length); 
 float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *mass, int length);
 float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
@@ -245,7 +249,7 @@ float* ComputeTKFromTable(struct UserParams *user_params, struct CosmoParams *co
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length); 
 float* ComputeXionFromTable(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length); 
-int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, int length);
+int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length);
 int InitIGMEvolutionTablesFromInput(float *z, float *igm_temp, float *igm_xe, int length);
 int InitIGMEvolutionTablesFromRECFAST();
 int free_TF_CLASS();
