@@ -2754,7 +2754,16 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             _f_wdm = cosmo_params.FRAC_WDM
             _omega_cdm = (1.0 - _f_wdm) * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
             _omega_ncdm =  _f_wdm * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-            _m_ncdm = (cosmo_params.M_WDM if (user_params.USE_INVERSE_PARAMS is False) else 1.0/cosmo_params.INVERSE_M_WDM)*1e+3
+ 
+            if (user_params.USE_INVERSE_PARAMS is False): 
+                _m_ncdm = cosmo_params.M_WDM * 1e+3
+            else:
+                if cosmo_params.INVERSE_M_WDM > 0:
+                    _m_ncdm = 1.0/cosmo_params.INVERSE_M_WDM * 1e+3
+                else:
+                    # for an infinite DM mass no NCDM 
+                    _n_ncdm = 0 
+
             _T_ncdm = 0.71611 * (_omega_ncdm * 93.14 / _m_ncdm)**(1./3.)
             
             # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
