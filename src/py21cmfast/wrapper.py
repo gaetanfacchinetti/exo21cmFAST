@@ -2793,7 +2793,9 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
                 'n_s': cosmo_params.POWER_INDEX,
                 'P_k_max_h/Mpc': _k_max / _h,
-                'reio_parametrization': 'reio_none', # 21cmFAST will take care of the reionization
+                'k_per_decade_for_pk' : 50,
+                'reio_parametrization': 'reio_none', 
+                # 21cmFAST will take care of the reionization
                 }
             
             # Put the correct values for the parameters missing in the init params dict
@@ -2834,7 +2836,11 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 cosmo_CLASS.set(params_class)
 
                 if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
+                    Neff_array = [2.0328, 1.0196, 0.00641]
+                    _number_mnu = np.count_nonzero(_m_neutrinos)
+                    _Neff = Neff_array[_number_mnu - 1]
                     cosmo_CLASS.set({'m_ncdm' : str(_m_neutrinos[0]) + ',' + str(_m_neutrinos[1]) + ',' + str(_m_neutrinos[2])})
+                    cosmo_CLASS.set({'N_ur' : _Neff})
 
                 cosmo_CLASS.compute()
 
