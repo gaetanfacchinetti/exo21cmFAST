@@ -2837,6 +2837,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
                     params_class.pop('T_ncdm')
                     params_class.pop('m_ncdm')
+                    params_class.pop('N_ncdm')
                     
                 cosmo_CLASS.set(params_class)
 
@@ -2846,6 +2847,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                     _Neff = Neff_array[_number_mnu - 1]
                     cosmo_CLASS.set({'m_ncdm' : str(_m_neutrinos[0]) + ',' + str(_m_neutrinos[1]) + ',' + str(_m_neutrinos[2])})
                     cosmo_CLASS.set({'N_ur' : _Neff})
+                    cosmo_CLASS.set({'N_ncdm' : _number_mnu})
 
                 cosmo_CLASS.compute()
 
