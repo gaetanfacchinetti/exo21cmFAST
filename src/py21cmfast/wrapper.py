@@ -2771,10 +2771,13 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             if _f_wdm == 1: #
                 _k_max = np.min([_k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/_m_ncdm, 0.11) / _m_ncdm * 1.54518467138)])
 
-        if user_params.ps_small_scales_model == "MNU" and cosmo_params.NEUTRINO_MASS_1  > 0:
-            _n_ncdm = 1
-            _m_ncdm = cosmo_params.NEUTRINO_MASS_1
+
+        _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3])
+        if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
+            _n_ncdm = 3
+            _m_ncdm = np.sum(_m_neutrinos)
             _omega_ncdm =  _m_ncdm / 93.14
+            _T_ncdm  = [_T_ncdm] * 3
             _omega_cdm = _omega_cdm_LCDM - _omega_ncdm
 
         if _omega_cdm < 0:
@@ -2822,7 +2825,17 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             if _n_ncdm > 0: 
 
                 cosmo_CLASS = Class()
+                
+
+                if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
+                    params_class.pop('T_ncdm')
+                    params_class.pop('m_ncdm')
+                    
                 cosmo_CLASS.set(params_class)
+
+                if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
+                    cosmo_CLASS.set({'m_ncdm' : str(_m_neutrinos[0]) + ',' + str(_m_neutrinos[1]) + ',' + str(_m_neutrinos[2])})
+
                 cosmo_CLASS.compute()
 
                 # Get the transfer functions
