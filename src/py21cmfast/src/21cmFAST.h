@@ -61,6 +61,7 @@ struct UserParams{
     bool USE_SIGMA_8_NORM;
     int CLASS_FLUID_APPROX;
     bool USE_CLASS_TABLES;
+    bool DEGENERATE_NEUTRINO_MASSES;
 };
 
 struct AstroParams{

@@ -2772,7 +2772,12 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 _k_max = np.min([_k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/_m_ncdm, 0.11) / _m_ncdm * 1.54518467138)])
 
 
-        _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3])
+        ## Neutrino masses
+        if not user_params.DEGENERATE_NEUTRINO_MASSES:
+            _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3])
+        else:
+            _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
+
         if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
             _n_ncdm = 3
             _m_ncdm = np.sum(_m_neutrinos)

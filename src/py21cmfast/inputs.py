@@ -519,7 +519,7 @@ class UserParams(StructWithDefaults):
     USE_PMF_TABLES: bool, optional
         If set, computes the matter power spectrum from PMF (see option 4 of `PS_SMALL_SCALES_MODEL` in `FlagOptions`)
         using precomputed tables (default is `True`).
-    
+
     """
 
     _ffi = ffi
@@ -547,6 +547,7 @@ class UserParams(StructWithDefaults):
         "CLASS_FLUID_APPROX" : 1,
         "USE_PMF_TABLES": True,
         "USE_CLASS_TABLES": True,
+        "DEGENERATE_NEUTRINO_MASSES" : False,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
