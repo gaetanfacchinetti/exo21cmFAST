@@ -3029,9 +3029,6 @@ def run_lightcone(
             redshift=redshift,
         )
         
-        
-        print(cosmo_params)
-        return
 
         #############################################################################
         # Gaétan modification for implementation with CLASS
