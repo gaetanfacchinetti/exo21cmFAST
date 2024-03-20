@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: exo21cmFAST
-Version: 0.1.dev1763+g0a5dbd3.d20240307
+Version: 0.1.dev1769+ga2136b8.d20240320
 Summary: A semi-numerical cosmological simulation code for the 21cm signal with exotic energy injection
 Home-page: https://github.com/gaetanfacchinetti/exo21cmFAST
 Author: Gaétan Facchinetti

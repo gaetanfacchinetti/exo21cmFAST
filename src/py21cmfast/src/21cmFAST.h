@@ -13,6 +13,8 @@ struct CosmoParams{
     float OMl;
     float OMb;
     float POWER_INDEX;
+    float Omch2;
+    float Ombh2;
     
     float VOLUME_FACTOR_SHARP_K;
     float M_WDM;
@@ -62,6 +64,7 @@ struct UserParams{
     int CLASS_FLUID_APPROX;
     bool USE_CLASS_TABLES;
     bool DEGENERATE_NEUTRINO_MASSES;
+    bool USE_OMEGA_H2; 
 };
 
 struct AstroParams{

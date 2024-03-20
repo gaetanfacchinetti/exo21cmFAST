@@ -312,7 +312,21 @@ def _setup_inputs(
     params = dict(zip(input_params.keys(), params))
 
     params["user_params"] = UserParams(params["user_params"])
-    params["cosmo_params"] = CosmoParams(params["cosmo_params"])
+
+    _cosmo_params = CosmoParams(params["cosmo_params"])
+
+    # If we want to use OMEGA_H2 instead of OMEGA we force the values of OMm and OMb
+    # Note that we do not include the contribution of neutrinos assuming it is negligible
+    # Similarly, OMr is not impacted by the neutrino mass in this implementation
+    if params["user_params"].USE_OMEGA_H2 : 
+        
+        OMm = (_cosmo_params.Omch2 + _cosmo_params.Ombh2) / (_cosmo_params.hlittle**2)
+        OMb = _cosmo_params.Ombh2 / (_cosmo_params.hlittle**2)
+
+        params["cosmo_params"] = CosmoParams(params["cosmo_params"], OMm = OMm, OMb = OMb)
+    
+    else:    
+        params["cosmo_params"] = CosmoParams(params["cosmo_params"])
 
     if "flag_options" in params:
         params["flag_options"] = FlagOptions(
@@ -2842,7 +2856,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 cosmo_CLASS.set(params_class)
 
                 if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
-                    Neff_array = [2.0328, 1.0196, 0.00641]
+                    Neff_array = [2.0328, 1.0196, 0.00441]
                     _number_mnu = np.count_nonzero(_m_neutrinos)
                     _Neff = Neff_array[_number_mnu - 1]
                     cosmo_CLASS.set({'m_ncdm' : str(_m_neutrinos[0]) + ',' + str(_m_neutrinos[1]) + ',' + str(_m_neutrinos[2])})
@@ -3015,6 +3029,10 @@ def run_lightcone(
             redshift=redshift,
         )
         
+        
+        print(cosmo_params)
+        return
+
         #############################################################################
         # Gaétan modification for implementation with CLASS
         init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, **global_kwargs)

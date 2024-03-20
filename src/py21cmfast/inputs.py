@@ -393,11 +393,14 @@ class CosmoParams(StructWithDefaults):
 
     _defaults_ = {
         "SIGMA_8": 0.8102,
-        "Ln_1010_As" : 3.047,
         "hlittle": Planck18.h,
         "OMm": Planck18.Om0,
         "OMb": Planck18.Ob0,
         "POWER_INDEX": 0.9665,
+        ######################################
+        "Ln_1010_As" : 3.047,
+        "Omch2" : 0.11933,
+        "Ombh2" : 0.02242,
         #######################################
         "VOLUME_FACTOR_SHARP_K": 2.41798793102,
         "M_WDM": 4.0,
@@ -548,6 +551,7 @@ class UserParams(StructWithDefaults):
         "USE_PMF_TABLES": True,
         "USE_CLASS_TABLES": True,
         "DEGENERATE_NEUTRINO_MASSES" : False,
+        "USE_OMEGA_H2" : False,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
