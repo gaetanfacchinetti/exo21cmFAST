@@ -2715,7 +2715,7 @@ def _c_call_init_TF_CLASS(user_params, cosmo_params, k, Tm, Tvcb, k_LCDM, Tm_LCD
     _Tvcb_LCDM = ffi.cast("float *", ffi.from_buffer(Tvcb_LCDM))
 
     # Run the C code
-    status = lib.InitTFCLASS(user_params(), cosmo_params(), _k, _Tm, _Tvcb, _k_LCDM, _Tm_LCDM, _Tvcb_LCDM, len(k))
+    status = lib.InitTFCLASS(user_params(), cosmo_params(), _k, _Tm, _Tvcb, _k_LCDM, _Tm_LCDM, _Tvcb_LCDM, len(k), len(k_LCDM))
     assert status == 1, "FATAL ERROR: error in calling InitTFCLASS from ps.c"
 
 
@@ -2745,15 +2745,20 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     with global_params.use(**global_kwargs) : 
         (user_params, cosmo_params, astro_params, flag_options) = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options})
 
+        # by default we initialise the ionization history tables to that given by RECFAST
         if user_params.power_spectrum_model != "CLASS" or _CLASS_IMPORTED is False:
             _c_call_init_IGM_RECFAST()
             return None
         
-        if user_params.USE_CLASS_TABLES is True or _CLASS_IMPORTED is False:
-            _c_call_init_IGM_RECFAST()
+        if _CLASS_IMPORTED is False:
+            logger.warning("Classy module not found, use precomputed table for the computation!")
+            if user_params.USE_CLASS_TABLE is False : 
+                user_params.update(USE_CLASS_TABLES = True)
             _c_call_init_TF_CLASS(user_params, cosmo_params, [0], [0], [0])
             return None
 
+
+        # define general parameters for CLASS
         _h = cosmo_params.hlittle
         _omega_cdm_LCDM = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
         _omega_cdm = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
@@ -2763,137 +2768,153 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         _T_ncdm = 0.71611
         _k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
 
-        if user_params.ps_small_scales_model == "WDM":
-            _n_ncdm = 1
-            _f_wdm = cosmo_params.FRAC_WDM
-            _omega_cdm = (1.0 - _f_wdm) * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-            _omega_ncdm =  _f_wdm * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
- 
-            if (user_params.USE_INVERSE_PARAMS is False): 
-                _m_ncdm = cosmo_params.M_WDM * 1e+3
-            else:
-                if cosmo_params.INVERSE_M_WDM > 0:
-                    _m_ncdm = 1.0/cosmo_params.INVERSE_M_WDM * 1e+3
+    
+        params_class_init = {'output' : 'dTk, vTk',
+            'h': cosmo_params.hlittle,
+            'YHe' : global_params.Y_He,
+            'omega_b': cosmo_params.OMb * _h**2,
+            'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
+            'n_s': cosmo_params.POWER_INDEX,
+            'alpha_s' : cosmo_params.ALPHA_S_PS,
+            'P_k_max_h/Mpc': _k_max / _h,
+            'reio_parametrization': 'reio_none', 
+            # 21cmFAST will take care of the reionization
+            }
+        
+        # Put the correct values for the parameters missing in the init params dict
+        params_class_LCDM = params_class_init | {'omega_cdm' : _omega_cdm_LCDM}
+        params_class = {}
+
+        # running CLASS
+        cosmo_CLASS_LCDM = Class()
+        cosmo_CLASS_LCDM.set(params_class_LCDM)
+        cosmo_CLASS_LCDM.compute()
+
+        # Get the transfer functions
+        _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
+        _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'] * _h
+        _Tm_array_LCDM  = _transfer_LCDM['d_m']
+        _Tvcb_array_LCDM = _transfer_LCDM['t_b']
+
+        need_to_run_CLASS_nLCDM = False
+        
+        if user_params.ps_small_scales_model != "LCDM": 
+
+            # be default if ps_small_scales_model is not LCDM we need to run class again
+            need_to_run_CLASS_nLCDM = True
+
+            #############################################
+            ## MASSIVE NEUTRINOS
+
+            if user_params.ps_small_scales_model == "MNU":
+
+                # define the yable of neutrino mass and the number of effecitve degree of freedom
+                _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3]) if (not user_params.DEGENERATE_NEUTRINO_MASSES) else np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
+                Neff_array = [2.0328, 1.0196, 0.00441]
+
+
+                # for massive neutrinos we set the parameters here
+                if np.sum(_m_neutrinos) > 0:
+
+                    _n_ncdm = np.count_nonzero(_m_neutrinos)
+                    _omega_cdm = _omega_cdm_LCDM - np.sum(_m_neutrinos)/93.14
+                    _n_ur = Neff_array[_n_ncdm - 1]
+
+                    # Making a string to pass the correct neutrino masses to CLASS
+                    m_ncdm_string = ""
+                    for m_neutrino in _m_neutrinos :
+                        if m_neutrino > 0 :
+                            m_ncdm_string = m_ncdm_string + str(m_neutrino) + ','
+                    m_ncdm_string = m_ncdm_string.strip(',') # remove the last ','
+                    
+                    # setting m_ncdm_, N_ur and N_ncdm according to what is computed above
+                    params_class =  params_class_init | {'omega_cdm' : _omega_cdm, 
+                                                        'm_ncdm' : m_ncdm_string,
+                                                        'N_ur' : _n_ur,
+                                                        'N_ncdm' : _n_ncdm,
+                                                        'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 'k_per_decade_for_pk' : 50,}
+                    
                 else:
-                    # for an infinite DM mass no NCDM 
-                    _n_ncdm = 0 
+                    # if neutrino masses sum is 0 we are actually treating the LCDM model (even if user_params.ps_small_scales_model == "MNU")
+                    need_to_run_CLASS_nLCDM = False
+                
+            #############################################
+            ## WARM DARK MATTER
 
-            _T_ncdm = 0.71611 * (_omega_ncdm * 93.14 / _m_ncdm)**(1./3.)
-            
-            # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
-            # we cut at 10 times the WDM cutoff
-            if _f_wdm == 1: #
-                _k_max = np.min([_k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/_m_ncdm, 0.11) / _m_ncdm * 1.54518467138)])
+            if user_params.ps_small_scales_model == "WDM":
+                _n_ncdm = 1
+                _f_wdm = cosmo_params.FRAC_WDM
+                _omega_cdm = (1.0 - _f_wdm) * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
+                _omega_ncdm =  _f_wdm * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
+    
+                if (user_params.USE_INVERSE_PARAMS is False): 
+                    _m_ncdm = cosmo_params.M_WDM * 1e+3
+                else:
+                    if cosmo_params.INVERSE_M_WDM > 0:
+                        _m_ncdm = 1.0/cosmo_params.INVERSE_M_WDM * 1e+3
+                    else:
+                        # for an infinite DM mass no NCDM 
+                        _n_ncdm = 0 
 
+                _T_ncdm = 0.71611 * (_omega_ncdm * 93.14 / _m_ncdm)**(1./3.)
+                
+                # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
+                # we cut at 10 times the WDM cutoff
+                if _f_wdm == 1: #
+                    _k_max = np.min([_k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/_m_ncdm, 0.11) / _m_ncdm * 1.54518467138)])
 
-        ## Neutrino masses
-        if not user_params.DEGENERATE_NEUTRINO_MASSES:
-            _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3])
-        else:
-            _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
-
-        if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
-            _n_ncdm = 3
-            _m_ncdm = np.sum(_m_neutrinos)
-            _omega_ncdm =  _m_ncdm / 93.14
-            _T_ncdm  = [_T_ncdm] * 3
-            _omega_cdm = _omega_cdm_LCDM - _omega_ncdm
-
-        if _omega_cdm < 0:
-            raise ValueError("The abundance of cold dark matter cannot go below 0")
-
-        # starting computation with CLASS
-        if _CLASS_IMPORTED is True:
-
-            params_class_init = {'output' : 'dTk, vTk',
-                'h': cosmo_params.hlittle,
-                'YHe' : global_params.Y_He,
-                'omega_b': cosmo_params.OMb * _h**2,
-                'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
-                'n_s': cosmo_params.POWER_INDEX,
-                'P_k_max_h/Mpc': _k_max / _h,
-                'k_per_decade_for_pk' : 50,
-                'reio_parametrization': 'reio_none', 
-                # 21cmFAST will take care of the reionization
-                }
-            
-            # Put the correct values for the parameters missing in the init params dict
-            params_class_LCDM = params_class_init | {'omega_cdm' : _omega_cdm_LCDM}
-
-            if _n_ncdm > 0:
                 params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
-                                                    'N_ncdm' : _n_ncdm,
-                                                    'T_ncdm' : _T_ncdm,
-                                                    'm_ncdm' : _m_ncdm,    
-                                                    'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX,
-                }
-            else :
-                params_class = params_class_LCDM
+                    'N_ncdm' : _n_ncdm,
+                    'T_ncdm' : _T_ncdm,
+                    'm_ncdm' : _m_ncdm,    
+                    'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX,}
+        
+                    
+            
+            #############################################
+            if _omega_cdm < 0:
+                raise ValueError("The abundance of cold dark matter cannot go below 0")
 
+        if need_to_run_CLASS_nLCDM is True:
 
-            # running CLASS
-            cosmo_CLASS_LCDM = Class()
-            cosmo_CLASS_LCDM.set(params_class_LCDM)
-            cosmo_CLASS_LCDM.compute()
+            # creating a Class object
+            cosmo_CLASS = Class()
+            cosmo_CLASS.set(params_class)
+            cosmo_CLASS.compute()
 
             # Get the transfer functions
-            _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
-            _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'] * _h
-            _Tm_array_LCDM  = _transfer_LCDM['d_m']
-            _Tvcb_array_LCDM = _transfer_LCDM['t_b']
+            _transfer = cosmo_CLASS.get_transfer()
+            _k_array  = _transfer['k (h/Mpc)'] * _h
+            _Tm_array  = _transfer['d_m']
+            _Tvcb_array = _transfer['t_b']
 
+            _thermo  = cosmo_CLASS.get_thermodynamics()
+        
+        else :
             
-            if _n_ncdm > 0: 
+            # if no ncdm is present we just fix the power spectrum to that of LCDM
+            _k_array = _k_array_LCDM
+            _Tm_array = _Tm_array_LCDM
+            _Tvcb_array = _Tvcb_array_LCDM
 
-                cosmo_CLASS = Class()
-                
+            _thermo  = cosmo_CLASS_LCDM.get_thermodynamics()
 
-                if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
-                    params_class.pop('T_ncdm')
-                    params_class.pop('m_ncdm')
-                    params_class.pop('N_ncdm')
-                    
-                cosmo_CLASS.set(params_class)
+    
 
-                if user_params.ps_small_scales_model == "MNU" and np.sum(_m_neutrinos)  > 0:
-                    Neff_array = [2.0328, 1.0196, 0.00441]
-                    _number_mnu = np.count_nonzero(_m_neutrinos)
-                    _Neff = Neff_array[_number_mnu - 1]
-                    cosmo_CLASS.set({'m_ncdm' : str(_m_neutrinos[0]) + ',' + str(_m_neutrinos[1]) + ',' + str(_m_neutrinos[2])})
-                    cosmo_CLASS.set({'N_ur' : _Neff})
-                    cosmo_CLASS.set({'N_ncdm' : _number_mnu})
+        # initialise the power spectrum tables in the C-code
+        _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
+        
+        #return _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM
 
-                cosmo_CLASS.compute()
+        # Get the thermodynamical quantities
+        _z   = _thermo['z']
+        _x_e = _thermo['x_e']
+        _T_b = _thermo['Tb [K]']
 
-                # Get the transfer functions
-                _transfer = cosmo_CLASS.get_transfer()
-                _k_array  = _transfer['k (h/Mpc)'] * _h
-                _Tm_array  = _transfer['d_m']
-                _Tvcb_array = _transfer['t_b']
+        # initialise the power ionization and temperature tables in the C-code
+        _c_call_init_IGM_from_input(_z, _T_b, _x_e)       
 
-                _thermo  = cosmo_CLASS.get_thermodynamics()
 
-            else:
-
-                _k_array = _k_array_LCDM
-                _Tm_array = _Tm_array_LCDM
-                _Tvcb_array = _Tvcb_array_LCDM
-
-                _thermo  = cosmo_CLASS_LCDM.get_thermodynamics()
-
-            # define
-            _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
-            
-            # Get the thermodynamical quantities
-            _z   = _thermo['z']
-            _x_e = _thermo['x_e']
-            _T_b = _thermo['Tb [K]']
-
-            _c_call_init_IGM_from_input(_z, _T_b, _x_e)       
-
-        else:
-            logger.warning("Classy module not found, use precomputed table for the computation")
-            user_params.update(USE_CLASS_TABLES = True)
 
 
 def run_lightcone(

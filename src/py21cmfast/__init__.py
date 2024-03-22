@@ -66,6 +66,7 @@ from .wrapper import (
     pmf_induced_matter_power_spectrum,
     igm_temp_from_table,
     igm_xe_from_table,
+    init_TF_and_IGM_tables,
 )
 
 configure_logging()

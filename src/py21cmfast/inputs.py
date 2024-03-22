@@ -364,6 +364,12 @@ class CosmoParams(StructWithDefaults):
         Omega matter.
     OMb : float, optional
         Omega baryon, the baryon component.
+    Omch2 : float, optional
+        CDM matter times h2.
+        Only used if `USE_OMEGA_H2` is True in user_params (overwrites the value of OMm and OMb)
+    Ombh2 : float, optional
+        Omega baryon, the baryon component times h2.
+        Only used if `USE_OMEGA_H2` is True in user_params (overwrites the value of OMm and OMb)
     POWER_INDEX : float, optional
         Spectral index of the power spectrum.
     VOLUME_FACTOR_SHARP_K: float, optional
@@ -387,6 +393,18 @@ class CosmoParams(StructWithDefaults):
     PMF_B_INDEX: float, optional
         Index of the power spectrum of primordial magnetic fields
         Only used if `PRIMORDIAL_MAGNETIC_FIELDS` set to True in `UserParams`
+    NEUTRINO_MASS_1 : float, optional
+        Mass of the first neutrino
+        Only used if `PS_SMALL_SCALES_MODEL` set to `MNU` in user_params
+    NEUTRINO_MASS_2 : float, optional
+        Mass of the second neutrino
+        Only used if `PS_SMALL_SCALES_MODEL` set to `MNU` in user_params
+    NEUTRINO_MASS_3 : float, optional
+        Mass of the third neutrino
+        Only used if `PS_SMALL_SCALES_MODEL` set to `MNU` in user_params
+    ALPHA_S_PS : float, optional
+        Derivative of the power spectrum slope
+        Only used if `PS_SMALL_SCALES_MODEL` set to `ALPHAS` in user_params 
     """
 
     _ffi = ffi
@@ -397,6 +415,7 @@ class CosmoParams(StructWithDefaults):
         "OMm": Planck18.Om0,
         "OMb": Planck18.Ob0,
         "POWER_INDEX": 0.9665,
+        "ALPHA_S_PS" : 0.0, 
         ######################################
         "Ln_1010_As" : 3.047,
         "Omch2" : 0.11933,

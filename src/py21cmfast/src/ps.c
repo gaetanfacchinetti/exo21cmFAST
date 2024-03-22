@@ -668,18 +668,23 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 static const double *kclass, *Tmclass, *Tvclass_vcb, *kclass_LCDM, *Tmclass_LCDM, *Tvclass_vcb_LCDM;
 static gsl_interp_accel *acc_density, *acc_vcb, *acc_density_LCDM, *acc_vcb_LCDM;
 static gsl_spline *spline_density, *spline_vcb, *spline_density_LCDM, *spline_vcb_LCDM;
-static TABLE_CLASS_LENGTH;
+static TABLE_CLASS_LENGTH, TABLE_CLASS_LENGTH_LCDM;
 
-int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb,  float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length)
+int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb,  float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length, int length_LCDM)
 {  
 
     LOG_DEBUG("INITIALISING TF CLASS");
 
     if (user_params->USE_CLASS_TABLES)
+    {
         length = CLASS_LENGTH;
+        length_LCDM = CLASS_LENGTH;
+    }
 
     const table_length = length;
+    const table_length_LCDM = length_LCDM;
     TABLE_CLASS_LENGTH = table_length;
+    TABLE_CLASS_LENGTH_LCDM = table_length_LCDM;
 
     if (kclass != NULL)
     {
@@ -721,12 +726,13 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
     Tmclass     = malloc(table_length * sizeof(double));
     Tvclass_vcb = malloc(table_length * sizeof(double));
 
-    kclass_LCDM      = malloc(table_length * sizeof(double));
-    Tmclass_LCDM     = malloc(table_length * sizeof(double));
-    Tvclass_vcb_LCDM = malloc(table_length * sizeof(double));
+    kclass_LCDM      = malloc(table_length_LCDM * sizeof(double));
+    Tmclass_LCDM     = malloc(table_length_LCDM * sizeof(double));
+    Tvclass_vcb_LCDM = malloc(table_length_LCDM * sizeof(double));
 
     float currk, currTm, currTv;
     int gsl_status, gsl_status_LCDM;
+
 
     if (!user_params->USE_CLASS_TABLES)
     {
@@ -735,6 +741,10 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
             *((double *)kclass + i) = (double)k[i];
             *((double *)Tmclass + i) = (double)Tm[i];
             *((double *)Tvclass_vcb + i) = (double)Tvcb[i];
+        }
+
+        for (int i = 0; i < table_length_LCDM; i++)
+        {
             *((double *)kclass_LCDM + i) = (double)k_LCDM[i];
             *((double *)Tmclass_LCDM + i) = (double)Tm_LCDM[i];
             *((double *)Tvclass_vcb_LCDM + i) = (double)Tvcb_LCDM[i];
@@ -780,9 +790,9 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
     acc_density        = gsl_interp_accel_alloc ();
     acc_density_LCDM   = gsl_interp_accel_alloc ();
     spline_density  = gsl_spline_alloc (gsl_interp_cspline, table_length);
-    spline_density_LCDM  = gsl_spline_alloc (gsl_interp_cspline, table_length);
+    spline_density_LCDM  = gsl_spline_alloc (gsl_interp_cspline, table_length_LCDM);
     gsl_status = gsl_spline_init(spline_density, kclass, Tmclass, table_length);
-    gsl_status_LCDM = gsl_spline_init(spline_density_LCDM, kclass_LCDM, Tmclass_LCDM, table_length);
+    gsl_status_LCDM = gsl_spline_init(spline_density_LCDM, kclass_LCDM, Tmclass_LCDM, table_length_LCDM);
     GSL_ERROR(gsl_status);
     GSL_ERROR(gsl_status_LCDM);
 
@@ -792,9 +802,9 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
     acc_vcb   = gsl_interp_accel_alloc ();
     acc_vcb_LCDM   = gsl_interp_accel_alloc ();
     spline_vcb  = gsl_spline_alloc (gsl_interp_cspline, table_length);
-    spline_vcb_LCDM  = gsl_spline_alloc (gsl_interp_cspline, table_length);
+    spline_vcb_LCDM  = gsl_spline_alloc (gsl_interp_cspline, table_length_LCDM);
     gsl_status = gsl_spline_init(spline_vcb, kclass, Tvclass_vcb, table_length);
-    gsl_status_LCDM = gsl_spline_init(spline_vcb_LCDM, kclass_LCDM, Tvclass_vcb_LCDM, table_length);
+    gsl_status_LCDM = gsl_spline_init(spline_vcb_LCDM, kclass_LCDM, Tvclass_vcb_LCDM, table_length_LCDM);
     GSL_ERROR(gsl_status);
     GSL_ERROR(gsl_status_LCDM);
 
@@ -890,13 +900,13 @@ double TF_CLASS_LCDM(double k, int flag_dv)
 {
     double ans;
 
-    if (k > kclass_LCDM[TABLE_CLASS_LENGTH-1]) { // k>kmax
+    if (k > kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]) { // k>kmax
         LOG_WARNING("Called TF_CLASS_LCDM with k=%f, larger than kmax! Returning value at kmax.", k);
         if(flag_dv == 0){ // output is density
-            return (Tmclass_LCDM[TABLE_CLASS_LENGTH]/kclass_LCDM[TABLE_CLASS_LENGTH-1]/kclass_LCDM[TABLE_CLASS_LENGTH-1]);
+            return (Tmclass_LCDM[TABLE_CLASS_LENGTH_LCDM]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]);
         }
         else if(flag_dv == 1){ // output is rel velocity
-            return (Tvclass_vcb_LCDM[TABLE_CLASS_LENGTH]/kclass_LCDM[TABLE_CLASS_LENGTH-1]/kclass_LCDM[TABLE_CLASS_LENGTH-1]);
+            return (Tvclass_vcb_LCDM[TABLE_CLASS_LENGTH_LCDM]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]);
         }    //we just set it to the last value, since sometimes it wants large k for R<<cell_size, which does not matter much.
     }
     else { // Do spline
@@ -1393,6 +1403,7 @@ void init_ps(){
     double SIGMA_8_Planck18    = 0.8102;
     double hlittle_Planck18    = 0.6766;
     double ns_Planck18         = 0.9665;
+    double alpha_s_Planck      = 0.0;
     double OMm_Planck18        = (0.02242 + 0.11933) / 0.6766 / 0.6766;
 
     double Radius_8 = 0;

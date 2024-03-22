@@ -253,7 +253,7 @@ float* ComputeTKFromTable(struct UserParams *user_params, struct CosmoParams *co
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length); 
 float* ComputeXionFromTable(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *z, int length); 
-int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length);
+int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length, int length_LCDM);
 int InitIGMEvolutionTablesFromInput(float *z, float *igm_temp, float *igm_xe, int length);
 int InitIGMEvolutionTablesFromRECFAST();
 int free_TF_CLASS();
