@@ -34,6 +34,8 @@ struct CosmoParams{
     float NEUTRINO_MASS_2;
     float NEUTRINO_MASS_3;
 
+    float ALPHA_S_PS;
+
 
 };
 

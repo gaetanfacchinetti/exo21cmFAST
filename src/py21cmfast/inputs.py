@@ -404,7 +404,6 @@ class CosmoParams(StructWithDefaults):
         Only used if `PS_SMALL_SCALES_MODEL` set to `MNU` in user_params
     ALPHA_S_PS : float, optional
         Derivative of the power spectrum slope
-        Only used if `PS_SMALL_SCALES_MODEL` set to `ALPHAS` in user_params 
     """
 
     _ffi = ffi

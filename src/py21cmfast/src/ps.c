@@ -277,7 +277,25 @@ void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoPara
 /* 
     power_spectrum(double k)
 
-    matter power spectrum up to a constant prefactor
+    primordial power spectrum up to a constant prefactor times k
+    
+    Params
+    ------
+    - k (double) mode in Mpc^{-1} 
+    
+*/
+double primordial_power_spectrum(double k)
+{
+    double k0 = 0.05; // reference value of k0 in Mpc^{-1}
+    double index = cosmo_params_ps->POWER_INDEX + 0.5 * cosmo_params_ps->ALPHA_S_PS * log(k/k0);
+    return pow(k/k0, index); 
+}
+
+
+/* 
+    power_spectrum(double k)
+
+    matter power spectrum up to a constant prefactor times k
     returns P_{curvature}(k) * [T(k)]^2 where T is the transfer function
     
     Params
@@ -287,12 +305,12 @@ void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoPara
 */
 double power_spectrum(double k)
 {   
-    return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function(k), 2);
+    return  primordial_power_spectrum(k) * pow(transfer_function(k), 2);
 }
 
 double power_spectrum_LCDM(double k)
 {
-    return pow(k, cosmo_params_ps->POWER_INDEX) * pow(transfer_function_LCDM(k), 2);
+    return  primordial_power_spectrum(k) * pow(transfer_function_LCDM(k), 2);
 }
 
 
@@ -1463,10 +1481,8 @@ void init_ps(){
     if (user_params_ps->USE_SIGMA_8_NORM){
         sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result);} //takes care of volume factor
 
-
-    double k0 = 0.05; // reference value of k0 in Mpc^{-1}
     if (!user_params_ps->USE_SIGMA_8_NORM){
-        sigma_norm = SIGMA_8_Planck18/sqrt(result) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * pow(k0, (ns_Planck18 - cosmo_params_ps->POWER_INDEX)/2.0) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);}
+        sigma_norm = SIGMA_8_Planck18/sqrt(result) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);}
 
 }
 
