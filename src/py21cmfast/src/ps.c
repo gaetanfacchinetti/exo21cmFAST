@@ -684,8 +684,8 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 }
 
 static const double *kclass, *Tmclass, *Tvclass_vcb, *kclass_LCDM, *Tmclass_LCDM, *Tvclass_vcb_LCDM;
-static gsl_interp_accel *acc_density, *acc_vcb, *acc_density_LCDM, *acc_vcb_LCDM;
-static gsl_spline *spline_density, *spline_vcb, *spline_density_LCDM, *spline_vcb_LCDM;
+static gsl_interp_accel *acc_density = NULL, *acc_vcb = NULL, *acc_density_LCDM = NULL, *acc_vcb_LCDM = NULL;
+static gsl_spline *spline_density = NULL, *spline_vcb = NULL, *spline_density_LCDM = NULL, *spline_vcb_LCDM = NULL;
 static TABLE_CLASS_LENGTH, TABLE_CLASS_LENGTH_LCDM;
 
 int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb,  float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length, int length_LCDM)
@@ -836,34 +836,79 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
 int free_TF_CLASS()
 {
 
-    if (user_params_ps->POWER_SPECTRUM != 5)
-        return 0;
-
     LOG_DEBUG("FREEING TF CLASS POINTERS");
     
-    gsl_spline_free(spline_density);
-    gsl_interp_accel_free(acc_density);
-    gsl_spline_free (spline_vcb);
-    gsl_interp_accel_free(acc_vcb);
+    
+    if (spline_density != NULL){
+        gsl_spline_free(spline_density);
+        spline_density = NULL;
+    }
 
-    gsl_spline_free(spline_density_LCDM);
-    gsl_interp_accel_free(acc_density_LCDM);
-    gsl_spline_free (spline_vcb_LCDM);
-    gsl_interp_accel_free(acc_vcb_LCDM);
+    if (acc_density != NULL){
+        gsl_interp_accel_free(acc_density);
+        acc_density = NULL;
+    }
 
-    free((double *)kclass);
-    free((double *)Tmclass);
-    free((double *)Tvclass_vcb);
-    free((double *)kclass_LCDM);
-    free((double *)Tmclass_LCDM);
-    free((double *)Tvclass_vcb_LCDM);
+    if (spline_vcb != NULL){
+        gsl_spline_free (spline_vcb);
+        spline_vcb = NULL;
+    }
 
-    kclass = NULL;
-    Tmclass = NULL;
-    Tvclass_vcb = NULL;
-    kclass_LCDM = NULL;
-    Tmclass_LCDM = NULL;
-    Tvclass_vcb_LCDM = NULL;
+    if (acc_vcb != NULL){
+        gsl_interp_accel_free(acc_vcb);
+        acc_vcb = NULL;
+    }
+
+    if (spline_density_LCDM != NULL){
+        gsl_spline_free(spline_density_LCDM);
+        spline_density_LCDM = NULL;
+    }
+
+    if (acc_density_LCDM != NULL){
+        gsl_interp_accel_free(acc_density_LCDM);
+        acc_density_LCDM = NULL;
+    }
+
+    if (spline_vcb_LCDM != NULL){
+        gsl_spline_free (spline_vcb_LCDM);
+        spline_vcb_LCDM = NULL;
+    }
+
+    if (acc_vcb_LCDM != NULL){
+        gsl_interp_accel_free(acc_vcb_LCDM);
+        acc_vcb_LCDM = NULL;
+    }
+
+    if (kclass != NULL){
+        free((double *)kclass);
+        kclass = NULL;
+    }
+     
+    
+    if (Tmclass != NULL){
+        free((double *)Tmclass);
+        Tmclass = NULL;
+    }
+
+    if (Tvclass_vcb != NULL){
+        free((double *)Tvclass_vcb);
+        Tvclass_vcb = NULL;
+    }
+
+    if (kclass_LCDM != NULL){
+        free((double *)kclass_LCDM);
+        kclass_LCDM = NULL;
+    }
+
+    if (Tmclass_LCDM != NULL){
+        free((double *)Tmclass_LCDM);
+        Tmclass_LCDM = NULL;
+    }
+
+    if (Tvclass_vcb_LCDM != NULL){
+        free((double *)Tvclass_vcb_LCDM);
+        Tvclass_vcb_LCDM = NULL;
+    }
 
     return 1;
 }
@@ -1193,7 +1238,10 @@ double dsigma_dk_LCDM_Planck18(double k, void * params) {
     double kR = k*Radius;
     double w = window_function(kR);
 
-    double p = pow(k, ns) * pow(transfer_function_LCDM(k), 2);
+    double k0 = 0.05; // reference value of k0 in Mpc^{-1}
+    double index = cosmo_params_ps->POWER_INDEX;
+
+    double p = pow(k/k0, index) * pow(transfer_function_LCDM(k), 2);
 
     return  k*k*p*w*w;
 }
@@ -1423,6 +1471,7 @@ void init_ps(){
     double ns_Planck18         = 0.9665;
     double alpha_s_Planck      = 0.0;
     double OMm_Planck18        = (0.02242 + 0.11933) / 0.6766 / 0.6766;
+    double OMl_Planck18        = 0.6889;
 
     double Radius_8 = 0;
 
@@ -1482,7 +1531,14 @@ void init_ps(){
         sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result);} //takes care of volume factor
 
     if (!user_params_ps->USE_SIGMA_8_NORM){
-        sigma_norm = SIGMA_8_Planck18/sqrt(result) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);}
+
+        double D0 = unnormalised_dicke(0, cosmo_params_ps->OMm, cosmo_params_ps->OMl);
+        double D0_Planck18 = unnormalised_dicke(0, OMm_Planck18, OMl_Planck18);
+
+        LOG_DEBUG("D0, D0_Planck = %e, %e", D0, D0_Planck18);
+
+        sigma_norm = SIGMA_8_Planck18/sqrt(result) * (D0 / D0_Planck18) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);
+        }
 
 }
 

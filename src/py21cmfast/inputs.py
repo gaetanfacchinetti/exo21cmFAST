@@ -1118,12 +1118,12 @@ def validate_all_inputs(
                 raise ValueError(msg)
             
         # Check the value of the Sheth and Tormen parametrisation
-        if (user_params.HMF == 1) and (user_params.PS_SMALL_SCALES_MODEL > 1) and ( 
-            cosmo_params.SHETH_q == cosmo_params._defaults_["SHETH_q"] 
-            and cosmo_params.SHETH_p == cosmo_params._defaults_["SHETH_p"] 
-            and cosmo_params.SHETH_A == cosmo_params._defaults_["SHETH_A"] 
-            ):
-                logger.warning("You may want to use another parametrisation of Sheth and Tormen mass function (different from default) as there is a modification in the PS." )
+        #if (user_params.HMF == 1) and (user_params.PS_SMALL_SCALES_MODEL > 1) and ( 
+        #    cosmo_params.SHETH_q == cosmo_params._defaults_["SHETH_q"] 
+        #    and cosmo_params.SHETH_p == cosmo_params._defaults_["SHETH_p"] 
+        #    and cosmo_params.SHETH_A == cosmo_params._defaults_["SHETH_A"] 
+        #    ):
+        #        logger.warning("You may want to use another parametrisation of Sheth and Tormen mass function (different from default) as there is a modification in the PS." )
                 
         if (user_params.HMF == 1) and user_params.ps_small_scales_model == "WDM" and ( 
             cosmo_params.SHETH_q != 1.0 

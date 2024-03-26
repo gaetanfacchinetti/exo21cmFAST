@@ -3196,6 +3196,7 @@ def run_lightcone(
         }
 
         global_q = {quantity: np.zeros(len(scrollz)) for quantity in global_quantities}
+        global_xHIIdb = np.zeros(len(scrollz))
         pf = None
 
         perturb_files = []
@@ -3325,6 +3326,9 @@ def run_lightcone(
                     getattr(outs[_fld_names[quantity]][1], quantity)
                 )
 
+            # compute the product xHII*(1+delta_b)
+            global_xHIIdb[iz] = np.mean((1.0 - ib2.xH_box) * (1.0 + pf2.density))
+
             # Interpolate the lightcone
             if z < max_redshift:
                 for quantity in lightcone_quantities:
@@ -3390,7 +3394,7 @@ def run_lightcone(
                 init_box.random_seed,
                 lc,
                 node_redshifts=scrollz,
-                global_quantities=global_q,
+                global_quantities=(global_q | {'xHIIdb' : global_xHIIdb}),
                 photon_nonconservation_data=photon_nonconservation_data,
                 _globals=dict(global_params.items()),
                 cache_files={

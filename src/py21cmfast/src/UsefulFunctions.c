@@ -301,6 +301,41 @@ double dicke(double z){
 }
 
 
+/*
+ FUNCTION unnormalised_dicke(z)
+ Computes the dicke growth function at redshift z, i.e. the z dependance part of sigma
+
+ References: Peebles, "Large-Scale...", pg.53 (eq. 11.16). Includes omega<=1
+ Nonzero Lambda case from Liddle et al, astro-ph/9512102, eqs. 6-8.
+ and quintessence case from Wang et al, astro-ph/9804015
+
+ Normalized to dicke(z=0)=1
+ */
+double unnormalised_dicke(double z, double OMm, double OMl){
+    double omegaM_z, dick_z, dick_0, x, x_0;
+    double tiny = 1e-4;
+
+    if ( (OMl > (-tiny)) && (fabs(OMl + OMm + global_params.OMr-1.0) < 0.01) && (fabs(global_params.wl+1.0) < tiny) ){
+        //this is a flat, cosmological CONSTANT universe, with only lambda, matter and radiation
+        //it is taken from liddle et al.
+        omegaM_z = OMm*pow(1+z,3) / (OMl + OMm*pow(1+z,3) + global_params.OMr*pow(1+z,4) );
+        dick_z = 2.5*omegaM_z / ( 1.0/70.0 + omegaM_z*(209-omegaM_z)/140.0 + pow(omegaM_z, 4.0/7.0) );
+        return dick_z / (1.0+z);
+    }
+    else if ( (global_params.OMtot < (1+tiny)) && (fabs(OMl) < tiny) ){ //open, zero lambda case (peebles, pg. 53)
+        x = fabs(1.0/(OMm+0.0) - 1.0) / (1+z);
+        dick_z = 1 + 3.0/x + 3*log(sqrt(1+x)-sqrt(x))*sqrt(1+x)/pow(x,1.5);
+        return dick_z;
+    }
+    else {
+        LOG_WARNING("IN WANG.");
+        Throw ValueError;
+    }
+
+}
+
+
+
 /* 
     Solves the equation M'' + 2HM' + 4*pi*Gn*rho_m M = 1/a^3 
     where M is the growth function for matter radiation induced

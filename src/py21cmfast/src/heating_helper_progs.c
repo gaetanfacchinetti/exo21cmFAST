@@ -5,8 +5,8 @@ struct AstroParams *astro_params_hf;
 struct FlagOptions *flag_options_hf;
 
 static const double *zt, *TK, *xion;
-static gsl_interp_accel *acc_TK, *acc_xion;
-static gsl_spline *spline_TK, *spline_xion;
+static gsl_interp_accel *acc_TK = NULL, *acc_xion = NULL;
+static gsl_spline *spline_TK = NULL, *spline_xion = NULL;
 static TABLE_IGM_EVOL_NPTS;
 
 float determine_zpp_min, zpp_bin_width;
@@ -125,19 +125,48 @@ int init_heat()
 
 void destruct_heat()
 {
-    gsl_spline_free (spline_TK);
-    gsl_interp_accel_free(acc_TK);
-    gsl_spline_free (spline_xion);
-    gsl_interp_accel_free(acc_xion);
+
+    if (spline_TK != NULL)
+    {
+        gsl_spline_free (spline_TK);
+        spline_TK = NULL;
+    }
+
+    if (acc_TK != NULL)
+    {
+        gsl_interp_accel_free(acc_TK);
+        acc_TK = NULL;
+    }
+
+    if (spline_xion != NULL)
+    {
+        gsl_spline_free (spline_xion);
+        spline_xion = NULL;
+    }
+    
+    if (acc_xion != NULL)
+    {
+        gsl_interp_accel_free(acc_xion);
+        acc_xion = NULL;
+    }
  
-
-    free((double *)zt);
-    free((double *)TK);
-    free((double *)xion);
-
-    zt = NULL;
-    TK = NULL;
-    xion = NULL;
+    if (zt != NULL)
+    {
+        free((double *)zt);
+        zt = NULL;
+    } 
+    
+    if (TK != NULL)
+    {
+        free((double *)TK);
+        TK = NULL;
+    }
+    
+    if (xion != NULL)
+    {
+        free((double *)xion);
+        xion = NULL;
+    }
 }
 
 float get_Ts(float z, float delta, float TK, float xe, float Jalpha, float * curr_xalpha){
