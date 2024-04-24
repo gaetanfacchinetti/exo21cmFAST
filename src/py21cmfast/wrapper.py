@@ -2768,6 +2768,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         _T_ncdm = 0.71611
         _k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
 
+       
     
         params_class_init = {'output' : 'dTk, vTk',
             'h': cosmo_params.hlittle,
@@ -2780,10 +2781,14 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             'reio_parametrization': 'reio_none', 
             # 21cmFAST will take care of the reionization
             }
+  
+
         
         # Put the correct values for the parameters missing in the init params dict
         params_class_LCDM = params_class_init | {'omega_cdm' : _omega_cdm_LCDM}
         params_class = {}
+
+        print(params_class_LCDM)
 
         # running CLASS
         cosmo_CLASS_LCDM = Class()
@@ -2855,6 +2860,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                     else:
                         # for an infinite DM mass no NCDM 
                         _n_ncdm = 0 
+                        need_to_run_CLASS_nLCDM = False
 
                 _T_ncdm = 0.71611 * (_omega_ncdm * 93.14 / _m_ncdm)**(1./3.)
                 
@@ -3207,8 +3213,6 @@ def run_lightcone(
         log10_mturnovers_mini = np.zeros(len(scrollz))
 
         #### Main loop to compute the lightcone
-
-
         for iz, z in enumerate(scrollz):
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb[iz]

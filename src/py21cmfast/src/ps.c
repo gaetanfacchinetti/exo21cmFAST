@@ -1530,15 +1530,36 @@ void init_ps(){
     if (user_params_ps->USE_SIGMA_8_NORM){
         sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result);} //takes care of volume factor
 
-    if (!user_params_ps->USE_SIGMA_8_NORM){
+    if (!user_params_ps->USE_SIGMA_8_NORM && user_params_ps->POWER_SPECTRUM  != 5) // not CLASS
+    {
+        /* 
+        Here the dimensiofull matter power spectrum is related to the dimensionless power spectrum through
+        Pm(k) = 8 pi^2 /25 * (D0 / Omega_{m, 0} / H_0^2)^2 * T^2(k) * k * P_R(k) 
+        Therefore one needs to incorporate the variations of the numerical prefactor with the cosomological parameters.
+        This is done by normalising to sigma_8 of planck using planck cosmology and writing the variations of the parameters
+        */
 
         double D0 = unnormalised_dicke(0, cosmo_params_ps->OMm, cosmo_params_ps->OMl);
         double D0_Planck18 = unnormalised_dicke(0, OMm_Planck18, OMl_Planck18);
 
-        LOG_DEBUG("D0, D0_Planck = %e, %e", D0, D0_Planck18);
+        //LOG_DEBUG("D0, D0_Planck = %e, %e", D0, D0_Planck18);
 
-        sigma_norm = SIGMA_8_Planck18/sqrt(result) * (D0 / D0_Planck18) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);
-        }
+        //sigma_norm = SIGMA_8_Planck18/sqrt(result) * (D0 / D0_Planck18) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);
+        sigma_norm = sqrt(4.0 / 25.0 * 1e-10 / (2.0*PI*PI)) * exp(cosmo_params_ps->Ln_1010_As/2.0) * D0 / cosmo_params_ps->OMm / pow(cosmo_params_ps->hlittle, 2) * pow(2997.92458, 2); // the 2 pi^2 prefactor will be added back when computing power_in_k
+    }
+
+    if (!user_params_ps->USE_SIGMA_8_NORM && user_params_ps->POWER_SPECTRUM == 5) // CLASS
+    {
+        /* 
+        Here the dimensiofull matter power spectrum is related to the dimensionless power spectrum through
+        Pm(k) = 2*pi^2 * T^2(k) * k * P_R(k) -- different definition of the transfer function
+        The numerical "prefactor" (present in the case user_params_ps->POWER_SPECTRUM  != 5) is already included inside the transfer function.
+        Therefore when the cosmological parameters are varied, the transfer function is varied accordingly including the variation of the "prefactor"
+        No need to vary the prefactos again
+        */
+
+       sigma_norm = sqrt(1e-10 / (2.0*PI*PI)) * exp(cosmo_params_ps->Ln_1010_As/2.0); // the 2 pi^2 prefactor will be added back when computing power_in_k
+    }
 
 }
 

@@ -565,7 +565,7 @@ class UserParams(StructWithDefaults):
         "PS_SMALL_SCALES_MODEL": 0,
         "USE_INVERSE_PARAMS" : False,
         "USE_SIGMA_8_NORM" : True,
-        "CLASS_FLUID_APPROX" : 1,
+        "CLASS_FLUID_APPROX" : 2, # default CLASS value
         "USE_PMF_TABLES": True,
         "USE_CLASS_TABLES": True,
         "DEGENERATE_NEUTRINO_MASSES" : False,
