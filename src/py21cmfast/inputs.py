@@ -436,6 +436,7 @@ class CosmoParams(StructWithDefaults):
         "NEUTRINO_MASS_1" : 0.06,
         "NEUTRINO_MASS_2" : 0.0,
         "NEUTRINO_MASS_3" : 0.0,
+        "U_NU_DM" : 0.0, 
         #######################################
     }
 
@@ -575,7 +576,7 @@ class UserParams(StructWithDefaults):
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
     _power_models = ["EH", "BBKS", "EFSTATHIOU", "PEEBLES", "WHITE", "CLASS"]
     _ps_filter_models = ["TOPHAT", "SHARPK", "GAUSSIAN"]
-    _ps_small_scales_model = ["LCDM", "WDM", "ABGD", "SHARP", "PMF", "MNU"]
+    _ps_small_scales_model = ["LCDM", "WDM", "ABGD", "SHARP", "PMF", "NEUTRINOS"]
 
 
     @property

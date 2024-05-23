@@ -2788,7 +2788,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         params_class_LCDM = params_class_init | {'omega_cdm' : _omega_cdm_LCDM}
         params_class = {}
 
-        print(params_class_LCDM)
+        #print(params_class_LCDM)
 
         # running CLASS
         cosmo_CLASS_LCDM = Class()
@@ -2809,9 +2809,9 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             need_to_run_CLASS_nLCDM = True
 
             #############################################
-            ## MASSIVE NEUTRINOS
+            ## MASSIVE AND INTERACTING NEUTRINOS
 
-            if user_params.ps_small_scales_model == "MNU":
+            if user_params.ps_small_scales_model == "NEUTRINOS":
 
                 # define the yable of neutrino mass and the number of effecitve degree of freedom
                 _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3]) if (not user_params.DEGENERATE_NEUTRINO_MASSES) else np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
@@ -2833,15 +2833,35 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                     m_ncdm_string = m_ncdm_string.strip(',') # remove the last ','
                     
                     # setting m_ncdm_, N_ur and N_ncdm according to what is computed above
-                    params_class =  params_class_init | {'omega_cdm' : _omega_cdm, 
+                    params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
                                                         'm_ncdm' : m_ncdm_string,
                                                         'N_ur' : _n_ur,
                                                         'N_ncdm' : _n_ncdm,
-                                                        'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 'k_per_decade_for_pk' : 50,}
+                                                        'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 
+                                                        'k_per_decade_for_pk' : 50,}
+                    
+                    if cosmo_params.U_NU_DM > 0:
+                        # add the parameter for the DM - neutrino interactions
+                        params_class = params_class | {'u_ncdmdm' : cosmo_params.U_NU_DM}
                     
                 else:
-                    # if neutrino masses sum is 0 we are actually treating the LCDM model (even if user_params.ps_small_scales_model == "MNU")
-                    need_to_run_CLASS_nLCDM = False
+                    
+                    if cosmo_params.U_NU_DM == 0: 
+                        # if neutrino masses sum is 0 we are actually treating the LCDM model (even if user_params.ps_small_scales_model == "MNU")
+                        need_to_run_CLASS_nLCDM = False
+
+                    elif cosmo_params.U_NU_DM > 0: 
+                        
+                        params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
+                                                             'u_urDM_0' : cosmo_params.U_NU_DM,
+                                                             'alpha_urDM' : 1.0,
+                                                             'n_urDM' : 3,
+                                                             'N_ur' : 3.046,
+                                                             'N_ncdm' : 1,
+                                                             'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 
+                                                             'k_per_decade_for_pk' : 50,}
+
+                    
                 
             #############################################
             ## WARM DARK MATTER
@@ -2875,8 +2895,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                     'm_ncdm' : _m_ncdm,    
                     'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX,}
         
-                    
-            
+                
             #############################################
             if _omega_cdm < 0:
                 raise ValueError("The abundance of cold dark matter cannot go below 0")
