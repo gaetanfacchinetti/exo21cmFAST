@@ -2823,34 +2823,58 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
                 # define the yable of neutrino mass and the number of effecitve degree of freedom
                 _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3]) if (not user_params.DEGENERATE_NEUTRINO_MASSES) else np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
-                Neff_array = [2.0328, 1.0196, 0.00441]
+                Neff_array = [2.0328, 1.0196, 0.00641]
 
 
                 # for massive neutrinos we set the parameters here
                 if np.sum(_m_neutrinos) > 0:
 
-                    _n_ncdm = np.count_nonzero(_m_neutrinos)
-                    _omega_cdm = _omega_cdm_LCDM - np.sum(_m_neutrinos)/93.14
-                    _n_ur = Neff_array[_n_ncdm - 1]
+                    # get the unique masses
+                    _m_unique_neutrinos = np.unique(_m_neutrinos)
 
-                    # Making a string to pass the correct neutrino masses to CLASS
-                    m_ncdm_string = ""
-                    for m_neutrino in _m_neutrinos :
-                        if m_neutrino > 0 :
-                            m_ncdm_string = m_ncdm_string + str(m_neutrino) + ','
-                    m_ncdm_string = m_ncdm_string.strip(',') # remove the last ','
-                    
-                    # setting m_ncdm_, N_ur and N_ncdm according to what is computed above
+                    # get the number of species with different mass
+                    _n_ncdm = np.count_nonzero(_m_unique_neutrinos)
+
+                    # create strings containing the degeneracy number and the mass
+                    # of every ncdm non degenerate neutrino species
+                    _deg_ncdm_string = ""
+                    _m_ncdm_string = ""
+
+                    for m_neutrino in _m_unique_neutrinos:
+                        _deg_ncdm_string = _deg_ncdm_string + str(len(np.where(_m_neutrinos == m_neutrino)[0])) + ','
+                        _m_ncdm_string = _m_ncdm_string + str(m_neutrino) + ','
+                    _m_ncdm_string = _m_ncdm_string.strip(',') # remove the last ','
+                    _deg_ncdm_string = _deg_ncdm_string.strip(',') # remove the last ','
+
+                    # recalculate the value of omega_cdm by removing the neurtino component
+                    _omega_cdm = _omega_cdm_LCDM - np.sum(_m_neutrinos)/93.14
+
+                    # set the number of ultra relativistic degrees of freedom
+                    # to the correct values according to the total number 
+                    # of massive neutrinos
+                    _n_ur = Neff_array[np.count_nonzero(_m_neutrinos) - 1]
+
+                    print(_deg_ncdm_string, _m_ncdm_string, _n_ncdm, _n_ur)
+
+                    # set m_ncdm_, N_ur and N_ncdm according to what is computed above
                     params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
-                                                        'm_ncdm' : m_ncdm_string,
+                                                        'm_ncdm' : _m_ncdm_string,
                                                         'N_ur' : _n_ur,
+                                                        'deg_ncdm' : _deg_ncdm_string,
                                                         'N_ncdm' : _n_ncdm,
+                                                        'T_ncdm' : 0.71611,
                                                         'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 
                                                         'k_per_decade_for_pk' : 50,}
                     
                     if cosmo_params.U_NU_DM > 0:
+                        
                         # add the parameter for the DM - neutrino interactions
-                        params_class = params_class | {'u_ncdmdm' : cosmo_params.U_NU_DM}
+                        print("We are looking at U_NU_DM > 0")
+                        params_class = params_class | {'u_ncdmdm' : cosmo_params.U_NU_DM, 'gauge' : 'newtonian', 'omega_nudm' : _omega_cdm, 'T_ncdm' : 0.71611}
+                        
+                        # as we consider that all of the dm is in the form of nudm (i.e. interacting with neutrinos)
+                        # the valud of omega_cdm must be set to 0
+                        params_class['omega_cdm'] = 0
                     
                 else:
                     
@@ -2866,6 +2890,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                                                              'n_urDM' : 3,
                                                              'N_ur' : 3.046,
                                                              'N_ncdm' : 1,
+                                                             'gauge' : 'newtonian',
                                                              'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 
                                                              'k_per_decade_for_pk' : 50,}
 
@@ -2909,6 +2934,8 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 raise ValueError("The abundance of cold dark matter cannot go below 0")
 
         if need_to_run_CLASS_nLCDM is True:
+
+            print("CLASS parameters are :\n", params_class)
 
             # creating a Class object
             cosmo_CLASS = Class()
