@@ -70,7 +70,7 @@ struct AstroParams *astro_params_ps;
 struct FlagOptions *flag_options_ps;
 
 //double sigma_norm, R, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR;
-double sigma_norm, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR;
+double sigma_norm, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR, KTOP_THRESHOLD;
 
 float MinMass, mass_bin_width, inv_mass_bin_width;
 
@@ -1326,9 +1326,10 @@ double sigma_z0(double M){
  FUNCTION dsigmasqdm_z0(M)
  returns  d/dm (sigma^2) (see function sigma), in units of Msun^-1
  */
-double dsigmasq_dm(double k, void *params)
+double dsigmasq_dm(double lnk, void *params)
 {
     double dwdr, drdm, kR, w, Radius;
+    double k = exp(lnk);
 
     Radius = *(double *)params;
 
@@ -1356,7 +1357,8 @@ double dsigmasq_dm(double k, void *params)
     }
 
 //    return k*k*p*2*w*dwdr*drdm * d2fact;
-    return k*k*power_spectrum(k)*2*w*dwdr*drdm;
+    //LOG_DEBUG("Here : k = %e, res = %e, w = %e", k, k*k*power_spectrum(k)*2*w*dwdr*drdm * k, w);
+    return k*k*power_spectrum(k)*2*w*dwdr*drdm * k;
 }
 
 double dsigmasqdm_z0(double M){
@@ -1376,24 +1378,19 @@ double dsigmasqdm_z0(double M){
 
     // now lets do the integral for sigma and scale it with sigma_norm
     if(user_params_ps->POWER_SPECTRUM == 5){
-      kstart = fmax(1.0e-99/Radius, kclass[0]);
+      kstart = fmax(1.0e-10, kclass[0]);
       kend = fmin(350.0/Radius, KTOP_CLASS);
     }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at kclass[0],~1e-5 Mpc-1 since the CLASS transfer function has a max!
     else{
-      kstart = 1.0e-99/Radius;
+      kstart = 1.0e-10;
       kend = 350.0/Radius;
     }
 
-    lower_limit = kstart;//log(kstart);
-    upper_limit = kend;//log(kend);
+    if (kstart >= kend)
+        return 0;
 
-
-    if (user_params_ps->POWER_SPECTRUM == 5){ // for CLASS we do not need to renormalize the sigma integral.
-      d2fact=1.0;
-    }
-    else {
-      d2fact = M*10000/sigma_z0(M);
-    }
+    lower_limit = log(kstart);
+    upper_limit = log(kend);
 
 
     F.function = &dsigmasq_dm;
@@ -1441,7 +1438,7 @@ void init_ps(){
     gsl_function F;
     double rel_tol  = FRACT_FLOAT_ERR*10; //<- relative tolerance
     gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
-    double kstart, kend;
+    double kstart, kend, kmax;
 
     //we start the interpolator if using CLASS:
     //if (user_params_ps->POWER_SPECTRUM == 5){
@@ -1483,21 +1480,52 @@ void init_ps(){
     {
         Radius_8 = 8.0/hlittle_Planck18;
     }
-   
 
     if(user_params_ps->POWER_SPECTRUM == 5){
       kstart = fmax(1.0e-99/Radius_8, kclass_LCDM[0]);
       kend = fmin(350.0/Radius_8, KTOP_CLASS);
+      kmax = fmin(1e+7, KTOP_CLASS);
     }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at kclass[0],~1e-5 Mpc-1 since the CLASS transfer function has a max!
     else{
       kstart = 1.0e-99/Radius_8;
       kend = 350.0/Radius_8;
+      kmax = 1e+7;
     }
+
+
+    /* -------- 
+     find the value of k such that the total transfer function is anyway too much depleted
+  
+    double log10k = -4, dlog10k = (log10(kmax)-log10k) / 1000.0, k;
+    bool exit_while_loop = false;
+    int i = 0;
+
+    while(i < 1001 && !exit_while_loop)
+    {
+        log10k = log10k + i * dlog10k;
+        k = pow(10, log10k);
+
+        if (fabs(power_spectrum(k)) < 1e-4 * fabs(power_spectrum_LCDM(k)))
+        {
+            exit_while_loop = true;
+            KTOP_THRESHOLD = k;
+        }
+
+        i = i+1;
+
+    }
+
+    if(exit_while_loop)
+        LOG_DEBUG("Found hat after k = %e Mpc^{-1} the transfer function < 0.9 that of LCDM", KTOP_THRESHOLD);
+    else
+        KTOP_THRESHOLD = 1e+99;
+
+    */ 
 
     lower_limit = kstart;
     upper_limit = kend;
 
-    LOG_DEBUG("Initializing Power Spectrum with lower_limit=%e, upper_limit=%e, rel_tol=%e, radius_8=%g", lower_limit,upper_limit, rel_tol, Radius_8);
+    LOG_DEBUG("Initializing Power Spectrum with lower_limit=%e, upper_limit=%e, rel_tol=%e, radius_8=%g", lower_limit, upper_limit, rel_tol, Radius_8);
 
     if (user_params_ps->USE_SIGMA_8_NORM)
     {
@@ -5220,6 +5248,27 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
     if (user_params_ps->USE_INTERPOLATION_TABLES)
         freeSigmaMInterpTable();
 
+    free_ps();
+    free_TF_CLASS();
+
+    return result;
+}
+
+
+float *ComputeDSigmaSqDmDk(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, float *params, int length)
+{
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
+    init_ps();
+
+    double radius = MtoR((double) params[0]);
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) dsigmasq_dm(log(k[i]), &radius);
+    
     free_ps();
     free_TF_CLASS();
 

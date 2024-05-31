@@ -56,6 +56,7 @@ from .wrapper import (
     transfer_function_LCDM,
     transfer_function,
     sigma_z0,
+    dsigmasqdm_dk,
     dsigmasqdm_z0,
     dndm,
     mass_to_radius,

@@ -529,6 +529,11 @@ def radius_to_mass(radius, *, user_params=None, cosmo_params=None, astro_params=
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call(radius, lib.ComputeRtoM, user_params, cosmo_params, astro_params, flag_options)
 
+def dsigmasqdm_dk(k, mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None,) : 
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    return _generic_c_call_params(k, mass, lib.ComputeDSigmaSqDmDk, user_params, cosmo_params, astro_params, flag_options)
+    
 def dsigmasqdm_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None,) : 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
@@ -2798,8 +2803,11 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         # Get the transfer functions
         _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
         _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'] * _h
-        _Tm_array_LCDM  = _transfer_LCDM['d_m']
+        _Tm_array_LCDM  = _transfer_LCDM.get('d_m', _transfer_LCDM.get('d_tot', None))
         _Tvcb_array_LCDM = _transfer_LCDM['t_b']
+
+        if _Tm_array_LCDM is None:
+            raise KeyError('Cannot access the matter transfer function')
 
         need_to_run_CLASS_nLCDM = False
         
@@ -2910,10 +2918,13 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             # Get the transfer functions
             _transfer = cosmo_CLASS.get_transfer()
             _k_array  = _transfer['k (h/Mpc)'] * _h
-            _Tm_array  = _transfer['d_m']
+            _Tm_array  = _transfer.get('d_m', _transfer.get('d_tot', None))
             _Tvcb_array = _transfer['t_b']
 
             _thermo  = cosmo_CLASS.get_thermodynamics()
+
+            if _Tm_array is None:
+                raise KeyError('Cannot access the matter transfer function')
         
         else :
             
