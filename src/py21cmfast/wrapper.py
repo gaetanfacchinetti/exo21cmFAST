@@ -2774,8 +2774,8 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         _k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
 
        
-    
-        params_class_init = {'output' : 'dTk, vTk',
+
+        params_class_init = {'output' : 'mPk, vTk',
             'h': cosmo_params.hlittle,
             'YHe' : global_params.Y_He,
             'omega_b': cosmo_params.OMb * _h**2,
@@ -2786,29 +2786,48 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             'reio_parametrization': 'reio_none', 
             # 21cmFAST will take care of the reionization
             }
+
+
+        # primordial power spectrum as defined in 21cmFAST ps.c
+        def primodial_power_spectrum(k):
+            k0 = 0.05 # reference value of k0 in Mpc^{-1}
+            index = cosmo_params.POWER_INDEX + 0.5 * cosmo_params.ALPHA_S_PS * np.log(k/k0)
+            return 1e-10 * np.exp(cosmo_params.Ln_1010_As) * (k/k0)**(index - 1.0)
   
 
-        
-        # Put the correct values for the parameters missing in the init params dict
-        params_class_LCDM = params_class_init | {'omega_cdm' : _omega_cdm_LCDM}
+        # to normalise to sigma_8 the LCDM power spectrum is needed
+        # if the model is simply LCDM then we only run this part
+        if user_params.USE_SIGMA_8_NORM is True or user_params.ps_small_scales_model == "LCDM":
+
+            # Put the correct values for the parameters missing in the init params dict
+            params_class_LCDM = params_class_init | {'omega_cdm' : _omega_cdm_LCDM}
+
+            print(params_class_LCDM)
+            
+            # run CLASS
+            cosmo_CLASS_LCDM = Class()
+            cosmo_CLASS_LCDM.set(params_class_LCDM)
+            cosmo_CLASS_LCDM.compute()
+
+            # Get the transfer functions
+            
+            # the matter transfer function is defined w.r.t. the primordial power spectrum
+            # T_m^2(k) =  (k^3 / (2 \pi^2)) Pm(k) / P_R(k)
+            _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
+            _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'][:-1] * _h
+            _mps_array_LCDM = np.array([cosmo_CLASS_LCDM.pk_lin(k, 0) for k in _k_array_LCDM])
+            _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primodial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
+            _Tvcb_array_LCDM = _transfer_LCDM['t_b'][:-1]
+
+        else:
+            
+            # define dummy default arrays
+            _k_array_LCDM    = np.array([1, 2, 3, 4, 5])
+            _Tm_array_LCDM   = np.zeros(5)
+            _Tvcb_array_LCDM = np.zeros(5)
+
+     
         params_class = {}
-
-        #print(params_class_LCDM)
-
-        # running CLASS
-        cosmo_CLASS_LCDM = Class()
-        cosmo_CLASS_LCDM.set(params_class_LCDM)
-        cosmo_CLASS_LCDM.compute()
-
-        # Get the transfer functions
-        _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
-        _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'] * _h
-        _Tm_array_LCDM  = _transfer_LCDM.get('d_m', _transfer_LCDM.get('d_tot', None))
-        _Tvcb_array_LCDM = _transfer_LCDM['t_b']
-
-        if _Tm_array_LCDM is None:
-            raise KeyError('Cannot access the matter transfer function')
-
         need_to_run_CLASS_nLCDM = False
         
         if user_params.ps_small_scales_model != "LCDM": 
@@ -2925,7 +2944,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
                     'N_ncdm' : _n_ncdm,
                     'T_ncdm' : _T_ncdm,
-                    'm_ncdm' : _m_ncdm,    
+                    'm_ncdm' : _m_ncdm,   
                     'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX,}
         
                 
@@ -2943,15 +2962,14 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             cosmo_CLASS.compute()
 
             # Get the transfer functions
+
             _transfer = cosmo_CLASS.get_transfer()
-            _k_array  = _transfer['k (h/Mpc)'] * _h
-            _Tm_array  = _transfer.get('d_m', _transfer.get('d_tot', None))
-            _Tvcb_array = _transfer['t_b']
+            _k_array  = _transfer['k (h/Mpc)'][:-1] * _h
+            _mps_array =  np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array])
+            _Tm_array  =  np.sqrt(_k_array**3 * _mps_array / primodial_power_spectrum(_k_array) / (2*np.pi**2) )
+            _Tvcb_array = _transfer['t_b'][:-1]
 
             _thermo  = cosmo_CLASS.get_thermodynamics()
-
-            if _Tm_array is None:
-                raise KeyError('Cannot access the matter transfer function')
         
         else :
             
@@ -2962,11 +2980,14 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
             _thermo  = cosmo_CLASS_LCDM.get_thermodynamics()
 
-    
+
+        #print(_k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
+
 
         # initialise the power spectrum tables in the C-code
         _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
         
+
         #return _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM
 
         # Get the thermodynamical quantities
@@ -2975,7 +2996,9 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         _T_b = _thermo['Tb [K]']
 
         # initialise the power ionization and temperature tables in the C-code
-        _c_call_init_IGM_from_input(_z, _T_b, _x_e)       
+        _c_call_init_IGM_from_input(_z, _T_b, _x_e)   
+
+
 
 
 

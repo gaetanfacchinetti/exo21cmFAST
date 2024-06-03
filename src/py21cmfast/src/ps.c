@@ -70,7 +70,7 @@ struct AstroParams *astro_params_ps;
 struct FlagOptions *flag_options_ps;
 
 //double sigma_norm, R, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR;
-double sigma_norm, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR, KTOP_THRESHOLD;
+double sigma_norm, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR;
 
 float MinMass, mass_bin_width, inv_mass_bin_width;
 
@@ -1462,101 +1462,56 @@ void init_ps(){
 
     sigma_norm = -1;
 
-    double Ln_1010_As_Planck18 = 3.047;
-    double SIGMA_8_Planck18    = 0.8102;
-    double hlittle_Planck18    = 0.6766;
-    double ns_Planck18         = 0.9665;
-    double alpha_s_Planck      = 0.0;
-    double OMm_Planck18        = (0.02242 + 0.11933) / 0.6766 / 0.6766;
-    double OMl_Planck18        = 0.6889;
-
-    double Radius_8 = 0;
-
+   
     if (user_params_ps->USE_SIGMA_8_NORM)
     {
-        Radius_8 = 8.0/cosmo_params_ps->hlittle;
-    }
-    else
-    {
-        Radius_8 = 8.0/hlittle_Planck18;
-    }
 
-    if(user_params_ps->POWER_SPECTRUM == 5){
-      kstart = fmax(1.0e-99/Radius_8, kclass_LCDM[0]);
-      kend = fmin(350.0/Radius_8, KTOP_CLASS);
-      kmax = fmin(1e+7, KTOP_CLASS);
-    }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at kclass[0],~1e-5 Mpc-1 since the CLASS transfer function has a max!
-    else{
-      kstart = 1.0e-99/Radius_8;
-      kend = 350.0/Radius_8;
-      kmax = 1e+7;
-    }
+        /* 
+        Original implementation of the code
+        Power spectrum normalised through 
+        the variance to SIGMA_8
+        */
+            
+        double Radius_8 = 8.0/cosmo_params_ps->hlittle;
 
-
-    /* -------- 
-     find the value of k such that the total transfer function is anyway too much depleted
-  
-    double log10k = -4, dlog10k = (log10(kmax)-log10k) / 1000.0, k;
-    bool exit_while_loop = false;
-    int i = 0;
-
-    while(i < 1001 && !exit_while_loop)
-    {
-        log10k = log10k + i * dlog10k;
-        k = pow(10, log10k);
-
-        if (fabs(power_spectrum(k)) < 1e-4 * fabs(power_spectrum_LCDM(k)))
-        {
-            exit_while_loop = true;
-            KTOP_THRESHOLD = k;
+        if(user_params_ps->POWER_SPECTRUM == 5){
+            kstart = fmax(1.0e-99/Radius_8, kclass_LCDM[0]);
+            kend = fmin(350.0/Radius_8, KTOP_CLASS);
+            kmax = fmin(1e+7, KTOP_CLASS);
+        }//we establish a maximum k of KTOP_CLASS~1e3 Mpc-1 and a minimum at kclass[0],~1e-5 Mpc-1 since the CLASS transfer function has a max!
+        else{
+            kstart = 1.0e-99/Radius_8;
+            kend = 350.0/Radius_8;
+            kmax = 1e+7;
         }
 
-        i = i+1;
+        lower_limit = kstart;
+        upper_limit = kend;
 
-    }
+        LOG_DEBUG("Initializing Power Spectrum with lower_limit=%e, upper_limit=%e, rel_tol=%e, radius_8=%g", lower_limit, upper_limit, rel_tol, Radius_8);
 
-    if(exit_while_loop)
-        LOG_DEBUG("Found hat after k = %e Mpc^{-1} the transfer function < 0.9 that of LCDM", KTOP_THRESHOLD);
-    else
-        KTOP_THRESHOLD = 1e+99;
+        F.function = &dsigma_dk_LCDM;        
+        F.params = &Radius_8;
 
-    */ 
+        int status;
 
-    lower_limit = kstart;
-    upper_limit = kend;
+        gsl_set_error_handler_off();
 
-    LOG_DEBUG("Initializing Power Spectrum with lower_limit=%e, upper_limit=%e, rel_tol=%e, radius_8=%g", lower_limit, upper_limit, rel_tol, Radius_8);
+        status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 
+                            1000, GSL_INTEG_GAUSS61, w, &result, &error);
 
-    if (user_params_ps->USE_SIGMA_8_NORM)
-    {
-        F.function = &dsigma_dk_LCDM;
-    }
-    else
-    {
-        F.function = &dsigma_dk_LCDM_Planck18;
-    }
-    
-    F.params = &Radius_8;
+        if(status!=0) {
+            LOG_ERROR("gsl integration error occured!");
+            LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
+            GSL_ERROR(status);
+        }
 
-    int status;
+        gsl_integration_workspace_free (w);
 
-    gsl_set_error_handler_off();
+        sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result);
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 
-                         1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    } //takes care of volume factor
 
-    if(status!=0) {
-        LOG_ERROR("gsl integration error occured!");
-        LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
-        GSL_ERROR(status);
-    }
-
-    gsl_integration_workspace_free (w);
-
-    LOG_DEBUG("Initialized Power Spectrum.");
-
-    if (user_params_ps->USE_SIGMA_8_NORM){
-        sigma_norm = cosmo_params_ps->SIGMA_8/sqrt(result);} //takes care of volume factor
 
     if (!user_params_ps->USE_SIGMA_8_NORM && user_params_ps->POWER_SPECTRUM  != 5) // not CLASS
     {
@@ -1564,12 +1519,19 @@ void init_ps(){
         Here the dimensiofull matter power spectrum is related to the dimensionless power spectrum through
         Pm(k) = 8 pi^2 /25 * (D0 / Omega_{m, 0} / H_0^2)^2 * T^2(k) * k * P_R(k) 
         Therefore one needs to incorporate the variations of the numerical prefactor with the cosomological parameters.
-        This is done by normalising to sigma_8 of planck using planck cosmology and writing the variations of the parameters
         */
 
-        double D0 = unnormalised_dicke(0, cosmo_params_ps->OMm, cosmo_params_ps->OMl);
-        double D0_Planck18 = unnormalised_dicke(0, OMm_Planck18, OMl_Planck18);
+        //double Ln_1010_As_Planck18 = 3.047;
+        //double SIGMA_8_Planck18    = 0.8102;
+        //double hlittle_Planck18    = 0.6766;
+        //double ns_Planck18         = 0.9665;
+        //double alpha_s_Planck      = 0.0;
+        //double OMm_Planck18        = (0.02242 + 0.11933) / 0.6766 / 0.6766;
+        //double OMl_Planck18        = 0.6889;
+        //double D0_Planck18 = unnormalised_dicke(0, OMm_Planck18, OMl_Planck18);
 
+        double D0 = unnormalised_dicke(0, cosmo_params_ps->OMm, cosmo_params_ps->OMl);
+    
         //LOG_DEBUG("D0, D0_Planck = %e, %e", D0, D0_Planck18);
 
         //sigma_norm = SIGMA_8_Planck18/sqrt(result) * (D0 / D0_Planck18) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);
@@ -1588,6 +1550,9 @@ void init_ps(){
 
        sigma_norm = sqrt(1e-10 / (2.0*PI*PI)) * exp(cosmo_params_ps->Ln_1010_As/2.0); // the 2 pi^2 prefactor will be added back when computing power_in_k
     }
+
+
+    LOG_DEBUG("Initialized Power Spectrum.");
 
 }
 
