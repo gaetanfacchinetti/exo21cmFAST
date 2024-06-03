@@ -2789,7 +2789,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
 
         # primordial power spectrum as defined in 21cmFAST ps.c
-        def primodial_power_spectrum(k):
+        def primordial_power_spectrum(k):
             k0 = 0.05 # reference value of k0 in Mpc^{-1}
             index = cosmo_params.POWER_INDEX + 0.5 * cosmo_params.ALPHA_S_PS * np.log(k/k0)
             return 1e-10 * np.exp(cosmo_params.Ln_1010_As) * (k/k0)**(index - 1.0)
@@ -2816,7 +2816,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
             _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'][:-1] * _h
             _mps_array_LCDM = np.array([cosmo_CLASS_LCDM.pk_lin(k, 0) for k in _k_array_LCDM])
-            _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primodial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
+            _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primordial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
             _Tvcb_array_LCDM = _transfer_LCDM['t_b'][:-1]
 
         else:
@@ -2966,7 +2966,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             _transfer = cosmo_CLASS.get_transfer()
             _k_array  = _transfer['k (h/Mpc)'][:-1] * _h
             _mps_array =  np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array])
-            _Tm_array  =  np.sqrt(_k_array**3 * _mps_array / primodial_power_spectrum(_k_array) / (2*np.pi**2) )
+            _Tm_array  =  np.sqrt(_k_array**3 * _mps_array / primordial_power_spectrum(_k_array) / (2*np.pi**2) )
             _Tvcb_array = _transfer['t_b'][:-1]
 
             _thermo  = cosmo_CLASS.get_thermodynamics()

@@ -288,7 +288,7 @@ double primordial_power_spectrum(double k)
 {
     double k0 = 0.05; // reference value of k0 in Mpc^{-1}
     double index = cosmo_params_ps->POWER_INDEX + 0.5 * cosmo_params_ps->ALPHA_S_PS * log(k/k0);
-    return pow(k/k0, index); 
+    return pow(k/k0, index) * k0; 
 }
 
 
@@ -994,6 +994,7 @@ double TF_CLASS_LCDM(double k, int flag_dv)
 // at a given k mode linearly extrapolated to z=0
 double power_in_k(double k)
 {
+    //LOG_DEBUG("calling power_in_k = %e, %e, %e", sigma_norm, TWOPI*PI*sigma_norm*sigma_norm, power_spectrum(k));
     return power_spectrum(k)*TWOPI*PI*sigma_norm*sigma_norm;
 }
 
@@ -1548,7 +1549,8 @@ void init_ps(){
         No need to vary the prefactos again
         */
 
-       sigma_norm = sqrt(1e-10 / (2.0*PI*PI)) * exp(cosmo_params_ps->Ln_1010_As/2.0); // the 2 pi^2 prefactor will be added back when computing power_in_k
+       sigma_norm = sqrt(1e-10) * exp(cosmo_params_ps->Ln_1010_As/2.0); // the 2 pi^2 prefactor will be added back when computing power_in_k
+       //LOG_DEBUG("initialisation time sigma_norm = %e", sigma_norm);
     }
 
 

@@ -6,15 +6,15 @@
 
 struct CosmoParams{
 
-    float SIGMA_8;
-    float Ln_1010_As;
-    float hlittle;
-    float OMm;
-    float OMl;
-    float OMb;
-    float POWER_INDEX;
-    float Omch2;
-    float Ombh2;
+    double SIGMA_8;
+    double Ln_1010_As;
+    double hlittle;
+    double OMm;
+    double OMl;
+    double OMb;
+    double POWER_INDEX;
+    double Omch2;
+    double Ombh2;
     
     float VOLUME_FACTOR_SHARP_K;
     float M_WDM;
