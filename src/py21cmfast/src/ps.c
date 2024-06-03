@@ -1536,7 +1536,7 @@ void init_ps(){
         //LOG_DEBUG("D0, D0_Planck = %e, %e", D0, D0_Planck18);
 
         //sigma_norm = SIGMA_8_Planck18/sqrt(result) * (D0 / D0_Planck18) * (OMm_Planck18/cosmo_params_ps->OMm) * pow(hlittle_Planck18/cosmo_params_ps->hlittle, 2) * exp((cosmo_params_ps->Ln_1010_As - Ln_1010_As_Planck18)/2.0);
-        sigma_norm = sqrt(4.0 / 25.0 * 1e-10 / (2.0*PI*PI)) * exp(cosmo_params_ps->Ln_1010_As/2.0) * D0 / cosmo_params_ps->OMm / pow(cosmo_params_ps->hlittle, 2) * pow(2997.92458, 2); // the 2 pi^2 prefactor will be added back when computing power_in_k
+        sigma_norm = sqrt(4.0 / 25.0 * 1e-10) * exp(cosmo_params_ps->Ln_1010_As/2.0) * D0 / cosmo_params_ps->OMm / pow(cosmo_params_ps->hlittle, 2) * pow(2997.92458, 2); // the 2 pi^2 prefactor will be added back when computing power_in_k
     }
 
     if (!user_params_ps->USE_SIGMA_8_NORM && user_params_ps->POWER_SPECTRUM == 5) // CLASS
