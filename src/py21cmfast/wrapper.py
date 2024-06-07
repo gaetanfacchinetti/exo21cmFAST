@@ -2873,7 +2873,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                     # of massive neutrinos
                     _n_ur = Neff_array[np.count_nonzero(_m_neutrinos) - 1]
 
-                    print(_deg_ncdm_string, _m_ncdm_string, _n_ncdm, _n_ur)
+                    #print(_deg_ncdm_string, _m_ncdm_string, _n_ncdm, _n_ur)
 
                     # set m_ncdm_, N_ur and N_ncdm according to what is computed above
                     params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
@@ -2888,7 +2888,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                     if cosmo_params.U_NU_DM > 0:
                         
                         # add the parameter for the DM - neutrino interactions
-                        print("We are looking at U_NU_DM > 0")
+                        # print("We are looking at U_NU_DM > 0")
                         params_class = params_class | {'u_ncdmdm' : cosmo_params.U_NU_DM, 'gauge' : 'newtonian', 'omega_nudm' : _omega_cdm, 'T_ncdm' : 0.71611}
                         
                         # as we consider that all of the dm is in the form of nudm (i.e. interacting with neutrinos)
@@ -3478,7 +3478,7 @@ def run_lightcone(
                 init_box.random_seed,
                 lc,
                 node_redshifts=scrollz,
-                global_quantities=(global_q | {'xHIIdb' : global_xHIIdb}),
+                global_quantities=(global_q | {'xHIIdb' : global_xHIIdb, 'log10_mturnovers' : log10_mturnovers, 'log10_mturnovers_mini' : log10_mturnovers_mini}),
                 photon_nonconservation_data=photon_nonconservation_data,
                 _globals=dict(global_params.items()),
                 cache_files={
