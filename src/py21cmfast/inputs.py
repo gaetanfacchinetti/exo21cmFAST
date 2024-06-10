@@ -382,7 +382,7 @@ class CosmoParams(StructWithDefaults):
         Inverse of WDM particle mass in KeV^{-1}. Usefull for some computations
         Ignored if `PS_SMALL_SCALES_MODEL` in `UserParams` is not "WDM"
     SHETH_q : float, optional 
-        Parameter `a` of the HMF parametrisation by Sheth & Tormen. Default is 0.73 (from Jenkins et al. 2001)
+        Parameter `q` of the HMF parametrisation by Sheth & Tormen. Default is 0.73 (from Jenkins et al. 2001)
     SHETH_p: float, optional
         Parameter `p` of the HMF parametrisation by Sheth and Tormen. Default is 0.175 (from Jenkins et al. 2001)
     SHETH_A: float, optional

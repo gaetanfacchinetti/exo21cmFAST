@@ -21,7 +21,7 @@ static gsl_spline *erfc_spline;
 
 #define NGaussLegendre 40  //defines the number of points in the Gauss-Legendre quadrature integration
 
-#define NMass 1000 // Gaetan: changed from 300 to 1000 in order to gain precision with sharp NCDM transfer functions
+#define NMass 1200 // Gaetan: changed from 300 to 1200 in order to gain precision with sharp NCDM transfer functions
 
 #define NSFR_high 200
 #define NSFR_low 250
@@ -926,7 +926,7 @@ double TF_CLASS(double k, int flag_dv)
     double ans;
 
     if (k > kclass[TABLE_CLASS_LENGTH-1]) { // k>kmax
-        LOG_WARNING("Called TF_CLASS with k=%f, larger than kmax! Returning value at kmax.", k);
+        LOG_WARNING("Called TF_CLASS with k=%f, larger than kmax! Returning value at kmax = %f.", k, kclass[TABLE_CLASS_LENGTH-1]);
         if(flag_dv == 0){ // output is density
             return (Tmclass[TABLE_CLASS_LENGTH]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
         }
@@ -964,7 +964,7 @@ double TF_CLASS_LCDM(double k, int flag_dv)
     double ans;
 
     if (k > kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]) { // k>kmax
-        LOG_WARNING("Called TF_CLASS_LCDM with k=%f, larger than kmax! Returning value at kmax.", k);
+        LOG_WARNING("Called TF_CLASS_LCDM with k=%f, larger than kmax! Returning value at kmax = %f.", k, kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]);
         if(flag_dv == 0){ // output is density
             return (Tmclass_LCDM[TABLE_CLASS_LENGTH_LCDM]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]);
         }
@@ -2530,6 +2530,7 @@ void cleanup_ComputeLF(){
     gsl_spline_free (LF_spline);
     gsl_interp_accel_free(LF_spline_acc);
     freeSigmaMInterpTable();
+    free_TF_CLASS();
 	initialised_ComputeLF = 0;
 }
 
@@ -2866,6 +2867,9 @@ double dNion_ConditionallnM(double lnM, void *params) {
     else
         Fesc = pow(M/1e10,Alpha_esc);
 
+
+    LOG_DEBUG("values : M = %e, exp(-Mturn/M) = %e, Fstar = %e, Fesc = %e, dNdM = %e", M, exp(-MassTurnover/M), Fstar, Fesc, dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2));
+
     return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
 }
 
@@ -2945,6 +2949,11 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
 
   }
   else{ //standard
+
+    if(delta2 > delta1) {
+        return 1.;
+    }
+
     double result, error, lower_limit, upper_limit;
     gsl_function F;
     double rel_tol = 0.01; //<- relative tolerance
@@ -2971,6 +2980,9 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
     lower_limit = M1;
     upper_limit = M2;
 
+    // Gaetan suspsecting a big problem here
+    // Limits are M1 and M2 but the integrand takes ln(M) as input 
+
     int status;
 
     gsl_set_error_handler_off();
@@ -2988,14 +3000,7 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
 
     gsl_integration_workspace_free (w);
 
-    if(delta2 > delta1) {
-        result = 1.;
-        return result;
-    }
-    else {
-        return result;
-    }
-
+    return result;
 
   }
 
@@ -4174,10 +4179,10 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
         Mlim_Fstar = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR, astro_params->F_STAR10);
         Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_ESC, astro_params->F_ESC10);
         if(user_params->FAST_FCOLL_TABLES){
-          initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2.0e+20);
+          initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN), 1.0e+21);
         }
         else{
-          initialiseSigmaMInterpTable(M_MIN,2.0e+20);
+          initialiseSigmaMInterpTable(M_MIN, 1.0e+21);
         }
     }
     else {
@@ -4242,18 +4247,18 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
                 if(M_MIN_z0 < M_MIN_z1) {
                   if(user_params->FAST_FCOLL_TABLES){
-                    initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN_z0),2.0e+20);
+                    initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN_z0), 1.0e+21);
                   }
                   else{
-                    initialiseSigmaMInterpTable(M_MIN_z0,2.0e+20);
+                    initialiseSigmaMInterpTable(M_MIN_z0, 1.0e+21);
                   }
                 }
                 else {
                   if(user_params->FAST_FCOLL_TABLES){
-                    initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN_z1),2.0e+20);
+                    initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN_z1), 1.0e+21);
                   }
                   else{
-                    initialiseSigmaMInterpTable(M_MIN_z1,2.0e+20);
+                    initialiseSigmaMInterpTable(M_MIN_z1,1.0e+21);
                   }
                 }
 
@@ -5205,7 +5210,7 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
     
     float* result = malloc(length * sizeof(float));
 
@@ -5253,7 +5258,7 @@ float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *c
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
 
     float* result = malloc(length * sizeof(float));
 
@@ -5280,7 +5285,7 @@ float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_par
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
 
     float* result = malloc(length * sizeof(float));
 
@@ -5312,6 +5317,43 @@ float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_par
     return result;
 }
 
+
+float* ComputeDNDMConditionnal(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *ln_mass, float *params, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
+    init_ps();
+
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+
+    float* result = malloc(length * sizeof(float));
+
+    double growthf   = (double) params[0];
+    double m2        = (double) params[1];
+    double delta1    = (double) params[2];
+    double delta2    = (double) params[3];
+    double sigma2    = (double) params[4];
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) dNdM_conditional(growthf, (double) ln_mass[i], m2, delta1, delta2, sigma2);
+    
+    LOG_DEBUG("Here growthf = %e, m2 = %e, delta1 = %e, delta2 = %e, sigma2 = %e", growthf, m2, delta1, delta2, sigma2);
+    
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        freeSigmaMInterpTable();
+    
+    free_ps();
+    free_TF_CLASS();
+
+    return result;
+}
+
+
+
 float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                         float *mass, float *z, int length) 
@@ -5322,7 +5364,7 @@ float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *c
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
 
     float* result = malloc(length * sizeof(float));
 
@@ -5349,7 +5391,7 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 2.0e+20);
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 5.0e+20);
 
     float* result = malloc(length * sizeof(float));
 
@@ -5368,6 +5410,49 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
 
     for (int i = 0; i < length; i++) 
         result[i] = (float) Nion_ConditionalM(growthf, (double) mass[i], m2, sigma2, delta1, delta2, m_turn, alpha_s, alpha_e, f_star_10, f_esc_10, mlim_fs, mlim_fe, user_params_ps->FAST_FCOLL_TABLES);
+
+    // freeing the interpolation tables
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        freeSigmaMInterpTable();
+
+    free_ps();
+    free_TF_CLASS();
+
+    return result;
+}
+
+
+float* ComputeDNionConditionalLnM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *ln_mass, float *params, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
+    init_ps();
+
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 5.0e+20);
+
+    float* result = malloc(length * sizeof(float));
+
+    struct parameters_gsl_SFR_con_int_ parameters_gsl_SFR_con = {
+        .gf_obs = params[0],
+        .Mval = params[1],
+        .sigma2 = params[2],
+        .delta1 = params[3],
+        .delta2 = params[4],
+        .Mdrop = params[5],
+        .pl_star = params[6],
+        .pl_esc = params[7],
+        .frac_star = params[8],
+        .frac_esc = params[9],
+        .LimitMass_Fstar = params[10],
+        .LimitMass_Fesc = params[11]
+    };
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) dNion_ConditionallnM((double) ln_mass[i], &parameters_gsl_SFR_con);
 
     // freeing the interpolation tables
     if (user_params_ps->USE_INTERPOLATION_TABLES)

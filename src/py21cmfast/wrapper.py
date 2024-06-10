@@ -544,12 +544,21 @@ def dndm(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, fla
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call_params(mass, z, lib.ComputeDNDM, user_params, cosmo_params, astro_params, flag_options)
 
+def dndm_conditional(ln_mass, growthf, m2, delta1, delta2,  sigma2, *, user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
+    
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+
+    params = [growthf, m2, delta1, delta2, sigma2]
+    
+    return _generic_c_call_params(ln_mass, params, lib.ComputeDNDMConditionnal, user_params, cosmo_params, astro_params, flag_options)
+
 def f_gtr_mass(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None): 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
     return _generic_c_call_params(mass, z, lib.ComputeFgtrMGeneral, user_params, cosmo_params, astro_params, flag_options)
 
-def nion_conditional_m(mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, m_lim_f_esc, 
+def nion_conditional_m(ln_mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, m_lim_f_esc, 
                         *, m_turn = None, alpha_star = None, alpha_esc = None, f_star_10 = None, f_esc_10 = None, 
                         user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
     
@@ -566,7 +575,28 @@ def nion_conditional_m(mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, 
 
     params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
     
-    return _generic_c_call_params(mass, params, lib.ComputeNionConditionalM, user_params, cosmo_params, astro_params, flag_options)
+    return _generic_c_call_params(ln_mass, params, lib.ComputeNionConditionalM, user_params, cosmo_params, astro_params, flag_options)
+
+
+def dnion_conditional_lnm(ln_mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, m_lim_f_esc, 
+                        *, m_turn = None, alpha_star = None, alpha_esc = None, f_star_10 = None, f_esc_10 = None, 
+                        user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
+    
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+
+    # defining default values for the parameters that have one in astro_params
+    # if None is given in argument
+    m_turn = m_turn if (m_turn is not None) else astro_params.convert("M_TURN", astro_params.M_TURN)
+    alpha_star = alpha_star if (alpha_star is not None) else astro_params.convert("ALPHA_STAR", astro_params.ALPHA_STAR)
+    alpha_esc = alpha_esc if (alpha_esc is not None) else astro_params.convert("ALPHA_ESC", astro_params.ALPHA_ESC)
+    f_star_10 = f_star_10 if (f_star_10 is not None) else astro_params.convert("F_STAR10", astro_params.F_STAR10)
+    f_esc_10  = f_esc_10 if (f_esc_10 is not None) else astro_params.convert("F_ESC10", astro_params.F_ESC10)
+
+    params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
+    
+    return _generic_c_call_params(ln_mass, params, lib.ComputeDNionConditionalLnM, user_params, cosmo_params, astro_params, flag_options)
+
 
 def growth_from_pmf(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
@@ -705,6 +735,8 @@ def compute_luminosity_function(
             "flag_options": flag_options,
         }
     )
+
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
 
     redshifts = np.array(redshifts, dtype="float32")
     if flag_options.USE_MINI_HALOS:

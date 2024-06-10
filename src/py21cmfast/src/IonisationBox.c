@@ -499,14 +499,14 @@ LOG_SUPER_DEBUG("minimum source mass has been set: %f", M_MIN);
 
     if(user_params->USE_INTERPOLATION_TABLES) {
       if(user_params->FAST_FCOLL_TABLES){
-        initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),2.0e+20);
+        initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1.0e+21);
       }
       else{
         if(!flag_options->USE_TS_FLUCT) {
-            initialiseSigmaMInterpTable(M_MIN,2.0e+20);
+            initialiseSigmaMInterpTable(M_MIN,1.0e+21);
         }
         else if(flag_options->USE_MINI_HALOS){
-            initialiseSigmaMInterpTable(global_params.M_MIN_INTEGRAL/50.,2.0e+20);
+            initialiseSigmaMInterpTable(global_params.M_MIN_INTEGRAL/50.,1.0e+21);
         }
       }
 

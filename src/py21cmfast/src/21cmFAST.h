@@ -241,9 +241,15 @@ float* ComputeRtoM(struct UserParams *user_params, struct CosmoParams *cosmo_par
 float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                         float *mass, float *z, int length);
+float* ComputeDNDMConditionnal(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *mass, float *params, int length);
 float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                         float *mass, float *z, int length);
+float* ComputeDNionConditionalLnM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *ln_mass, float *params, int length);
 float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                         float *mass, float *params, int length);
