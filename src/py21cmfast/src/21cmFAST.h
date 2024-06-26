@@ -60,7 +60,7 @@ struct UserParams{
     bool USE_PMF_TABLES;
 
     int PS_FILTER;
-    int PS_SMALL_SCALES_MODEL;
+    int ANALYTICAL_TF_NCDM;
     bool USE_INVERSE_PARAMS;
     bool USE_SIGMA_8_NORM;
     int CLASS_FLUID_APPROX;

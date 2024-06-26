@@ -377,10 +377,12 @@ class CosmoParams(StructWithDefaults):
         Default value is set to the "theoretical" value used by Lacey & Cole (1994) = (9*pi/2)^{1/3} ~ 2.41798793102
     M_WDM : float, optional
         Mass of WDM particle in keV 
-        Ignored if `PS_SMALL_SCALES_MODEL` in `UserParams` is not "WDM"
+        Ignored if `ANALYTICAL_TF_NCDM` in `UserParams` is not "WDM"
+    FRAC_WDM : float, optional
+        Fraction of DM in the form of WDM
     INVERSE_M_WDM: float, optional
         Inverse of WDM particle mass in KeV^{-1}. Usefull for some computations
-        Ignored if `PS_SMALL_SCALES_MODEL` in `UserParams` is not "WDM"
+        Ignored if `ANALYTICAL_TF_NCDM` in `UserParams` is not "WDM"
     SHETH_q : float, optional 
         Parameter `q` of the HMF parametrisation by Sheth & Tormen. Default is 0.73 (from Jenkins et al. 2001)
     SHETH_p: float, optional
@@ -395,13 +397,13 @@ class CosmoParams(StructWithDefaults):
         Only used if `PRIMORDIAL_MAGNETIC_FIELDS` set to True in `UserParams`
     NEUTRINO_MASS_1 : float, optional
         Mass of the first neutrino
-        Only used if `PS_SMALL_SCALES_MODEL` set to `MNU` in user_params
+        Only used if `ANALYTICAL_TF_NCDM` set to `MNU` in user_params
     NEUTRINO_MASS_2 : float, optional
         Mass of the second neutrino
-        Only used if `PS_SMALL_SCALES_MODEL` set to `MNU` in user_params
+        Only used if `ANALYTICAL_TF_NCDM` set to `MNU` in user_params
     NEUTRINO_MASS_3 : float, optional
         Mass of the third neutrino
-        Only used if `PS_SMALL_SCALES_MODEL` set to `MNU` in user_params
+        Only used if `ANALYTICAL_TF_NCDM` set to `MNU` in user_params
     ALPHA_S_PS : float, optional
         Derivative of the power spectrum slope
     """
@@ -416,27 +418,38 @@ class CosmoParams(StructWithDefaults):
         "POWER_INDEX": 0.9665,
         "ALPHA_S_PS" : 0.0, 
         ######################################
+        # Additional LCDM parameters
         "Ln_1010_As" : 3.047,
         "Omch2" : 0.11933,
         "Ombh2" : 0.02242,
         #######################################
-        "VOLUME_FACTOR_SHARP_K": 2.41798793102,
+        # Warm dark matter parameters
         "M_WDM": 4.0,
-        "FRAC_WDM" : 1.0,
+        "FRAC_WDM" : 0.0,
         "INVERSE_M_WDM" : 0.25,
+        #######################################
+        # Neutrinos parameters
+        "NEUTRINO_MASS_1" : 0.0,
+        "NEUTRINO_MASS_2" : 0.0,
+        "NEUTRINO_MASS_3" : 0.0,
+        "U_NU_DM" : 0.0, 
+        "FRAC_NU_DM" : 1.0,
+        #######################################
+        # Halo mass function parameters
+        "VOLUME_FACTOR_SHARP_K": 2.41798793102,
+        "SHETH_q" : 0.73,
+        "SHETH_p" : 0.175,
+        "SHETH_A" : 0.353,
+        #######################################
+        # Generic transfer function parameters
         "ALPHA_NCDM_TF" : 1.0,
         "BETA_NCDM_TF" : 0.0,
         "GAMMA_NCDM_TF" : 0.0,
         "DELTA_NCDM_TF" : 0.0, 
-        "SHETH_q" : 0.73,
-        "SHETH_p" : 0.175,
-        "SHETH_A" : 0.353,
+        #######################################
+        # Primordial magnetic field parameters
         "PMF_SIGMA_B_0" : 0.1,
         "PMF_B_INDEX" : -2.5,
-        "NEUTRINO_MASS_1" : 0.06,
-        "NEUTRINO_MASS_2" : 0.0,
-        "NEUTRINO_MASS_3" : 0.0,
-        "U_NU_DM" : 0.0, 
         #######################################
     }
 
@@ -522,8 +535,9 @@ class UserParams(StructWithDefaults):
         0. TOPHAT
         1. SHARPK
         2. GAUSSIAN
-    PS_SMALL_SCALES_MODEL: int or str, optional
+    ANALYTICAL_TF_NCDM: int or str, optional
         Defines the model of PS at small scales with tabulated transfer functions
+        Attention, if `POWER_SPECTRUM` is `CLASS` this parameter is not taken into account
         0 or "LCDM". Classical lambda CDM model for the power spectrum on small scales
         1 or "WDM". WDM model T = pow(1 + pow(alpha * k, beta), gamma) with alpha, beta, and delta according to arXiv:astro-ph/0501562
         2 or "ABGD". Generic transfer function  T = (1-delta) * pow(1 + pow(alpha * k, beta), gamma) + delta
@@ -539,7 +553,7 @@ class UserParams(StructWithDefaults):
     CLASS_FLUID_APPROX: int, optional
         Level of the fluid-approximation for non cold DM implemented in CLASS
     USE_PMF_TABLES: bool, optional
-        If set, computes the matter power spectrum from PMF (see option 4 of `PS_SMALL_SCALES_MODEL` in `FlagOptions`)
+        If set, computes the matter power spectrum from PMF (see option 4 of `ANALYTICAL_TF_NCDM` in `FlagOptions`)
         using precomputed tables (default is `True`).
 
     """
@@ -563,12 +577,12 @@ class UserParams(StructWithDefaults):
         "USE_2LPT": True,
         "MINIMIZE_MEMORY": False,
         "PS_FILTER": 0,
-        "PS_SMALL_SCALES_MODEL": 0,
+        "ANALYTICAL_TF_NCDM": 0,
         "USE_INVERSE_PARAMS" : False,
         "USE_SIGMA_8_NORM" : True,
         "CLASS_FLUID_APPROX" : 2, # default CLASS value
         "USE_PMF_TABLES": True,
-        "USE_CLASS_TABLES": True,
+        "USE_CLASS_TABLES": False,
         "DEGENERATE_NEUTRINO_MASSES" : False,
         "USE_OMEGA_H2" : False,
     }
@@ -576,7 +590,7 @@ class UserParams(StructWithDefaults):
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
     _power_models = ["EH", "BBKS", "EFSTATHIOU", "PEEBLES", "WHITE", "CLASS"]
     _ps_filter_models = ["TOPHAT", "SHARPK", "GAUSSIAN"]
-    _ps_small_scales_model = ["LCDM", "WDM", "ABGD", "SHARP", "PMF", "NEUTRINOS"]
+    _analytical_tf_ncdm = ["LCDM", "WDM", "ABGD", "SHARP", "PMF", "NEUTRINOS"]
 
 
     @property
@@ -716,30 +730,30 @@ class UserParams(StructWithDefaults):
         return val
     
     @property
-    def PS_SMALL_SCALES_MODEL(self): 
-        """ Translate PS_SMALL_SCALES_MODEL string into an int """
+    def ANALYTICAL_TF_NCDM(self): 
+        """ Translate ANALYTICAL_TF_NCDM string into an int """
 
-        if isinstance(self._PS_SMALL_SCALES_MODEL, str): 
-            val = self._ps_small_scales_model.index(self._PS_SMALL_SCALES_MODEL.upper())
+        if isinstance(self._ANALYTICAL_TF_NCDM, str): 
+            val = self._analytical_tf_ncdm.index(self._ANALYTICAL_TF_NCDM.upper())
         else:
-            val = self._PS_SMALL_SCALES_MODEL
+            val = self._ANALYTICAL_TF_NCDM
 
         try:
             val = int(val)
         except (ValueError, TypeError) as e:
-            raise ValueError("Invalid value for PS_SMALL_SCALES_MODEL") from e
+            raise ValueError("Invalid value for ANALYTICAL_TF_NCDM") from e
 
-        if not 0 <= val < len(self._ps_small_scales_model):
-            raise ValueError(f"PS_SMALL_SCALES_MODEL must be an int between 0 and {len(self._ps_small_scales_model) - 1}")
+        if not 0 <= val < len(self._analytical_tf_ncdm):
+            raise ValueError(f"ANALYTICAL_TF_NCDM must be an int between 0 and {len(self._analytical_tf_ncdm) - 1}")
 
         return val
     
 
 
     @property
-    def ps_small_scales_model(self):
+    def analytical_tf_ncdm(self):
         """String representation of the ncdm model used."""
-        return self._ps_small_scales_model[self.PS_SMALL_SCALES_MODEL]
+        return self._analytical_tf_ncdm[self.ANALYTICAL_TF_NCDM]
     
 
 
@@ -1119,14 +1133,14 @@ def validate_all_inputs(
                 raise ValueError(msg)
             
         # Check the value of the Sheth and Tormen parametrisation
-        #if (user_params.HMF == 1) and (user_params.PS_SMALL_SCALES_MODEL > 1) and ( 
+        #if (user_params.HMF == 1) and (user_params.ANALYTICAL_TF_NCDM > 1) and ( 
         #    cosmo_params.SHETH_q == cosmo_params._defaults_["SHETH_q"] 
         #    and cosmo_params.SHETH_p == cosmo_params._defaults_["SHETH_p"] 
         #    and cosmo_params.SHETH_A == cosmo_params._defaults_["SHETH_A"] 
         #    ):
         #        logger.warning("You may want to use another parametrisation of Sheth and Tormen mass function (different from default) as there is a modification in the PS." )
                 
-        if (user_params.HMF == 1) and user_params.ps_small_scales_model == "WDM" and ( 
+        if (user_params.HMF == 1) and ((user_params.analytical_tf_ncdm == "WDM" and user_params.POWER_SPECTRUM != 5) or (cosmo_params.FRAC_WDM > 0 and user_params.POWER_SPECTRUM == 5)) and ( 
             cosmo_params.SHETH_q != 1.0 
             or cosmo_params.SHETH_p != 0.3
             or cosmo_params.SHETH_A != 0.322

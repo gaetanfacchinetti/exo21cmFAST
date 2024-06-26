@@ -2796,28 +2796,171 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
 
         # define general parameters for CLASS
+        
         _h = cosmo_params.hlittle
-        _omega_cdm_LCDM = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-        _omega_cdm = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-        _omega_ncdm = 0
-        _n_ncdm = 0
-        _m_ncdm = 0.0
-        _T_ncdm = 0.71611
-        _k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
-
+        omega_cdm_LCDM = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
+        k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
+        neff_array = [3.046, 2.0328, 1.0196, 0.00641]
        
 
         params_class_init = {'output' : 'mPk, vTk',
-            'h': cosmo_params.hlittle,
+            'h': _h,
             'YHe' : global_params.Y_He,
             'omega_b': cosmo_params.OMb * _h**2,
             'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
             'n_s': cosmo_params.POWER_INDEX,
             'alpha_s' : cosmo_params.ALPHA_S_PS,
-            'P_k_max_h/Mpc': _k_max / _h,
+            'P_k_max_h/Mpc': k_max / _h,
             'reio_parametrization': 'reio_none', 
             # 21cmFAST will take care of the reionization
             }
+
+
+        #################################################
+        #################################################
+        # CHECK FOR NON-CDM MODEL
+        # 
+        
+    
+        # create strings containing the degeneracy number and the mass
+        # of every ncdm non degenerate neutrino species or warm dark matter
+        deg_ncdm = np.array([])
+        m_ncdm   = np.array([])
+        T_ncdm   = np.array([])
+        n_ncdm   = 0
+        n_ur     = neff_array[0]
+
+        omega_cdm = omega_cdm_LCDM
+
+        #############################################
+        ## MASSIVE NEUTRINOS
+
+        # define the table of neutrino mass and the number of effecitve degree of freedom
+        m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3]) if (not user_params.DEGENERATE_NEUTRINO_MASSES) else np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
+        
+        # for massive neutrinos we set the parameters here
+        if np.sum(m_neutrinos) > 0:
+
+            # get the unique masses
+            m_unique_neutrinos = np.unique(m_neutrinos)
+
+            # get the number of species with different mass
+            n_neutrinos = np.count_nonzero(m_unique_neutrinos)
+            n_ncdm = n_ncdm  + n_neutrinos
+
+            # attribute degeneracy number, mass and temperature to all neutrinos "classes"
+            for m_neutrino in m_unique_neutrinos:
+                deg_ncdm = np.append(deg_ncdm, len(np.where(m_neutrinos == m_neutrino)[0]))
+                m_ncdm   = np.append(m_ncdm, str(m_neutrino))
+                T_ncdm   = np.append(T_ncdm, 0.71611)
+                
+            # recalculate the value of omega_cdm by removing the neurtino component
+            omega_cdm = omega_cdm - np.sum(m_neutrinos)/93.14
+
+            # set the number of ultra relativistic degrees of freedom
+            # to the correct values according to the total number 
+            # of massive neutrinos
+            n_ur = neff_array[np.count_nonzero(m_neutrinos)]
+
+
+        #############################################
+        ## WARM DARK MATTER
+
+        # assign a variable for the fraction of warm dark matter 
+        f_wdm = cosmo_params.FRAC_WDM
+
+        # define warm dark matter properties here if fraction above 0
+        if f_wdm > 0:
+            
+            # remove warm dark matter mass the cdm component
+            # omega_cdm is already stripped from the neutrino mass
+            omega_wdm = omega_cdm * f_wdm
+            omega_cdm  = omega_cdm * (1 - f_wdm)
+
+            n_wdm = 1
+
+            if (user_params.USE_INVERSE_PARAMS is False): 
+                m_wdm = cosmo_params.M_WDM * 1e+3
+                #_m_ncdm_string = _m_ncdm_string + "," + str(cosmo_params.M_WDM * 1e+3)
+            else:
+                if cosmo_params.INVERSE_M_WDM > 0:
+                    #_m_ncdm_string = _m_ncdm_string + "," + str(1.0/cosmo_params.INVERSE_M_WDM * 1e+3)
+                    m_wdm = 1.0/cosmo_params.INVERSE_M_WDM * 1e+3
+                elif cosmo_params.INVERSE_M_WDM == 0:
+                    # for an infinite DM mass no NCDM 
+                    n_wdm = 0
+                else:
+                    raise ValueError("Impossible to assign a negative value to INVERSE_M_WDM")
+
+
+            # add a new particle to the list of non cold dark matter
+            # wdm as degree of freedom 1 and account for 1 new species
+            # only doing it if we do have warm dark matter
+            n_ncdm   = n_ncdm + n_wdm
+            if n_wdm > 0:
+                deg_ncdm = np.append(deg_ncdm, 1)
+                m_ncdm   = np.append(m_ncdm, m_wdm)
+                T_ncdm   = np.append(T_ncdm,  0.71611 * (omega_wdm * 93.14 / m_wdm)**(1./3.))
+
+                # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
+                # we cut at 10 times the WDM cutoff
+                if f_wdm == 1:
+                    k_max = np.min([k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/m_wdm, 0.11) / m_wdm * 1.54518467138)])
+
+
+        #############################################
+        # INTERACTING NEUTRINOS
+
+        # need to add new parameters here that are
+        # not defined in all CLASS versions
+        nu_dm_params = {}
+
+        f_NU_DM = cosmo_params.FRAC_NU_DM
+
+        if cosmo_params.U_NU_DM > 0 and f_NU_DM > 0 :
+                
+            # f_NU_DM is the fraction of interacting dark matter 
+            # amongst the cold dark matter (so not warm)
+            omega_nudm = omega_cdm * f_NU_DM
+            omega_cdm = omega_cdm * (1-f_NU_DM)
+
+            # add the parameter for the DM - neutrino interactions
+            # print("We are looking at U_NU_DM > 0")
+            if np.sum(m_neutrinos) > 0:
+                nu_dm_params = {'u_ncdmdm' : cosmo_params.U_NU_DM, 'gauge' : 'newtonian', 'omega_nudm' : omega_nudm}
+            else:
+                # need to check some of the parameters here
+                nu_dm_params = {'u_urDM_0' : cosmo_params.U_NU_DM, 'alpha_urDM' : 1.0, 'n_urDM' : 3, 'gauge' : 'newtonian', 'omega_nudm' : omega_nudm}
+            
+
+        #############################################
+        # preparing the input for CLASS
+
+        deg_ncdm_string = ",".join(map(str, deg_ncdm))
+        m_ncdm_string   = ",".join(map(str, m_ncdm))
+        T_ncdm_string   = ",".join(map(str, T_ncdm))
+
+        # set m_ncdm_, N_ur and N_ncdm according to what is computed above
+        params_class =  params_class_init | {'omega_cdm' : omega_cdm,
+                                            'm_ncdm' : m_ncdm_string,
+                                            'N_ur' : n_ur,
+                                            'deg_ncdm' : deg_ncdm_string,
+                                            'N_ncdm' : n_ncdm,
+                                            'T_ncdm' : T_ncdm_string,
+                                            'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 
+                                            'k_per_decade_for_pk' : 50,}
+        
+        # adding the properties of DM-neutrinos interactions
+        params_class = params_class | nu_dm_params
+
+        # update the value of P_k_max 
+        params_class['P_k_max_h/Mpc'] = k_max / _h
+
+        # assert that we do not have a negative amount of dark matter
+        assert omega_cdm >= 0, ValueError("The abundance of cold dark matter cannot go below 0")
+
+        #################################################
+        #################################################
 
 
         # primordial power spectrum as defined in 21cmFAST ps.c
@@ -2826,15 +2969,14 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             index = cosmo_params.POWER_INDEX + 0.5 * cosmo_params.ALPHA_S_PS * np.log(k/k0)
             return 1e-10 * np.exp(cosmo_params.Ln_1010_As) * (k/k0)**(index - 1.0)
   
-
         # to normalise to sigma_8 the LCDM power spectrum is needed
         # if the model is simply LCDM then we only run this part
-        if user_params.USE_SIGMA_8_NORM is True or user_params.ps_small_scales_model == "LCDM":
+        if user_params.USE_SIGMA_8_NORM is True or n_ncdm == 0:
 
             # Put the correct values for the parameters missing in the init params dict
-            params_class_LCDM = params_class_init | {'omega_cdm' : _omega_cdm_LCDM}
+            params_class_LCDM = params_class_init | {'omega_cdm' : omega_cdm_LCDM}
 
-            print(params_class_LCDM)
+            print("CLASS LCDM parameters are :\n", params_class_LCDM)
             
             # run CLASS
             cosmo_CLASS_LCDM = Class()
@@ -2851,140 +2993,21 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primordial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
             _Tvcb_array_LCDM = _transfer_LCDM['t_b'][:-1]
 
-        else:
+
+        # with ncdm components and normalisation with As (not sigma_8)
+        # no need to define a LCDM transfer function
+        # however necessary to initialise this part to fill the C arrays
+        # and avoid a segmentation fault
+        if user_params.USE_SIGMA_8_NORM is False and n_ncdm > 0:
             
             # define dummy default arrays
             _k_array_LCDM    = np.array([1, 2, 3, 4, 5])
             _Tm_array_LCDM   = np.zeros(5)
             _Tvcb_array_LCDM = np.zeros(5)
-
-     
-        params_class = {}
-        need_to_run_CLASS_nLCDM = False
         
-        if user_params.ps_small_scales_model != "LCDM": 
 
-            # be default if ps_small_scales_model is not LCDM we need to run class again
-            need_to_run_CLASS_nLCDM = True
-
-            #############################################
-            ## MASSIVE AND INTERACTING NEUTRINOS
-
-            if user_params.ps_small_scales_model == "NEUTRINOS":
-
-                # define the yable of neutrino mass and the number of effecitve degree of freedom
-                _m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3]) if (not user_params.DEGENERATE_NEUTRINO_MASSES) else np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
-                Neff_array = [2.0328, 1.0196, 0.00641]
-
-
-                # for massive neutrinos we set the parameters here
-                if np.sum(_m_neutrinos) > 0:
-
-                    # get the unique masses
-                    _m_unique_neutrinos = np.unique(_m_neutrinos)
-
-                    # get the number of species with different mass
-                    _n_ncdm = np.count_nonzero(_m_unique_neutrinos)
-
-                    # create strings containing the degeneracy number and the mass
-                    # of every ncdm non degenerate neutrino species
-                    _deg_ncdm_string = ""
-                    _m_ncdm_string = ""
-
-                    for m_neutrino in _m_unique_neutrinos:
-                        _deg_ncdm_string = _deg_ncdm_string + str(len(np.where(_m_neutrinos == m_neutrino)[0])) + ','
-                        _m_ncdm_string = _m_ncdm_string + str(m_neutrino) + ','
-                    _m_ncdm_string = _m_ncdm_string.strip(',') # remove the last ','
-                    _deg_ncdm_string = _deg_ncdm_string.strip(',') # remove the last ','
-
-                    # recalculate the value of omega_cdm by removing the neurtino component
-                    _omega_cdm = _omega_cdm_LCDM - np.sum(_m_neutrinos)/93.14
-
-                    # set the number of ultra relativistic degrees of freedom
-                    # to the correct values according to the total number 
-                    # of massive neutrinos
-                    _n_ur = Neff_array[np.count_nonzero(_m_neutrinos) - 1]
-
-                    #print(_deg_ncdm_string, _m_ncdm_string, _n_ncdm, _n_ur)
-
-                    # set m_ncdm_, N_ur and N_ncdm according to what is computed above
-                    params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
-                                                        'm_ncdm' : _m_ncdm_string,
-                                                        'N_ur' : _n_ur,
-                                                        'deg_ncdm' : _deg_ncdm_string,
-                                                        'N_ncdm' : _n_ncdm,
-                                                        'T_ncdm' : 0.71611,
-                                                        'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 
-                                                        'k_per_decade_for_pk' : 50,}
-                    
-                    if cosmo_params.U_NU_DM > 0:
-                        
-                        # add the parameter for the DM - neutrino interactions
-                        # print("We are looking at U_NU_DM > 0")
-                        params_class = params_class | {'u_ncdmdm' : cosmo_params.U_NU_DM, 'gauge' : 'newtonian', 'omega_nudm' : _omega_cdm, 'T_ncdm' : 0.71611}
-                        
-                        # as we consider that all of the dm is in the form of nudm (i.e. interacting with neutrinos)
-                        # the valud of omega_cdm must be set to 0
-                        params_class['omega_cdm'] = 0
-                    
-                else:
-                    
-                    if cosmo_params.U_NU_DM == 0: 
-                        # if neutrino masses sum is 0 we are actually treating the LCDM model (even if user_params.ps_small_scales_model == "MNU")
-                        need_to_run_CLASS_nLCDM = False
-
-                    elif cosmo_params.U_NU_DM > 0: 
-                        
-                        params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
-                                                             'u_urDM_0' : cosmo_params.U_NU_DM,
-                                                             'alpha_urDM' : 1.0,
-                                                             'n_urDM' : 3,
-                                                             'N_ur' : 3.046,
-                                                             'N_ncdm' : 1,
-                                                             'gauge' : 'newtonian',
-                                                             'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 
-                                                             'k_per_decade_for_pk' : 50,}
-
-                    
-                
-            #############################################
-            ## WARM DARK MATTER
-
-            if user_params.ps_small_scales_model == "WDM":
-                _n_ncdm = 1
-                _f_wdm = cosmo_params.FRAC_WDM
-                _omega_cdm = (1.0 - _f_wdm) * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-                _omega_ncdm =  _f_wdm * (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-    
-                if (user_params.USE_INVERSE_PARAMS is False): 
-                    _m_ncdm = cosmo_params.M_WDM * 1e+3
-                else:
-                    if cosmo_params.INVERSE_M_WDM > 0:
-                        _m_ncdm = 1.0/cosmo_params.INVERSE_M_WDM * 1e+3
-                    else:
-                        # for an infinite DM mass no NCDM 
-                        _n_ncdm = 0 
-                        need_to_run_CLASS_nLCDM = False
-
-                _T_ncdm = 0.71611 * (_omega_ncdm * 93.14 / _m_ncdm)**(1./3.)
-                
-                # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
-                # we cut at 10 times the WDM cutoff
-                if _f_wdm == 1: #
-                    _k_max = np.min([_k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/_m_ncdm, 0.11) / _m_ncdm * 1.54518467138)])
-
-                params_class =  params_class_init | {'omega_cdm' : _omega_cdm,
-                    'N_ncdm' : _n_ncdm,
-                    'T_ncdm' : _T_ncdm,
-                    'm_ncdm' : _m_ncdm,   
-                    'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX,}
-        
-                
-            #############################################
-            if _omega_cdm < 0:
-                raise ValueError("The abundance of cold dark matter cannot go below 0")
-
-        if need_to_run_CLASS_nLCDM is True:
+        # if ncdm component
+        if n_ncdm > 0:
 
             print("CLASS parameters are :\n", params_class)
 
@@ -3003,9 +3026,10 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
             _thermo  = cosmo_CLASS.get_thermodynamics()
         
-        else :
+        
+        # if no ncdm is present we just fix the power spectrum to that of LCDM
+        if n_ncdm == 0:
             
-            # if no ncdm is present we just fix the power spectrum to that of LCDM
             _k_array = _k_array_LCDM
             _Tm_array = _Tm_array_LCDM
             _Tvcb_array = _Tvcb_array_LCDM
@@ -3013,6 +3037,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             _thermo  = cosmo_CLASS_LCDM.get_thermodynamics()
 
 
+        
         #print(_k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
 
 
@@ -3020,7 +3045,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
         
 
-        #return _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM
+        return _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM
 
         # Get the thermodynamical quantities
         _z   = _thermo['z']

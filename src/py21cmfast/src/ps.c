@@ -548,7 +548,7 @@ double transfer_function_PMF(double k)
 
     returns the transfer function (ratio of true nCDM power spectrum 
     to CDM power spectrum) for the different models chosen with the
-    flag option PS_SMALL_SCALES_MODEL (analytical formulas)
+    flag option ANALYTICAL_TF_NCDM (analytical formulas)
 
     Params
     ------
@@ -561,9 +561,9 @@ double analytical_transfer_function_nCDM(double k)
     if (user_params_ps->POWER_SPECTRUM == 5)
         return 1.0;
 
-    if (user_params_ps->PS_SMALL_SCALES_MODEL == 0) // classical LCDM model
+    if (user_params_ps->ANALYTICAL_TF_NCDM == 0) // classical LCDM model
         return 1.0;
-    else if (user_params_ps->PS_SMALL_SCALES_MODEL == 1) // vanilla warm dark matter
+    else if (user_params_ps->ANALYTICAL_TF_NCDM == 1) // vanilla warm dark matter
     {
         double m_wdm;
 
@@ -588,15 +588,15 @@ double analytical_transfer_function_nCDM(double k)
         return transfer_function_abgd(k, alpha, 2 * 1.12, -5.0 / 1.12, 0.0);
 
     }
-    else if (user_params_ps->PS_SMALL_SCALES_MODEL == 2) // alpha beta gamma delta parametrisation of cutoff
+    else if (user_params_ps->ANALYTICAL_TF_NCDM == 2) // alpha beta gamma delta parametrisation of cutoff
         return transfer_function_abgd(k, cosmo_params_ps->ALPHA_NCDM_TF, cosmo_params_ps->BETA_NCDM_TF, cosmo_params_ps->GAMMA_NCDM_TF, cosmo_params_ps->DELTA_NCDM_TF);
-    else if (user_params_ps->PS_SMALL_SCALES_MODEL == 3) // sharp transfer function
+    else if (user_params_ps->ANALYTICAL_TF_NCDM == 3) // sharp transfer function
         return transfer_function_sharp(k, cosmo_params_ps->ALPHA_NCDM_TF, cosmo_params_ps->DELTA_NCDM_TF);
-    else if (user_params_ps->PS_SMALL_SCALES_MODEL == 4) // primordial magnetic fields
+    else if (user_params_ps->ANALYTICAL_TF_NCDM == 4) // primordial magnetic fields
         return transfer_function_PMF(k);
     else
     {
-        LOG_ERROR("No such PS_SMALL_SCALES_MODEL defined: %i. Output is bogus.", user_params_ps->PS_SMALL_SCALES_MODEL);
+        LOG_ERROR("No such ANALYTICAL_TF_NCDM defined: %i. Output is bogus.", user_params_ps->ANALYTICAL_TF_NCDM);
         Throw(ValueError);
     }     
 }
@@ -1447,7 +1447,7 @@ void init_ps(){
     //    InitTFCLASS()
     //}
 
-    if (user_params_ps->PS_SMALL_SCALES_MODEL == 4) // PMF
+    if (user_params_ps->ANALYTICAL_TF_NCDM == 4) // PMF
         interpolate_power_spectrum_from_pmf(false);
 
     omhh = cosmo_params_ps->OMm*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle;
@@ -1565,7 +1565,7 @@ void init_ps(){
 void free_ps(){
 
     // we free the PS interpolator if using PMF
-    if (user_params_ps->PS_SMALL_SCALES_MODEL == 4)
+    if (user_params_ps->ANALYTICAL_TF_NCDM == 4)
         interpolate_power_spectrum_from_pmf(true);
 
   return;
