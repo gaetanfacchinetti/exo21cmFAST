@@ -580,7 +580,8 @@ class UserParams(StructWithDefaults):
         "ANALYTICAL_TF_NCDM": 0,
         "USE_INVERSE_PARAMS" : False,
         "USE_SIGMA_8_NORM" : True,
-        "CLASS_FLUID_APPROX" : 2, # default CLASS value
+        "CLASS_FLUID_APPROX_WDM" : 2, # default CLASS value
+        "CLASS_FLUID_APPROX_NU": 2,
         "USE_PMF_TABLES": True,
         "USE_CLASS_TABLES": False,
         "DEGENERATE_NEUTRINO_MASSES" : False,
@@ -644,10 +645,11 @@ class UserParams(StructWithDefaults):
         See :func:`power_spectrum_model` for a string representation.
         """
         if self.USE_RELATIVE_VELOCITIES:
-            if self._POWER_SPECTRUM != 5 or (
+            if self._POWER_SPECTRUM != 5 and (
                 isinstance(self._POWER_SPECTRUM, str)
                 and self._POWER_SPECTRUM.upper() != "CLASS"
             ):
+                #print("power spectrum:", self._POWER_SPECTRUM.upper())
                 logger.warning(
                     "Automatically setting POWER_SPECTRUM to 5 (CLASS) as you are using "
                     "relative velocities"

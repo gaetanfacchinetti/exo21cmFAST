@@ -63,7 +63,8 @@ struct UserParams{
     int ANALYTICAL_TF_NCDM;
     bool USE_INVERSE_PARAMS;
     bool USE_SIGMA_8_NORM;
-    int CLASS_FLUID_APPROX;
+    int CLASS_FLUID_APPROX_NU;
+    int CLASS_FLUID_APPROX_WDM;
     bool USE_CLASS_TABLES;
     bool DEGENERATE_NEUTRINO_MASSES;
     bool USE_OMEGA_H2; 
@@ -223,6 +224,8 @@ float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_param
 
 /* Function called by the python wrapper interface */         
 float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
+float* ComputePowerInVcb(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
 float* ComputeTransferFunctionNCDM(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                                 struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length); 

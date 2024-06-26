@@ -495,24 +495,27 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None, a
 def matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return  _generic_c_call(k, lib.ComputeMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
+    return _generic_c_call(k, lib.ComputeMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
+
+def power_in_vcb(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    return _generic_c_call(k, lib.ComputePowerInVcb, user_params, cosmo_params, astro_params, flag_options)
 
 def transfer_function_nCDM(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return  _generic_c_call(k, lib.ComputeTransferFunctionNCDM, user_params, cosmo_params, astro_params, flag_options)
+    return _generic_c_call(k, lib.ComputeTransferFunctionNCDM, user_params, cosmo_params, astro_params, flag_options)
 
 def transfer_function_LCDM(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return  _generic_c_call(k, lib.ComputeTransferFunctionLCDM, user_params, cosmo_params, astro_params, flag_options)
-
+    return _generic_c_call(k, lib.ComputeTransferFunctionLCDM, user_params, cosmo_params, astro_params, flag_options)
 
 def transfer_function(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return  _generic_c_call(k, lib.ComputeTransferFunction, user_params, cosmo_params, astro_params, flag_options)
-
+    return _generic_c_call(k, lib.ComputeTransferFunction, user_params, cosmo_params, astro_params, flag_options)
 
 def sigma_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
@@ -2777,21 +2780,27 @@ def _c_call_init_IGM_from_input(z, TK, xe):
 
 
 
+
 def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_params = None, flag_options = None, **global_kwargs):
 
+
     with global_params.use(**global_kwargs) : 
+
         (user_params, cosmo_params, astro_params, flag_options) = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options})
 
         # by default we initialise the ionization history tables to that given by RECFAST
-        if user_params.power_spectrum_model != "CLASS" or _CLASS_IMPORTED is False:
+        if user_params.power_spectrum_model.upper() != "CLASS" or _CLASS_IMPORTED is False or user_params.USE_CLASS_TABLES is True:
+            _c_call_init_TF_CLASS(user_params, cosmo_params, np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5), np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5))
             _c_call_init_IGM_RECFAST()
             return None
         
+        
         if _CLASS_IMPORTED is False:
             logger.warning("Classy module not found, use precomputed table for the computation!")
-            if user_params.USE_CLASS_TABLE is False : 
+            if user_params.USE_CLASS_TABLES is False : 
                 user_params.update(USE_CLASS_TABLES = True)
-            _c_call_init_TF_CLASS(user_params, cosmo_params, [0], [0], [0])
+            _c_call_init_TF_CLASS(user_params, cosmo_params, np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5), np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5))
+            _c_call_init_IGM_RECFAST()
             return None
 
 
@@ -2799,7 +2808,9 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         
         _h = cosmo_params.hlittle
         omega_cdm_LCDM = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-        k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
+        m_min = ((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
+        k_max = 20*(2.78e+11 * (_h**2) * cosmo_params.OMm / m_min)**(1./3.) # rough approximation of the maximal value of k we need
+        #k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
         neff_array = [3.046, 2.0328, 1.0196, 0.00641]
        
 
@@ -2814,21 +2825,25 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             'reio_parametrization': 'reio_none', 
             # 21cmFAST will take care of the reionization
             }
-
-
+        
+        # with relative velocities we need to access the transfer
+        # function at redshift z=1010 (slows down the computation)
+        if user_params.USE_RELATIVE_VELOCITIES is True:
+            params_class_init = params_class_init | {'z_pk' : 1010}
+        
         #################################################
         #################################################
         # CHECK FOR NON-CDM MODEL
         # 
-        
     
         # create strings containing the degeneracy number and the mass
         # of every ncdm non degenerate neutrino species or warm dark matter
-        deg_ncdm = np.array([])
+        deg_ncdm = np.array([], dtype=int)
         m_ncdm   = np.array([])
         T_ncdm   = np.array([])
         n_ncdm   = 0
         n_ur     = neff_array[0]
+        fluid_approx = np.array([], dtype=int)
 
         omega_cdm = omega_cdm_LCDM
 
@@ -2853,6 +2868,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 deg_ncdm = np.append(deg_ncdm, len(np.where(m_neutrinos == m_neutrino)[0]))
                 m_ncdm   = np.append(m_ncdm, str(m_neutrino))
                 T_ncdm   = np.append(T_ncdm, 0.71611)
+                fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_NU)
                 
             # recalculate the value of omega_cdm by removing the neurtino component
             omega_cdm = omega_cdm - np.sum(m_neutrinos)/93.14
@@ -2901,6 +2917,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 deg_ncdm = np.append(deg_ncdm, 1)
                 m_ncdm   = np.append(m_ncdm, m_wdm)
                 T_ncdm   = np.append(T_ncdm,  0.71611 * (omega_wdm * 93.14 / m_wdm)**(1./3.))
+                fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_WDM)
 
                 # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
                 # we cut at 10 times the WDM cutoff
@@ -2936,19 +2953,21 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         #############################################
         # preparing the input for CLASS
 
-        deg_ncdm_string = ",".join(map(str, deg_ncdm))
-        m_ncdm_string   = ",".join(map(str, m_ncdm))
-        T_ncdm_string   = ",".join(map(str, T_ncdm))
+        deg_ncdm_str     = ",".join(map(str, deg_ncdm))
+        m_ncdm_str       = ",".join(map(str, m_ncdm))
+        T_ncdm_str       = ",".join(map(str, T_ncdm))
+        fluid_approx_str = ",".join(map(str, fluid_approx))
 
         # set m_ncdm_, N_ur and N_ncdm according to what is computed above
         params_class =  params_class_init | {'omega_cdm' : omega_cdm,
-                                            'm_ncdm' : m_ncdm_string,
+                                            'm_ncdm' : m_ncdm_str,
                                             'N_ur' : n_ur,
-                                            'deg_ncdm' : deg_ncdm_string,
+                                            'deg_ncdm' : deg_ncdm_str,
                                             'N_ncdm' : n_ncdm,
-                                            'T_ncdm' : T_ncdm_string,
-                                            'ncdm_fluid_approximation' : user_params.CLASS_FLUID_APPROX, 
-                                            'k_per_decade_for_pk' : 50,}
+                                            'T_ncdm' : T_ncdm_str,
+                                            'ncdm_fluid_approximation' : fluid_approx_str, 
+                                            'k_per_decade_for_pk' : 20,}
+        
         
         # adding the properties of DM-neutrinos interactions
         params_class = params_class | nu_dm_params
@@ -2983,15 +3002,18 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             cosmo_CLASS_LCDM.set(params_class_LCDM)
             cosmo_CLASS_LCDM.compute()
 
-            # Get the transfer functions
-            
+            # Get the transfer functions            
             # the matter transfer function is defined w.r.t. the primordial power spectrum
             # T_m^2(k) =  (k^3 / (2 \pi^2)) Pm(k) / P_R(k)
             _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
             _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'][:-1] * _h
             _mps_array_LCDM = np.array([cosmo_CLASS_LCDM.pk_lin(k, 0) for k in _k_array_LCDM])
             _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primordial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
-            _Tvcb_array_LCDM = _transfer_LCDM['t_b'][:-1]
+            
+            # relative velocities transfer function only computed if necessary
+            _Tvcb_array_LCDM = cosmo_CLASS_LCDM.get_transfer(z = 1010)['t_b'][:-1]/_k_array_LCDM if user_params.USE_RELATIVE_VELOCITIES else np.zeros(len(_k_array_LCDM))
+         
+            #_Tvcb_array_LCDM = _transfer_LCDM['t_b'][:-1]
 
 
         # with ncdm components and normalisation with As (not sigma_8)
@@ -3022,8 +3044,12 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             _k_array  = _transfer['k (h/Mpc)'][:-1] * _h
             _mps_array =  np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array])
             _Tm_array  =  np.sqrt(_k_array**3 * _mps_array / primordial_power_spectrum(_k_array) / (2*np.pi**2) )
-            _Tvcb_array = _transfer['t_b'][:-1]
+            #_Tvcb_array = _transfer['t_b'][:-1]
 
+            # relative velocities transfer function only computed if necessary
+            _Tvcb_array = cosmo_CLASS.get_transfer(z = 1010)['t_b'][:-1]/_k_array if user_params.USE_RELATIVE_VELOCITIES else np.zeros(len(_k_array))
+ 
+            # get the thermodynamics
             _thermo  = cosmo_CLASS.get_thermodynamics()
         
         
@@ -3045,7 +3071,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
         
 
-        return _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM
+        #return _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM
 
         # Get the thermodynamical quantities
         _z   = _thermo['z']

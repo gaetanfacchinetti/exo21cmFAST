@@ -5179,6 +5179,35 @@ float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoPa
 }
 
 
+/*
+    ComputePowerInVcb(..., float *k, int length)
+
+    from the power_spectrum function evaluates the matter power spectrum
+    this function is called in the python wrapper matter_power_spectrum()
+
+    returns a pointer to an array (to be freed in the python wrapper)
+    needs the length of the input array to allocate the output array
+*/
+float* ComputePowerInVcb(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
+    init_ps();
+
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) power_in_vcb(k[i]);
+
+    free_ps();
+    free_TF_CLASS();
+
+    return result;
+}
+
+
 float* ComputePMFInducedMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length) 
 {

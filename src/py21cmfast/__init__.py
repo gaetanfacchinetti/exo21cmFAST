@@ -52,6 +52,7 @@ from .wrapper import (
     run_lightcone,
     spin_temperature,
     matter_power_spectrum,
+    power_in_vcb,
     transfer_function_nCDM,
     transfer_function_LCDM,
     transfer_function,
