@@ -5492,3 +5492,41 @@ float* ComputeDNionConditionalLnM(struct UserParams *user_params, struct CosmoPa
 
     return result;
 }
+
+
+float* ComputeNionGeneral(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *z, float *params, int length) 
+{
+
+    Broadcast_struct_global_PS(user_params,cosmo_params);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
+    init_ps();
+
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 5.0e+20);
+
+    float* result = malloc(length * sizeof(float));
+
+    double m_min       = (double) params[0];
+    double m_turn      = (double) params[1];
+    double alpha_star  = (double) params[2];
+    double alpha_esc   = (double) params[3];
+    double f_star10    = (double) params[4];
+    double f_esc10     = (double) params[5];
+    double mlim_fstar  = (double) params[6];
+    double mlim_fesc   = (double) params[7];
+
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) Nion_General((double) z[i], m_min, m_turn, alpha_star, alpha_esc, f_star10, f_esc10, mlim_fstar, mlim_fesc);
+
+    // freeing the interpolation tables
+    if (user_params_ps->USE_INTERPOLATION_TABLES)
+        freeSigmaMInterpTable();
+
+    free_ps();
+    free_TF_CLASS();
+
+    return result;
+}

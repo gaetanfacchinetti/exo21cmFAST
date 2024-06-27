@@ -555,7 +555,10 @@ class UserParams(StructWithDefaults):
     USE_PMF_TABLES: bool, optional
         If set, computes the matter power spectrum from PMF (see option 4 of `ANALYTICAL_TF_NCDM` in `FlagOptions`)
         using precomputed tables (default is `True`).
-
+    USE_HYREC: bool, optional
+        If set to true and HYREC module found, use HYREC to compute the IGM history before 21cmFAST
+        Attention, if `POWER_SPECTRUM` is `CLASS` the HYREC version included in CLASS is called regardless of this parameter
+        Default is False
     """
 
     _ffi = ffi
@@ -586,6 +589,7 @@ class UserParams(StructWithDefaults):
         "USE_CLASS_TABLES": False,
         "DEGENERATE_NEUTRINO_MASSES" : False,
         "USE_OMEGA_H2" : False,
+        "USE_HYREC" : False,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]

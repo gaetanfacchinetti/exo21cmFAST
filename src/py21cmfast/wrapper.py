@@ -106,6 +106,13 @@ try:
 except ImportError:
     pass
 
+_HYREC_IMPORTED = False
+try:
+    import pyhyrec as pyhy
+    _HYREC_IMPORTED = True
+except ImportError:
+    pass
+
 
 from ._cfg import config
 from ._utils import OutputStruct, _check_compatible_inputs, _process_exitcode
@@ -599,6 +606,25 @@ def dnion_conditional_lnm(ln_mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_
     params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
     
     return _generic_c_call_params(ln_mass, params, lib.ComputeDNionConditionalLnM, user_params, cosmo_params, astro_params, flag_options)
+
+
+def nion_general(z, m_min, mlim_fstar, mlim_fesc, *, m_turn = None, alpha_star = None, alpha_esc = None, f_star_10 = None, f_esc_10 = None, 
+                        user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
+    
+    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+
+    # defining default values for the parameters that have one in astro_params
+    # if None is given in argument
+    m_turn = m_turn if (m_turn is not None) else astro_params.convert("M_TURN", astro_params.M_TURN)
+    alpha_star = alpha_star if (alpha_star is not None) else astro_params.convert("ALPHA_STAR", astro_params.ALPHA_STAR)
+    alpha_esc = alpha_esc if (alpha_esc is not None) else astro_params.convert("ALPHA_ESC", astro_params.ALPHA_ESC)
+    f_star_10 = f_star_10 if (f_star_10 is not None) else astro_params.convert("F_STAR10", astro_params.F_STAR10)
+    f_esc_10  = f_esc_10 if (f_esc_10 is not None) else astro_params.convert("F_ESC10", astro_params.F_ESC10)
+
+    params = [m_min, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, mlim_fstar, mlim_fesc]
+    
+    return _generic_c_call_params(z, params, lib.ComputeNionGeneral, user_params, cosmo_params, astro_params, flag_options)
 
 
 def growth_from_pmf(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
@@ -2790,19 +2816,64 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
         # by default we initialise the ionization history tables to that given by RECFAST
         if user_params.power_spectrum_model.upper() != "CLASS" or _CLASS_IMPORTED is False or user_params.USE_CLASS_TABLES is True:
-            _c_call_init_TF_CLASS(user_params, cosmo_params, np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5), np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5))
-            _c_call_init_IGM_RECFAST()
-            return None
-        
-        
-        if _CLASS_IMPORTED is False:
-            logger.warning("Classy module not found, use precomputed table for the computation!")
-            if user_params.USE_CLASS_TABLES is False : 
-                user_params.update(USE_CLASS_TABLES = True)
-            _c_call_init_TF_CLASS(user_params, cosmo_params, np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5), np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5))
-            _c_call_init_IGM_RECFAST()
-            return None
+            
+            if _CLASS_IMPORTED is False:
+                logger.warning("Classy module not found, use precomputed table for the computation!")
+                if user_params.USE_CLASS_TABLES is False : 
+                    user_params.update(USE_CLASS_TABLES = True)
 
+            # initialise to small empty arrays to avoid segmentation fault with GSL
+            _c_call_init_TF_CLASS(user_params, cosmo_params, np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5), np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5))
+            
+            if user_params.USE_HYREC is False:
+                _c_call_init_IGM_RECFAST()
+            else:
+
+                if _HYREC_IMPORTED is False:
+                    logger.warning("pyhyrec module not found, using RECFAST tables instead!")
+                    _c_call_init_IGM_RECFAST()
+
+                # get the neutrino mass 
+                # in HYREC should be ordered from the heaviest to lightest
+                m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3]) if (not user_params.DEGENERATE_NEUTRINO_MASSES) else np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
+                m_neutrinos = np.sort(m_neutrinos)[::-1]
+
+                # define a cosmo object for HYREC
+                cosmo_hyrec = pyhy.HyRecCosmoParams({'h' : cosmo_params.hlittle, 'Omega_b' : cosmo_params.OMb, 'Omega_cb' : cosmo_params.OMm, 
+                                                     'mnu1' : m_neutrinos[0], 'mnu2' : m_neutrinos[1], 'mnu3' : m_neutrinos[2], 
+                                                     'YHe' : global_params.Y_He, 'Omega_k' : global_params.OMk, 'w0' : global_params.wl})
+                
+                # initialise the injection params for HYREC if necessary
+                injec_hyrec_params = {}
+                
+                # change that to have an option dedicated to PMF injection
+                # add the possibility to set a custom value for sigma_A for instance
+                if user_params.ANALYTIC_TF_NCDM == 'PMF':
+
+                    # define a few usefull units and conversion factors
+                    _KG_TO_EV_ = 5.60958860380445e+35
+                    _C_LIGHT_  = 299792458 # in m / s
+                    _MU_0_     = 4 * np.pi * 1e+19 / _KG_TO_EV_ # in m * nG^2 * s^2 / eV
+
+                    # compute the typical Alfven magnetic scale sigma_A
+                    vA_sigmaB0 = 1./np.sqrt(pyhy.rho_gamma(cosmo_hyrec) * _MU_0_ * _C_LIGHT_**2 * 4/3) # in nG^{-1}
+                    kA = pyhy.compute_acoustic_damping_scale(cosmo_hyrec) # in Mpc^{-1}, this makes a first call to HYREC C-code without exotic energy injection
+                    sigma_A = kA/vA_sigmaB0/(2*np.pi) # in nG
+
+                    # add the possibility to select the heating channel (ambipolar diffusion / turbulences)
+                    injec_hyrec_params = {'sigmaB_PMF' : cosmo_params.PMF_SIGMA_B_0, 'nB_PMF' : cosmo_params.PMF_B_INDEX, 'sigmaA_PMF' : sigma_A}
+                
+                # define the exotic energy injection object for HYREC
+                # so far, only exotic injection from primordial magnetic fields included
+                injec_hyrec = pyhy.HyRecInjectionParams(injec_hyrec_params) 
+
+                # run HYREC and pass the result to 21cmFAST C-code
+                z_hyrec, xe_hyrec, Tm_hyrec = pyhy.call_run_hyrec(cosmo_hyrec(), injec_hyrec())
+                _c_call_init_IGM_from_input(z_hyrec, Tm_hyrec, xe_hyrec)  
+                
+            return None
+        
+    
 
         # define general parameters for CLASS
         
@@ -2895,6 +2966,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
             n_wdm = 1
 
+            # set the WDM mass
             if (user_params.USE_INVERSE_PARAMS is False): 
                 m_wdm = cosmo_params.M_WDM * 1e+3
                 #_m_ncdm_string = _m_ncdm_string + "," + str(cosmo_params.M_WDM * 1e+3)
@@ -2942,7 +3014,6 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             omega_cdm = omega_cdm * (1-f_NU_DM)
 
             # add the parameter for the DM - neutrino interactions
-            # print("We are looking at U_NU_DM > 0")
             if np.sum(m_neutrinos) > 0:
                 nu_dm_params = {'u_ncdmdm' : cosmo_params.U_NU_DM, 'gauge' : 'newtonian', 'omega_nudm' : omega_nudm}
             else:

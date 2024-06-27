@@ -66,6 +66,7 @@ from .wrapper import (
     f_gtr_mass,
     nion_conditional_m,
     dnion_conditional_lnm,
+    nion_general,
     growth_from_pmf,
     pmf_induced_matter_power_spectrum,
     igm_temp_from_table,
