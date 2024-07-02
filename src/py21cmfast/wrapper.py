@@ -2441,11 +2441,17 @@ def run_coeval(
         )
 
         #############################################################################
-        # Gaétan modification for implementation with CLASS
-        init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, global_kwargs=global_kwargs)
+        # Gaétan: modification for implementation with CLASS
+        sigma_A = init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, global_kwargs=global_kwargs)
         #############################################################################
 
 
+        # Gaétan: modification for implementation of Primordial Magnetic Fields
+        # update the value of sigma_A to that computed in the initialisation
+        # ff no value could be computed the default one is used
+        if sigma_A is not None:
+            cosmo_params.update(PMF_SIGMA_A_0 = sigma_A)
+            
         if use_interp_perturb_field and flag_options.USE_MINI_HALOS:
             raise ValueError("Cannot use an interpolated perturb field with minihalos!")
 
@@ -2806,6 +2812,26 @@ def _c_call_init_IGM_from_input(z, TK, xe):
 
 
 
+def _compute_sigma_A_PMF(cosmo_hyrec):
+    
+    """
+        _compute_sigma_A_PMF(HYREC cosmology)
+
+    give the Alfven scale sigma_A from HYREC (is installed, otherwise returns None)
+    """
+
+    # define a few usefull units and conversion factors
+    _KG_TO_EV_ = 5.60958860380445e+35
+    _C_LIGHT_  = 299792458 # in m / s
+    _MU_0_     = 4 * np.pi * 1e+19 / _KG_TO_EV_ # in m * nG^2 * s^2 / eV
+
+    # compute the typical Alfven magnetic scale sigma_A
+    vA_sigmaB0 = 1./np.sqrt(pyhy.rho_gamma(cosmo_hyrec) * _MU_0_ * _C_LIGHT_**2 * 4/3) # in nG^{-1}
+    kA = pyhy.compute_acoustic_damping_scale(cosmo_hyrec) # in Mpc^{-1}, this makes a first call to HYREC C-code without exotic energy injection
+    sigma_A = kA/vA_sigmaB0/(2*np.pi) # in nG
+    
+    return sigma_A
+
 
 def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_params = None, flag_options = None, **global_kwargs):
 
@@ -2813,6 +2839,38 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     with global_params.use(**global_kwargs) : 
 
         (user_params, cosmo_params, astro_params, flag_options) = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options})
+
+
+        ###########
+        ## DEFINE NEUTRINO MASSES BEFORE ANYTHING ELSE
+        delta_m21_2 = 7.5e-5
+        delta_m31_NO_2 = 2.55e-3
+        delta_m31_IO_2 = 2.45e-3
+        
+        # by default we assume that neutrinos are set by each mass
+        mnu_1 = cosmo_params.NEUTRINO_MASS_1
+        mnu_2 = cosmo_params.NEUTRINO_MASS_2
+        mnu_3 = cosmo_params.NEUTRINO_MASS_3
+
+        # degenerate neutrino masses (all equal to the first one)
+        if user_params.neutrino_mass_hierarchy == 'DEGENERATE':
+            mnu_2 = mnu_1
+            mnu_3 = mnu_1
+
+        # normal ordering
+        if user_params.neutrino_mass_hierarchy == "NORMAL":
+            mnu_2 = np.sqrt(mnu_1**2 + delta_m21_2) 
+            mnu_3 = np.sqrt(mnu_1**2 + delta_m31_NO_2)
+
+        # inverse ordering
+        if user_params.neutrino_mass_hierarchy == "INVERSE":
+            mnu_2 = np.sqrt(mnu_1**2 + delta_m31_IO_2) 
+            mnu_3 = np.sqrt(mnu_1**2 + delta_m31_IO_2 + delta_m21_2)
+
+        # create an array of neutrino masses
+        m_neutrinos = np.array([mnu_1, mnu_2, mnu_3])
+        ###########
+
 
         # by default we initialise the ionization history tables to that given by RECFAST
         if user_params.power_spectrum_model.upper() != "CLASS" or _CLASS_IMPORTED is False or user_params.USE_CLASS_TABLES is True:
@@ -2830,12 +2888,11 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             else:
 
                 if _HYREC_IMPORTED is False:
-                    logger.warning("pyhyrec module not found, using RECFAST tables instead!")
+                    logger.warning("pyhyrec (HYREC) module not found, using RECFAST tables instead!")
                     _c_call_init_IGM_RECFAST()
 
                 # get the neutrino mass 
                 # in HYREC should be ordered from the heaviest to lightest
-                m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3]) if (not user_params.DEGENERATE_NEUTRINO_MASSES) else np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
                 m_neutrinos = np.sort(m_neutrinos)[::-1]
 
                 # define a cosmo object for HYREC
@@ -2846,30 +2903,40 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 # initialise the injection params for HYREC if necessary
                 injec_hyrec_params = {}
                 
-                # change that to have an option dedicated to PMF injection
-                # add the possibility to set a custom value for sigma_A for instance
-                if user_params.ANALYTIC_TF_NCDM == 'PMF':
+                ###########
+                ## Effect of primordial magnetic fiels
 
-                    # define a few usefull units and conversion factors
-                    _KG_TO_EV_ = 5.60958860380445e+35
-                    _C_LIGHT_  = 299792458 # in m / s
-                    _MU_0_     = 4 * np.pi * 1e+19 / _KG_TO_EV_ # in m * nG^2 * s^2 / eV
+                sigma_A = cosmo_params.PMF_SIGMA_A_0
+                
+                # Alfven magnetic scale in case of PMF effect
+                if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
+                    sigma_A = _compute_sigma_A_PMF(cosmo_hyrec)
 
-                    # compute the typical Alfven magnetic scale sigma_A
-                    vA_sigmaB0 = 1./np.sqrt(pyhy.rho_gamma(cosmo_hyrec) * _MU_0_ * _C_LIGHT_**2 * 4/3) # in nG^{-1}
-                    kA = pyhy.compute_acoustic_damping_scale(cosmo_hyrec) # in Mpc^{-1}, this makes a first call to HYREC C-code without exotic energy injection
-                    sigma_A = kA/vA_sigmaB0/(2*np.pi) # in nG
+                # energy injection from PMF
+                if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD:
 
-                    # add the possibility to select the heating channel (ambipolar diffusion / turbulences)
-                    injec_hyrec_params = {'sigmaB_PMF' : cosmo_params.PMF_SIGMA_B_0, 'nB_PMF' : cosmo_params.PMF_B_INDEX, 'sigmaA_PMF' : sigma_A}
+                    # select the heating channel (ambipolar diffusion / turbulences)
+                    heating_channel = 0
+                    
+                    if user_params.PMF_HEATING_TURB and not user_params.PMF_HEATING_AD:
+                        heating_channel = 1
+                    if user_params.PMF_HEATING_AD and not user_params.PMF_HEATING_TURB:
+                        heating_channel = 2
+                    
+                    injec_hyrec_params = {'sigmaB_PMF' : cosmo_params.PMF_SIGMA_B_0, 'nB_PMF' : cosmo_params.PMF_B_INDEX, 'sigmaA_PMF' : sigma_A, 'heat_channel_PMF' : heating_channel}
                 
                 # define the exotic energy injection object for HYREC
                 # so far, only exotic injection from primordial magnetic fields included
                 injec_hyrec = pyhy.HyRecInjectionParams(injec_hyrec_params) 
+                ###########
 
                 # run HYREC and pass the result to 21cmFAST C-code
                 z_hyrec, xe_hyrec, Tm_hyrec = pyhy.call_run_hyrec(cosmo_hyrec(), injec_hyrec())
                 _c_call_init_IGM_from_input(z_hyrec, Tm_hyrec, xe_hyrec)  
+
+                if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
+                    return sigma_A
+                
                 
             return None
         
@@ -2882,7 +2949,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         m_min = ((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
         k_max = 20*(2.78e+11 * (_h**2) * cosmo_params.OMm / m_min)**(1./3.) # rough approximation of the maximal value of k we need
         #k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
-        neff_array = [3.046, 2.0328, 1.0196, 0.00641]
+        neff_array = [3.044, 2.0308, 1.0176, 0.00441]
        
 
         params_class_init = {'output' : 'mPk, vTk',
@@ -2921,9 +2988,6 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         #############################################
         ## MASSIVE NEUTRINOS
 
-        # define the table of neutrino mass and the number of effecitve degree of freedom
-        m_neutrinos = np.array([cosmo_params.NEUTRINO_MASS_1, cosmo_params.NEUTRINO_MASS_2, cosmo_params.NEUTRINO_MASS_3]) if (not user_params.DEGENERATE_NEUTRINO_MASSES) else np.array([cosmo_params.NEUTRINO_MASS_1] * 3)
-        
         # for massive neutrinos we set the parameters here
         if np.sum(m_neutrinos) > 0:
 
@@ -2936,10 +3000,11 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
             # attribute degeneracy number, mass and temperature to all neutrinos "classes"
             for m_neutrino in m_unique_neutrinos:
-                deg_ncdm = np.append(deg_ncdm, len(np.where(m_neutrinos == m_neutrino)[0]))
-                m_ncdm   = np.append(m_ncdm, str(m_neutrino))
-                T_ncdm   = np.append(T_ncdm, 0.71611)
-                fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_NU)
+                if m_neutrino > 0:
+                    deg_ncdm = np.append(deg_ncdm, len(np.where(m_neutrinos == m_neutrino)[0]))
+                    m_ncdm   = np.append(m_ncdm, str(m_neutrino))
+                    T_ncdm   = np.append(T_ncdm, 0.71611)
+                    fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_NU)
                 
             # recalculate the value of omega_cdm by removing the neurtino component
             omega_cdm = omega_cdm - np.sum(m_neutrinos)/93.14
@@ -3036,8 +3101,8 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                                             'deg_ncdm' : deg_ncdm_str,
                                             'N_ncdm' : n_ncdm,
                                             'T_ncdm' : T_ncdm_str,
-                                            'ncdm_fluid_approximation' : fluid_approx_str, 
-                                            'k_per_decade_for_pk' : 20,}
+                                            'ncdm_fluid_approximation' : fluid_approx_str,} 
+                                            #'k_per_decade_for_pk' : 40,}
         
         
         # adding the properties of DM-neutrinos interactions
@@ -3292,9 +3357,17 @@ def run_lightcone(
         
 
         #############################################################################
-        # Gaétan modification for implementation with CLASS
-        init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, **global_kwargs)
+        # Gaétan: modification for implementation with CLASS
+        sigma_A = init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, global_kwargs=global_kwargs)
         #############################################################################
+
+        # Gaétan: modification for implementation of Primordial Magnetic Fields
+        # update the value of sigma_A to that computed in the initialisation
+        # if no value could be computed the default one is used
+        if sigma_A is not None:
+            cosmo_params.update(PMF_SIGMA_A_0 = sigma_A)
+        #############################################################################
+
 
         if user_params.MINIMIZE_MEMORY and not write:
             raise ValueError(

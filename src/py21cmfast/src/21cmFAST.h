@@ -66,9 +66,13 @@ struct UserParams{
     int CLASS_FLUID_APPROX_NU;
     int CLASS_FLUID_APPROX_WDM;
     bool USE_CLASS_TABLES;
-    bool DEGENERATE_NEUTRINO_MASSES;
+    int NEUTRINO_MASS_HIERARCHY;
     bool USE_OMEGA_H2; 
     bool USE_HYREC;
+
+    bool PMF_POWER_SPECTRUM;
+    bool PMF_HEATING_AD;
+    bool PMF_HEATING_TURB;
 };
 
 struct AstroParams{

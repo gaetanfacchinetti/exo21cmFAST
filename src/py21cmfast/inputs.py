@@ -377,12 +377,14 @@ class CosmoParams(StructWithDefaults):
         Default value is set to the "theoretical" value used by Lacey & Cole (1994) = (9*pi/2)^{1/3} ~ 2.41798793102
     M_WDM : float, optional
         Mass of WDM particle in keV 
-        Ignored if `ANALYTICAL_TF_NCDM` in `UserParams` is not "WDM"
+        Ignored if `ANALYTICAL_TF_NCDM` in `UserParams` is not "WDM" if `POWER_SPECTRUM` < 5
+        Ignored if `FRAC_WDM` is 0 when `POWER_SPECTRUM` = 5 (CLASS)
     FRAC_WDM : float, optional
         Fraction of DM in the form of WDM
     INVERSE_M_WDM: float, optional
         Inverse of WDM particle mass in KeV^{-1}. Usefull for some computations
-        Ignored if `ANALYTICAL_TF_NCDM` in `UserParams` is not "WDM"
+        Ignored if `ANALYTICAL_TF_NCDM` in `UserParams` is not "WDM" if `POWER_SPECTRUM` < 5
+        Ignored if `FRAC_WDM` is 0 when `POWER_SPECTRUM` = 5 (CLASS)
     SHETH_q : float, optional 
         Parameter `q` of the HMF parametrisation by Sheth & Tormen. Default is 0.73 (from Jenkins et al. 2001)
     SHETH_p: float, optional
@@ -449,6 +451,7 @@ class CosmoParams(StructWithDefaults):
         #######################################
         # Primordial magnetic field parameters
         "PMF_SIGMA_B_0" : 0.1,
+        "PMF_SIGMA_A_0" : 44.94,
         "PMF_B_INDEX" : -2.5,
         #######################################
     }
@@ -549,9 +552,19 @@ class UserParams(StructWithDefaults):
     USE_SIGMA_8_NORM: bool, optional
         If true, normalise the Lambda-CDM part of the power spectrum using `SIGMA_8`in `CosmoParams`
         If False, normalise it to `Ln_1010_As` in `CosmoParams`
-        Default is true
-    CLASS_FLUID_APPROX: int, optional
-        Level of the fluid-approximation for non cold DM implemented in CLASS
+        Default is False
+    CLASS_FLUID_APPROX_WDM: int, optional
+        Level of the fluid-approximation for WDM implemented in CLASS
+    CLASS_FLUID_APPROX_NU: int, optional
+        Level of the fluid-approximation for massive neutrinos implemented in CLASS
+    NEUTRINO_MASS_HIERARCHY: int or str, optional
+        Hierarchy of the neutrino masses when `POWER_SPECTRUM` is set to `CLASS`
+        0 or "NONE". No hierarchy imposed, neutrino masses are fixed by `NEUTRINO_MASS_1`, `NEUTRINO_MASS_2` and `NEUTRINO_MASS_3` in `CosmoParams`
+        1 or "DEGENRATE". All neutrinos have the same mass equal to `NEUTRINO_MASS_1` in `CosmoParams`
+        2 or "NORMAL". Normal ordering with the lightest neutrino being `NEUTRINO_MASS_1` in `CosmoParams`
+        3 or "INVERSE". Inverse ordering with the lightest neutrino being `NEUTRINO_MASS_1` in `CosmoParams`
+        Attention: in case 1, 2, and 3 `NEUTRINO_MASS_2` and `NEUTRINO_MASS_3` values in `CosmoParams` are not taken into account
+        By default set to 0 / "NONE"
     USE_PMF_TABLES: bool, optional
         If set, computes the matter power spectrum from PMF (see option 4 of `ANALYTICAL_TF_NCDM` in `FlagOptions`)
         using precomputed tables (default is `True`).
@@ -559,6 +572,9 @@ class UserParams(StructWithDefaults):
         If set to true and HYREC module found, use HYREC to compute the IGM history before 21cmFAST
         Attention, if `POWER_SPECTRUM` is `CLASS` the HYREC version included in CLASS is called regardless of this parameter
         Default is False
+    PMF_POWER_SPECTRUM: bool, optional
+    PMF_HEATING_AD: bool, optional
+    PMF_HEATING_TRUB: bool, optional
     """
 
     _ffi = ffi
@@ -582,20 +598,24 @@ class UserParams(StructWithDefaults):
         "PS_FILTER": 0,
         "ANALYTICAL_TF_NCDM": 0,
         "USE_INVERSE_PARAMS" : False,
-        "USE_SIGMA_8_NORM" : True,
+        "USE_SIGMA_8_NORM" : False,
         "CLASS_FLUID_APPROX_WDM" : 2, # default CLASS value
         "CLASS_FLUID_APPROX_NU": 2,
         "USE_PMF_TABLES": True,
         "USE_CLASS_TABLES": False,
-        "DEGENERATE_NEUTRINO_MASSES" : False,
+        "NEUTRINO_MASS_HIERARCHY" : 0,
         "USE_OMEGA_H2" : False,
         "USE_HYREC" : False,
+        "PMF_POWER_SPECTRUM" : False,
+        "PMF_HEATING_AD" : False,
+        "PMF_HEATING_TURB" : False,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
     _power_models = ["EH", "BBKS", "EFSTATHIOU", "PEEBLES", "WHITE", "CLASS"]
     _ps_filter_models = ["TOPHAT", "SHARPK", "GAUSSIAN"]
     _analytical_tf_ncdm = ["LCDM", "WDM", "ABGD", "SHARP", "PMF", "NEUTRINOS"]
+    _neutrino_mass_hierarchies = ["NONE", "DEGENERATE", "NORMAL", "INVERSE"]
 
 
     @property
@@ -753,13 +773,38 @@ class UserParams(StructWithDefaults):
             raise ValueError(f"ANALYTICAL_TF_NCDM must be an int between 0 and {len(self._analytical_tf_ncdm) - 1}")
 
         return val
-    
 
 
     @property
     def analytical_tf_ncdm(self):
         """String representation of the ncdm model used."""
         return self._analytical_tf_ncdm[self.ANALYTICAL_TF_NCDM]
+    
+
+    @property
+    def NEUTRINO_MASS_HIERARCHY(self): 
+        """ Translate NEUTRINO_MASS_HIERARCHY string into an int """
+
+        if isinstance(self._NEUTRINO_MASS_HIERARCHY, str): 
+            val = self._neutrino_mass_hierarchies.index(self._NEUTRINO_MASS_HIERARCHY.upper())
+        else:
+            val = self._NEUTRINO_MASS_HIERARCHY
+
+        try:
+            val = int(val)
+        except (ValueError, TypeError) as e:
+            raise ValueError("Invalid value for NEUTRINO_MASS_HIERARCHY") from e
+
+        if not 0 <= val < len(self._neutrino_mass_hierarchies):
+            raise ValueError(f"NEUTRINO_MASS_HIERARCHY must be an int between 0 and {len(self._neutrino_mass_hierarchies) - 1}")
+
+        return val
+    
+    @property
+    def neutrino_mass_hierarchy(self):
+        """String representation of the ncdm model used."""
+        return self._neutrino_mass_hierarchies[self.NEUTRINO_MASS_HIERARCHY]
+    
     
 
 

@@ -70,7 +70,7 @@ struct AstroParams *astro_params_ps;
 struct FlagOptions *flag_options_ps;
 
 //double sigma_norm, R, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR;
-double sigma_norm, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR;
+double sigma_norm, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, DEL_CURR, SIG_CURR, GROWTH_FROM_PMF;
 
 float MinMass, mass_bin_width, inv_mass_bin_width;
 
@@ -534,7 +534,7 @@ double transfer_function_sharp(double k, double R, double frac)
     that is redshift independant. In full generality, one should include redshift differences using
     the growth_from_pmf function. However growth_from_pmf and the standard growth function only differ
     at large redshifts (at most by 5% - 7% at redshift 35). We have checked, recalculing the excursion
-    set theory expression with a moving barrier that is then mass dependent that this does not really
+    set theory expression with a moving barrier (which is then mass dependent) that this does not really
     change anything for the mass function on the redshift and mass ranges that matters for 21cm physics 
 
 */
@@ -560,6 +560,10 @@ double analytical_transfer_function_nCDM(double k)
     // Transfer function (already computed by CLASS)
     if (user_params_ps->POWER_SPECTRUM == 5)
         return 1.0;
+
+    // If using PMF then we output the PMF transfer function
+    if (user_params_ps->PMF_POWER_SPECTRUM)
+        return transfer_function_PMF(k);
 
     if (user_params_ps->ANALYTICAL_TF_NCDM == 0) // classical LCDM model
         return 1.0;
@@ -592,8 +596,6 @@ double analytical_transfer_function_nCDM(double k)
         return transfer_function_abgd(k, cosmo_params_ps->ALPHA_NCDM_TF, cosmo_params_ps->BETA_NCDM_TF, cosmo_params_ps->GAMMA_NCDM_TF, cosmo_params_ps->DELTA_NCDM_TF);
     else if (user_params_ps->ANALYTICAL_TF_NCDM == 3) // sharp transfer function
         return transfer_function_sharp(k, cosmo_params_ps->ALPHA_NCDM_TF, cosmo_params_ps->DELTA_NCDM_TF);
-    else if (user_params_ps->ANALYTICAL_TF_NCDM == 4) // primordial magnetic fields
-        return transfer_function_PMF(k);
     else
     {
         LOG_ERROR("No such ANALYTICAL_TF_NCDM defined: %i. Output is bogus.", user_params_ps->ANALYTICAL_TF_NCDM);
@@ -1079,9 +1081,11 @@ double _int2_pmf_induced_power(double lnx1, void *params)
 double pmf_induced_power_spectrum(double k)
 {
     double sB0 = cosmo_params_ps->PMF_SIGMA_B_0;
+    double sA0 = cosmo_params_ps->PMF_SIGMA_A_0;
     double nB  = cosmo_params_ps->PMF_B_INDEX;
-
-    double kA_approx = pow(sB0*sB0 / pow(2*PI, 3.0 + nB) / 4.2e+5, -1.0/(5.0 + nB));
+    
+    //double kA_approx = pow(sB0*sB0 / pow(2*PI, 3.0 + nB) / 4.2e+5, -1.0/(5.0 + nB));
+    double kA_approx = 2 * M_PI * pow(sB0 * sB0 / sA0 / sA0, -1.0/(5.0 + nB));  
     double amplitude = pow(2*PI * sB0, 2) / gsl_sf_gamma((nB+3.0)/2.0);
 
     double dimensionless_power_spectrum_v = 0;
@@ -1137,7 +1141,7 @@ double pmf_induced_power_spectrum(double k)
 
     double power = pow(fb /rhob_0, 2) * power_spectrum_v  * 1.5249989378701802e-56; // The last numerical term is a conversion factor to get the correct units of Mpc^{3} in the end
 
-    return power * pow(growth_from_pmf(0), 2) * pow(1.0  + pow(k / kB, 2), -2);
+    return power * pow(GROWTH_FROM_PMF, 2) * pow(1.0  + pow(k / kB, 2), -2);
 
 }
 
@@ -1462,6 +1466,10 @@ void init_ps(){
     TFset_parameters();
 
     sigma_norm = -1;
+    GROWTH_FROM_PMF = 0;
+
+    if (user_params_ps->PMF_POWER_SPECTRUM)
+        GROWTH_FROM_PMF = growth_from_pmf(0);
 
    
     if (user_params_ps->USE_SIGMA_8_NORM)
