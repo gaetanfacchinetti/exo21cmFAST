@@ -500,80 +500,63 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None, a
 
 
 def matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(k, lib.ComputeMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(k, lib.ComputeMatterPowerSpectrum, *params)
 
 def power_in_vcb(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(k, lib.ComputePowerInVcb, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(k, lib.ComputePowerInVcb, *params)
 
 def transfer_function_nCDM(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(k, lib.ComputeTransferFunctionNCDM, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(k, lib.ComputeTransferFunctionNCDM, *params)
 
 def transfer_function_LCDM(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(k, lib.ComputeTransferFunctionLCDM, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(k, lib.ComputeTransferFunctionLCDM, *params)
 
 def transfer_function(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(k, lib.ComputeTransferFunction, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(k, lib.ComputeTransferFunction, *params)
 
 def sigma_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(mass, lib.ComputeSigmaZ0, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(mass, lib.ComputeSigmaZ0, *params)
 
 def mass_to_radius(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) :
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(mass, lib.ComputeMtoR, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(mass, lib.ComputeMtoR, *params)
 
 def radius_to_mass(radius, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(radius, lib.ComputeRtoM, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(radius, lib.ComputeRtoM, *params)
 
-def dsigmasqdm_dk(k, mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None,) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call_params(k, mass, lib.ComputeDSigmaSqDmDk, user_params, cosmo_params, astro_params, flag_options)
+def dsigmasqdm_dk(k, mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call_params(k, mass, lib.ComputeDSigmaSqDmDk, *params)
     
-def dsigmasqdm_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None,) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call(mass, lib.ComputeDSigmaSqDmZ0, user_params, cosmo_params, astro_params, flag_options)
+def dsigmasqdm_z0(mass, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call(mass, lib.ComputeDSigmaSqDmZ0, *params)
     
 def dndm(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call_params(mass, z, lib.ComputeDNDM, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call_params(mass, z, lib.ComputeDNDM, *params)
 
 def dndm_conditional(ln_mass, growthf, m2, delta1, delta2,  sigma2, *, user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
-    
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-
-    params = [growthf, m2, delta1, delta2, sigma2]
-    
-    return _generic_c_call_params(ln_mass, params, lib.ComputeDNDMConditionnal, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    c_params = [growthf, m2, delta1, delta2, sigma2]  
+    return _generic_c_call_params(ln_mass, c_params, lib.ComputeDNDMConditionnal, *params)
 
 def f_gtr_mass(mass, z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None): 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return _generic_c_call_params(mass, z, lib.ComputeFgtrMGeneral, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return _generic_c_call_params(mass, z, lib.ComputeFgtrMGeneral, *params)
 
 def nion_conditional_m(ln_mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, m_lim_f_esc, 
                         *, m_turn = None, alpha_star = None, alpha_esc = None, f_star_10 = None, f_esc_10 = None, 
                         user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
     
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
 
     # defining default values for the parameters that have one in astro_params
     # if None is given in argument
@@ -583,17 +566,16 @@ def nion_conditional_m(ln_mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_sta
     f_star_10 = f_star_10 if (f_star_10 is not None) else astro_params.convert("F_STAR10", astro_params.F_STAR10)
     f_esc_10  = f_esc_10 if (f_esc_10 is not None) else astro_params.convert("F_ESC10", astro_params.F_ESC10)
 
-    params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
+    c_params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
     
-    return _generic_c_call_params(ln_mass, params, lib.ComputeNionConditionalM, user_params, cosmo_params, astro_params, flag_options)
+    return _generic_c_call_params(ln_mass, c_params, lib.ComputeNionConditionalM, *params)
 
 
 def dnion_conditional_lnm(ln_mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_star, m_lim_f_esc, 
                         *, m_turn = None, alpha_star = None, alpha_esc = None, f_star_10 = None, f_esc_10 = None, 
                         user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
     
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
 
     # defining default values for the parameters that have one in astro_params
     # if None is given in argument
@@ -603,16 +585,15 @@ def dnion_conditional_lnm(ln_mass, growthf, m2, sigma2, delta1, delta2, m_lim_f_
     f_star_10 = f_star_10 if (f_star_10 is not None) else astro_params.convert("F_STAR10", astro_params.F_STAR10)
     f_esc_10  = f_esc_10 if (f_esc_10 is not None) else astro_params.convert("F_ESC10", astro_params.F_ESC10)
 
-    params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
+    c_params = [growthf, m2, sigma2, delta1, delta2, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, m_lim_f_star, m_lim_f_esc]
     
-    return _generic_c_call_params(ln_mass, params, lib.ComputeDNionConditionalLnM, user_params, cosmo_params, astro_params, flag_options)
+    return _generic_c_call_params(ln_mass, c_params, lib.ComputeDNionConditionalLnM, *params)
 
 
 def nion_general(z, m_min, mlim_fstar, mlim_fesc, *, m_turn = None, alpha_star = None, alpha_esc = None, f_star_10 = None, f_esc_10 = None, 
                         user_params = None, cosmo_params = None, astro_params=None, flag_options=None) :
     
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
 
     # defining default values for the parameters that have one in astro_params
     # if None is given in argument
@@ -622,38 +603,28 @@ def nion_general(z, m_min, mlim_fstar, mlim_fesc, *, m_turn = None, alpha_star =
     f_star_10 = f_star_10 if (f_star_10 is not None) else astro_params.convert("F_STAR10", astro_params.F_STAR10)
     f_esc_10  = f_esc_10 if (f_esc_10 is not None) else astro_params.convert("F_ESC10", astro_params.F_ESC10)
 
-    params = [m_min, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, mlim_fstar, mlim_fesc]
+    c_params = [m_min, m_turn, alpha_star, alpha_esc, f_star_10, f_esc_10, mlim_fstar, mlim_fesc]
     
-    return _generic_c_call_params(z, params, lib.ComputeNionGeneral, user_params, cosmo_params, astro_params, flag_options)
+    return _generic_c_call_params(z, c_params, lib.ComputeNionGeneral, *params)
 
 
 def growth_from_pmf(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return  _generic_c_call(z, lib.ComputeGrowthFunctionFromPMF, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return  _generic_c_call(z, lib.ComputeGrowthFunctionFromPMF, *params)
 
 def pmf_induced_matter_power_spectrum(k, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return  _generic_c_call(k, lib.ComputePMFInducedMatterPowerSpectrum, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return  _generic_c_call(k, lib.ComputePMFInducedMatterPowerSpectrum, *params)
 
 
 def igm_temp_from_table(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return  _generic_c_call(z, lib.ComputeTKFromTable, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return  _generic_c_call(z, lib.ComputeTKFromTable, *params)
     
 def igm_xe_from_table(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
-    user_params, cosmo_params, astro_params, flag_options = _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options)
-    return  _generic_c_call(z, lib.ComputeXionFromTable, user_params, cosmo_params, astro_params, flag_options)
+    params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    return  _generic_c_call(z, lib.ComputeXionFromTable, *params)
     
-def _setup_generic_c_call(user_params, cosmo_params, astro_params, flag_options):
-    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
-        {"user_params": user_params, "cosmo_params": cosmo_params,
-          "astro_params": astro_params, "flag_options":flag_options})
-    return user_params, cosmo_params, astro_params, flag_options
-
 
 def _generic_c_call(var, c_func, user_params, cosmo_params, astro_params, flag_options):
 
@@ -756,16 +727,17 @@ def compute_luminosity_function(
         Number density of haloes corresponding to each bin defined by `Muvfunc`.
         Shape [nredshifts, nbins].
     """
-    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
-        {
-            "user_params": user_params,
-            "cosmo_params": cosmo_params,
-            "astro_params": astro_params,
-            "flag_options": flag_options,
-        }
-    )
 
-    init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+    user_params, cosmo_params, astro_params, flag_options = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
+
+    #user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+    #    {
+    #        "user_params": params,
+    #       "cosmo_params": cosmo_params,
+    #        "astro_params": astro_params,
+    #        "flag_options": flag_options,
+    #    }
+    #)
 
     redshifts = np.array(redshifts, dtype="float32")
     if flag_options.USE_MINI_HALOS:
@@ -1026,7 +998,7 @@ def compute_luminosity_function(
         return None, None, None
 
 
-def _init_photon_conservation_correction(
+def init_photon_conservation_correction(
     *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None
 ):
     user_params = UserParams(user_params)
@@ -1137,6 +1109,64 @@ def _get_photon_nonconservation_data():
     ]
 
     return {name: d[:index] for name, d, index in zip(data_list, data, ArrayIndices)}
+
+
+
+def get_Q_analytic_nonconservation_data(*, user_params = None, cosmo_params = None, astro_params = None, flag_options = None, **global_kwargs):
+    """
+    Access C global data representing the photon-nonconservation corrections.
+
+    .. note::  if not using ``PHOTON_CONS`` (in :class:`~FlagOptions`) this
+               will return None.
+
+    Returns
+    -------
+    dict :
+      z_analytic: array of redshifts defining the analytic ionized fraction
+      Q_analytic: array of analytic  ionized fractions corresponding to `z_analytic`
+    """
+
+    if flag_options.get('PHOTON_CONS', False) is False:
+        return None
+
+    # first initialise the arrays and run the C-code to get the analytic corrections
+    with global_params.use(**global_kwargs):
+        user_params, cosmo_params, astro_params, flag_options = init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
+        init_photon_conservation_correction(user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params, flag_options=flag_options)
+
+    arbitrary_large_size = 2000
+
+    data = np.zeros((6, arbitrary_large_size))
+
+    IntVal1 = np.array(np.zeros(1), dtype="int32")
+
+    c_z_at_Q = ffi.cast("double *", ffi.from_buffer(data[0]))
+    c_Qval = ffi.cast("double *", ffi.from_buffer(data[1]))
+    c_int_NQ = ffi.cast("int *", ffi.from_buffer(IntVal1))
+
+    # Run the C code
+    errcode = lib.ObtainQanalyticVsZ(
+        c_z_at_Q,
+        c_Qval,
+        c_int_NQ,
+    )
+
+    _process_exitcode(errcode, lib.ObtainQanalyticVsZ, ())
+
+    ArrayIndices = [
+        IntVal1[0],
+        IntVal1[0],
+    ]
+
+    data_list = [
+        "z_analytic",
+        "Q_analytic",
+    ]
+
+    free_C_memory()
+
+    return {name: d[:index] for name, d, index in zip(data_list, data, ArrayIndices)}
+
 
 
 def initial_conditions(
@@ -2424,6 +2454,14 @@ def run_coeval(
         else:
             pt_halos = []
 
+        ########################################################################
+        # Gaétan: modification for implementation with CLASS
+        user_params, cosmo_params, astro_params, flag_options = init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options)
+
+        # the initialisation function can modify some of the parameters
+        # Attention it does it for very specific parameters for which everything
+        # is under control. Do not change random parameters there
+
         (
             random_seed,
             user_params,
@@ -2440,17 +2478,7 @@ def run_coeval(
             },
         )
 
-        #############################################################################
-        # Gaétan: modification for implementation with CLASS
-        sigma_A = init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, global_kwargs=global_kwargs)
-        #############################################################################
-
-
-        # Gaétan: modification for implementation of Primordial Magnetic Fields
-        # update the value of sigma_A to that computed in the initialisation
-        # ff no value could be computed the default one is used
-        if sigma_A is not None:
-            cosmo_params.update(PMF_SIGMA_A_0 = sigma_A)
+        ########################################################################
             
         if use_interp_perturb_field and flag_options.USE_MINI_HALOS:
             raise ValueError("Cannot use an interpolated perturb field with minihalos!")
@@ -2833,393 +2861,394 @@ def _compute_sigma_A_PMF(cosmo_hyrec):
     return sigma_A
 
 
-def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_params = None, flag_options = None, **global_kwargs):
+def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_params = None, flag_options = None):
 
 
-    with global_params.use(**global_kwargs) : 
-
-        (user_params, cosmo_params, astro_params, flag_options) = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options})
+    (user_params, cosmo_params, astro_params, flag_options) = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options})
 
 
-        ###########
-        ## DEFINE NEUTRINO MASSES BEFORE ANYTHING ELSE
-        delta_m21_2 = 7.5e-5
-        delta_m31_NO_2 = 2.55e-3
-        delta_m31_IO_2 = 2.45e-3
+    ###########
+    ## DEFINE NEUTRINO MASSES BEFORE ANYTHING ELSE
+    delta_m21_2 = 7.5e-5
+    delta_m31_NO_2 = 2.55e-3
+    delta_m31_IO_2 = 2.45e-3
+    
+    # by default we assume that neutrinos are set by each mass
+    mnu_1 = cosmo_params.NEUTRINO_MASS_1
+    mnu_2 = cosmo_params.NEUTRINO_MASS_2
+    mnu_3 = cosmo_params.NEUTRINO_MASS_3
+
+    # degenerate neutrino masses (all equal to the first one)
+    if user_params.neutrino_mass_hierarchy == 'DEGENERATE':
+        mnu_2 = mnu_1
+        mnu_3 = mnu_1
+
+    # normal ordering
+    if user_params.neutrino_mass_hierarchy == "NORMAL":
+        mnu_2 = np.sqrt(mnu_1**2 + delta_m21_2) 
+        mnu_3 = np.sqrt(mnu_1**2 + delta_m31_NO_2)
+
+    # inverse ordering
+    if user_params.neutrino_mass_hierarchy == "INVERSE":
+        mnu_2 = np.sqrt(mnu_1**2 + delta_m31_IO_2) 
+        mnu_3 = np.sqrt(mnu_1**2 + delta_m31_IO_2 + delta_m21_2)
+
+    # create an array of neutrino masses
+    m_neutrinos = np.array([mnu_1, mnu_2, mnu_3])
+    ###########
+
+
+    # by default we initialise the ionization history tables to that given by RECFAST
+    if user_params.power_spectrum_model.upper() != "CLASS" or _CLASS_IMPORTED is False or user_params.USE_CLASS_TABLES is True:
         
-        # by default we assume that neutrinos are set by each mass
-        mnu_1 = cosmo_params.NEUTRINO_MASS_1
-        mnu_2 = cosmo_params.NEUTRINO_MASS_2
-        mnu_3 = cosmo_params.NEUTRINO_MASS_3
+        if _CLASS_IMPORTED is False:
+            logger.warning("Classy module not found, use precomputed table for the computation!")
+            if user_params.USE_CLASS_TABLES is False : 
+                user_params.update(USE_CLASS_TABLES = True)
 
-        # degenerate neutrino masses (all equal to the first one)
-        if user_params.neutrino_mass_hierarchy == 'DEGENERATE':
-            mnu_2 = mnu_1
-            mnu_3 = mnu_1
+        # initialise to small empty arrays to avoid segmentation fault with GSL
+        _c_call_init_TF_CLASS(user_params, cosmo_params, np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5), np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5))
+        
+        if user_params.USE_HYREC is False:
+            _c_call_init_IGM_RECFAST()
+        else:
 
-        # normal ordering
-        if user_params.neutrino_mass_hierarchy == "NORMAL":
-            mnu_2 = np.sqrt(mnu_1**2 + delta_m21_2) 
-            mnu_3 = np.sqrt(mnu_1**2 + delta_m31_NO_2)
-
-        # inverse ordering
-        if user_params.neutrino_mass_hierarchy == "INVERSE":
-            mnu_2 = np.sqrt(mnu_1**2 + delta_m31_IO_2) 
-            mnu_3 = np.sqrt(mnu_1**2 + delta_m31_IO_2 + delta_m21_2)
-
-        # create an array of neutrino masses
-        m_neutrinos = np.array([mnu_1, mnu_2, mnu_3])
-        ###########
-
-
-        # by default we initialise the ionization history tables to that given by RECFAST
-        if user_params.power_spectrum_model.upper() != "CLASS" or _CLASS_IMPORTED is False or user_params.USE_CLASS_TABLES is True:
-            
-            if _CLASS_IMPORTED is False:
-                logger.warning("Classy module not found, use precomputed table for the computation!")
-                if user_params.USE_CLASS_TABLES is False : 
-                    user_params.update(USE_CLASS_TABLES = True)
-
-            # initialise to small empty arrays to avoid segmentation fault with GSL
-            _c_call_init_TF_CLASS(user_params, cosmo_params, np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5), np.array([1, 2, 3, 4, 5]), np.zeros(5), np.zeros(5))
-            
-            if user_params.USE_HYREC is False:
+            if _HYREC_IMPORTED is False:
+                logger.warning("pyhyrec (HYREC) module not found, using RECFAST tables instead!")
                 _c_call_init_IGM_RECFAST()
+
+            # get the neutrino mass 
+            # in HYREC should be ordered from the heaviest to lightest
+            m_neutrinos = np.sort(m_neutrinos)[::-1]
+
+            # define a cosmo object for HYREC
+            cosmo_hyrec = pyhy.HyRecCosmoParams({'h' : cosmo_params.hlittle, 'Omega_b' : cosmo_params.OMb, 'Omega_cb' : cosmo_params.OMm, 
+                                                    'mnu1' : m_neutrinos[0], 'mnu2' : m_neutrinos[1], 'mnu3' : m_neutrinos[2], 
+                                                    'YHe' : global_params.Y_He, 'Omega_k' : global_params.OMk, 'w0' : global_params.wl})
+            
+            # initialise the injection params for HYREC if necessary
+            injec_hyrec_params = {}
+            
+            ###########
+            ## Effect of primordial magnetic fiels
+
+            sigma_A = cosmo_params.PMF_SIGMA_A_0
+            
+            # Alfven magnetic scale in case of PMF effect
+            if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
+                sigma_A = _compute_sigma_A_PMF(cosmo_hyrec)
+
+            # energy injection from PMF
+            if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD:
+
+                # select the heating channel (ambipolar diffusion / turbulences)
+                heating_channel = 0
+                
+                if user_params.PMF_HEATING_TURB and not user_params.PMF_HEATING_AD:
+                    heating_channel = 1
+                if user_params.PMF_HEATING_AD and not user_params.PMF_HEATING_TURB:
+                    heating_channel = 2
+                
+                injec_hyrec_params = {'sigmaB_PMF' : cosmo_params.PMF_SIGMA_B_0, 'nB_PMF' : cosmo_params.PMF_B_INDEX, 'sigmaA_PMF' : sigma_A, 'heat_channel_PMF' : heating_channel}
+            
+            # define the exotic energy injection object for HYREC
+            # so far, only exotic injection from primordial magnetic fields included
+            injec_hyrec = pyhy.HyRecInjectionParams(injec_hyrec_params) 
+            ###########
+
+            # run HYREC and pass the result to 21cmFAST C-code
+            z_hyrec, xe_hyrec, Tm_hyrec = pyhy.call_run_hyrec(cosmo_hyrec(), injec_hyrec())
+            _c_call_init_IGM_from_input(z_hyrec, Tm_hyrec, xe_hyrec)  
+
+            if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
+                cosmo_params.update(PMF_SIGMA_A_0 = sigma_A)
+            #    return sigma_A
+            
+            
+        return (user_params, cosmo_params, astro_params, flag_options)
+    
+
+
+    # define general parameters for CLASS
+    
+    _h = cosmo_params.hlittle
+    omega_cdm_LCDM = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
+    m_min = ((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
+    k_max = 20*(2.78e+11 * (_h**2) * cosmo_params.OMm / m_min)**(1./3.) # rough approximation of the maximal value of k we need
+    #k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
+    neff_array = [3.044, 2.0308, 1.0176, 0.00441]
+    
+
+    params_class_init = {'output' : 'mPk, vTk',
+        'h': _h,
+        'YHe' : global_params.Y_He,
+        'omega_b': cosmo_params.OMb * _h**2,
+        'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
+        'n_s': cosmo_params.POWER_INDEX,
+        'alpha_s' : cosmo_params.ALPHA_S_PS,
+        'P_k_max_h/Mpc': k_max / _h,
+        'reio_parametrization': 'reio_none', 
+        # 21cmFAST will take care of the reionization
+        }
+    
+    # with relative velocities we need to access the transfer
+    # function at redshift z=1010 (slows down the computation)
+    if user_params.USE_RELATIVE_VELOCITIES is True:
+        params_class_init = params_class_init | {'z_pk' : 1010}
+    
+    #################################################
+    #################################################
+    # CHECK FOR NON-CDM MODEL
+    # 
+
+    # create strings containing the degeneracy number and the mass
+    # of every ncdm non degenerate neutrino species or warm dark matter
+    deg_ncdm = np.array([], dtype=int)
+    m_ncdm   = np.array([])
+    T_ncdm   = np.array([])
+    n_ncdm   = 0
+    n_ur     = neff_array[0]
+    fluid_approx = np.array([], dtype=int)
+
+    omega_cdm = omega_cdm_LCDM
+
+    #############################################
+    ## MASSIVE NEUTRINOS
+
+    # for massive neutrinos we set the parameters here
+    if np.sum(m_neutrinos) > 0:
+
+        # get the unique masses
+        m_unique_neutrinos = np.unique(m_neutrinos)
+
+        # get the number of species with different mass
+        n_neutrinos = np.count_nonzero(m_unique_neutrinos)
+        n_ncdm = n_ncdm  + n_neutrinos
+
+        # attribute degeneracy number, mass and temperature to all neutrinos "classes"
+        for m_neutrino in m_unique_neutrinos:
+            if m_neutrino > 0:
+                deg_ncdm = np.append(deg_ncdm, len(np.where(m_neutrinos == m_neutrino)[0]))
+                m_ncdm   = np.append(m_ncdm, str(m_neutrino))
+                T_ncdm   = np.append(T_ncdm, 0.71611)
+                fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_NU)
+            
+        # recalculate the value of omega_cdm by removing the neurtino component
+        omega_cdm = omega_cdm - np.sum(m_neutrinos)/93.14
+
+        # set the number of ultra relativistic degrees of freedom
+        # to the correct values according to the total number 
+        # of massive neutrinos
+        n_ur = neff_array[np.count_nonzero(m_neutrinos)]
+
+
+    #############################################
+    ## WARM DARK MATTER
+
+    # assign a variable for the fraction of warm dark matter 
+    f_wdm = cosmo_params.FRAC_WDM
+
+    # define warm dark matter properties here if fraction above 0
+    if f_wdm > 0:
+        
+        # remove warm dark matter mass the cdm component
+        # omega_cdm is already stripped from the neutrino mass
+        omega_wdm = omega_cdm * f_wdm
+        omega_cdm  = omega_cdm * (1 - f_wdm)
+
+        n_wdm = 1
+
+        # set the WDM mass
+        if (user_params.USE_INVERSE_PARAMS is False): 
+            m_wdm = cosmo_params.M_WDM * 1e+3
+            #_m_ncdm_string = _m_ncdm_string + "," + str(cosmo_params.M_WDM * 1e+3)
+        else:
+            if cosmo_params.INVERSE_M_WDM > 0:
+                #_m_ncdm_string = _m_ncdm_string + "," + str(1.0/cosmo_params.INVERSE_M_WDM * 1e+3)
+                m_wdm = 1.0/cosmo_params.INVERSE_M_WDM * 1e+3
+            elif cosmo_params.INVERSE_M_WDM == 0:
+                # for an infinite DM mass no NCDM 
+                n_wdm = 0
             else:
+                raise ValueError("Impossible to assign a negative value to INVERSE_M_WDM")
 
-                if _HYREC_IMPORTED is False:
-                    logger.warning("pyhyrec (HYREC) module not found, using RECFAST tables instead!")
-                    _c_call_init_IGM_RECFAST()
 
-                # get the neutrino mass 
-                # in HYREC should be ordered from the heaviest to lightest
-                m_neutrinos = np.sort(m_neutrinos)[::-1]
+        # add a new particle to the list of non cold dark matter
+        # wdm as degree of freedom 1 and account for 1 new species
+        # only doing it if we do have warm dark matter
+        n_ncdm   = n_ncdm + n_wdm
+        if n_wdm > 0:
+            deg_ncdm = np.append(deg_ncdm, 1)
+            m_ncdm   = np.append(m_ncdm, m_wdm)
+            T_ncdm   = np.append(T_ncdm,  0.71611 * (omega_wdm * 93.14 / m_wdm)**(1./3.))
+            fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_WDM)
 
-                # define a cosmo object for HYREC
-                cosmo_hyrec = pyhy.HyRecCosmoParams({'h' : cosmo_params.hlittle, 'Omega_b' : cosmo_params.OMb, 'Omega_cb' : cosmo_params.OMm, 
-                                                     'mnu1' : m_neutrinos[0], 'mnu2' : m_neutrinos[1], 'mnu3' : m_neutrinos[2], 
-                                                     'YHe' : global_params.Y_He, 'Omega_k' : global_params.OMk, 'w0' : global_params.wl})
-                
-                # initialise the injection params for HYREC if necessary
-                injec_hyrec_params = {}
-                
-                ###########
-                ## Effect of primordial magnetic fiels
+            # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
+            # we cut at 10 times the WDM cutoff
+            if f_wdm == 1:
+                k_max = np.min([k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/m_wdm, 0.11) / m_wdm * 1.54518467138)])
 
-                sigma_A = cosmo_params.PMF_SIGMA_A_0
-                
-                # Alfven magnetic scale in case of PMF effect
-                if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
-                    sigma_A = _compute_sigma_A_PMF(cosmo_hyrec)
 
-                # energy injection from PMF
-                if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD:
+    #############################################
+    # INTERACTING NEUTRINOS
 
-                    # select the heating channel (ambipolar diffusion / turbulences)
-                    heating_channel = 0
-                    
-                    if user_params.PMF_HEATING_TURB and not user_params.PMF_HEATING_AD:
-                        heating_channel = 1
-                    if user_params.PMF_HEATING_AD and not user_params.PMF_HEATING_TURB:
-                        heating_channel = 2
-                    
-                    injec_hyrec_params = {'sigmaB_PMF' : cosmo_params.PMF_SIGMA_B_0, 'nB_PMF' : cosmo_params.PMF_B_INDEX, 'sigmaA_PMF' : sigma_A, 'heat_channel_PMF' : heating_channel}
-                
-                # define the exotic energy injection object for HYREC
-                # so far, only exotic injection from primordial magnetic fields included
-                injec_hyrec = pyhy.HyRecInjectionParams(injec_hyrec_params) 
-                ###########
+    # need to add new parameters here that are
+    # not defined in all CLASS versions
+    nu_dm_params = {}
 
-                # run HYREC and pass the result to 21cmFAST C-code
-                z_hyrec, xe_hyrec, Tm_hyrec = pyhy.call_run_hyrec(cosmo_hyrec(), injec_hyrec())
-                _c_call_init_IGM_from_input(z_hyrec, Tm_hyrec, xe_hyrec)  
+    f_NU_DM = cosmo_params.FRAC_NU_DM
 
-                if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
-                    return sigma_A
-                
-                
-            return None
-        
-    
+    if cosmo_params.U_NU_DM > 0 and f_NU_DM > 0 :
+            
+        # f_NU_DM is the fraction of interacting dark matter 
+        # amongst the cold dark matter (so not warm)
+        omega_nudm = omega_cdm * f_NU_DM
+        omega_cdm = omega_cdm * (1-f_NU_DM)
 
-        # define general parameters for CLASS
-        
-        _h = cosmo_params.hlittle
-        omega_cdm_LCDM = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-        m_min = ((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
-        k_max = 20*(2.78e+11 * (_h**2) * cosmo_params.OMm / m_min)**(1./3.) # rough approximation of the maximal value of k we need
-        #k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
-        neff_array = [3.044, 2.0308, 1.0176, 0.00441]
-       
-
-        params_class_init = {'output' : 'mPk, vTk',
-            'h': _h,
-            'YHe' : global_params.Y_He,
-            'omega_b': cosmo_params.OMb * _h**2,
-            'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
-            'n_s': cosmo_params.POWER_INDEX,
-            'alpha_s' : cosmo_params.ALPHA_S_PS,
-            'P_k_max_h/Mpc': k_max / _h,
-            'reio_parametrization': 'reio_none', 
-            # 21cmFAST will take care of the reionization
-            }
-        
-        # with relative velocities we need to access the transfer
-        # function at redshift z=1010 (slows down the computation)
-        if user_params.USE_RELATIVE_VELOCITIES is True:
-            params_class_init = params_class_init | {'z_pk' : 1010}
-        
-        #################################################
-        #################################################
-        # CHECK FOR NON-CDM MODEL
-        # 
-    
-        # create strings containing the degeneracy number and the mass
-        # of every ncdm non degenerate neutrino species or warm dark matter
-        deg_ncdm = np.array([], dtype=int)
-        m_ncdm   = np.array([])
-        T_ncdm   = np.array([])
-        n_ncdm   = 0
-        n_ur     = neff_array[0]
-        fluid_approx = np.array([], dtype=int)
-
-        omega_cdm = omega_cdm_LCDM
-
-        #############################################
-        ## MASSIVE NEUTRINOS
-
-        # for massive neutrinos we set the parameters here
+        # add the parameter for the DM - neutrino interactions
         if np.sum(m_neutrinos) > 0:
-
-            # get the unique masses
-            m_unique_neutrinos = np.unique(m_neutrinos)
-
-            # get the number of species with different mass
-            n_neutrinos = np.count_nonzero(m_unique_neutrinos)
-            n_ncdm = n_ncdm  + n_neutrinos
-
-            # attribute degeneracy number, mass and temperature to all neutrinos "classes"
-            for m_neutrino in m_unique_neutrinos:
-                if m_neutrino > 0:
-                    deg_ncdm = np.append(deg_ncdm, len(np.where(m_neutrinos == m_neutrino)[0]))
-                    m_ncdm   = np.append(m_ncdm, str(m_neutrino))
-                    T_ncdm   = np.append(T_ncdm, 0.71611)
-                    fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_NU)
-                
-            # recalculate the value of omega_cdm by removing the neurtino component
-            omega_cdm = omega_cdm - np.sum(m_neutrinos)/93.14
-
-            # set the number of ultra relativistic degrees of freedom
-            # to the correct values according to the total number 
-            # of massive neutrinos
-            n_ur = neff_array[np.count_nonzero(m_neutrinos)]
-
-
-        #############################################
-        ## WARM DARK MATTER
-
-        # assign a variable for the fraction of warm dark matter 
-        f_wdm = cosmo_params.FRAC_WDM
-
-        # define warm dark matter properties here if fraction above 0
-        if f_wdm > 0:
-            
-            # remove warm dark matter mass the cdm component
-            # omega_cdm is already stripped from the neutrino mass
-            omega_wdm = omega_cdm * f_wdm
-            omega_cdm  = omega_cdm * (1 - f_wdm)
-
-            n_wdm = 1
-
-            # set the WDM mass
-            if (user_params.USE_INVERSE_PARAMS is False): 
-                m_wdm = cosmo_params.M_WDM * 1e+3
-                #_m_ncdm_string = _m_ncdm_string + "," + str(cosmo_params.M_WDM * 1e+3)
-            else:
-                if cosmo_params.INVERSE_M_WDM > 0:
-                    #_m_ncdm_string = _m_ncdm_string + "," + str(1.0/cosmo_params.INVERSE_M_WDM * 1e+3)
-                    m_wdm = 1.0/cosmo_params.INVERSE_M_WDM * 1e+3
-                elif cosmo_params.INVERSE_M_WDM == 0:
-                    # for an infinite DM mass no NCDM 
-                    n_wdm = 0
-                else:
-                    raise ValueError("Impossible to assign a negative value to INVERSE_M_WDM")
-
-
-            # add a new particle to the list of non cold dark matter
-            # wdm as degree of freedom 1 and account for 1 new species
-            # only doing it if we do have warm dark matter
-            n_ncdm   = n_ncdm + n_wdm
-            if n_wdm > 0:
-                deg_ncdm = np.append(deg_ncdm, 1)
-                m_ncdm   = np.append(m_ncdm, m_wdm)
-                T_ncdm   = np.append(T_ncdm,  0.71611 * (omega_wdm * 93.14 / m_wdm)**(1./3.))
-                fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_WDM)
-
-                # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
-                # we cut at 10 times the WDM cutoff
-                if f_wdm == 1:
-                    k_max = np.min([k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/m_wdm, 0.11) / m_wdm * 1.54518467138)])
-
-
-        #############################################
-        # INTERACTING NEUTRINOS
-
-        # need to add new parameters here that are
-        # not defined in all CLASS versions
-        nu_dm_params = {}
-
-        f_NU_DM = cosmo_params.FRAC_NU_DM
-
-        if cosmo_params.U_NU_DM > 0 and f_NU_DM > 0 :
-                
-            # f_NU_DM is the fraction of interacting dark matter 
-            # amongst the cold dark matter (so not warm)
-            omega_nudm = omega_cdm * f_NU_DM
-            omega_cdm = omega_cdm * (1-f_NU_DM)
-
-            # add the parameter for the DM - neutrino interactions
-            if np.sum(m_neutrinos) > 0:
-                nu_dm_params = {'u_ncdmdm' : cosmo_params.U_NU_DM, 'gauge' : 'newtonian', 'omega_nudm' : omega_nudm}
-            else:
-                # need to check some of the parameters here
-                nu_dm_params = {'u_urDM_0' : cosmo_params.U_NU_DM, 'alpha_urDM' : 1.0, 'n_urDM' : 3, 'gauge' : 'newtonian', 'omega_nudm' : omega_nudm}
-            
-
-        #############################################
-        # preparing the input for CLASS
-
-        deg_ncdm_str     = ",".join(map(str, deg_ncdm))
-        m_ncdm_str       = ",".join(map(str, m_ncdm))
-        T_ncdm_str       = ",".join(map(str, T_ncdm))
-        fluid_approx_str = ",".join(map(str, fluid_approx))
-
-        # set m_ncdm_, N_ur and N_ncdm according to what is computed above
-        params_class =  params_class_init | {'omega_cdm' : omega_cdm,
-                                            'm_ncdm' : m_ncdm_str,
-                                            'N_ur' : n_ur,
-                                            'deg_ncdm' : deg_ncdm_str,
-                                            'N_ncdm' : n_ncdm,
-                                            'T_ncdm' : T_ncdm_str,
-                                            'ncdm_fluid_approximation' : fluid_approx_str,} 
-                                            #'k_per_decade_for_pk' : 40,}
-        
-        
-        # adding the properties of DM-neutrinos interactions
-        params_class = params_class | nu_dm_params
-
-        # update the value of P_k_max 
-        params_class['P_k_max_h/Mpc'] = k_max / _h
-
-        # assert that we do not have a negative amount of dark matter
-        assert omega_cdm >= 0, ValueError("The abundance of cold dark matter cannot go below 0")
-
-        #################################################
-        #################################################
-
-
-        # primordial power spectrum as defined in 21cmFAST ps.c
-        def primordial_power_spectrum(k):
-            k0 = 0.05 # reference value of k0 in Mpc^{-1}
-            index = cosmo_params.POWER_INDEX + 0.5 * cosmo_params.ALPHA_S_PS * np.log(k/k0)
-            return 1e-10 * np.exp(cosmo_params.Ln_1010_As) * (k/k0)**(index - 1.0)
-  
-        # to normalise to sigma_8 the LCDM power spectrum is needed
-        # if the model is simply LCDM then we only run this part
-        if user_params.USE_SIGMA_8_NORM is True or n_ncdm == 0:
-
-            # Put the correct values for the parameters missing in the init params dict
-            params_class_LCDM = params_class_init | {'omega_cdm' : omega_cdm_LCDM}
-
-            print("CLASS LCDM parameters are :\n", params_class_LCDM)
-            
-            # run CLASS
-            cosmo_CLASS_LCDM = Class()
-            cosmo_CLASS_LCDM.set(params_class_LCDM)
-            cosmo_CLASS_LCDM.compute()
-
-            # Get the transfer functions            
-            # the matter transfer function is defined w.r.t. the primordial power spectrum
-            # T_m^2(k) =  (k^3 / (2 \pi^2)) Pm(k) / P_R(k)
-            _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
-            _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'][:-1] * _h
-            _mps_array_LCDM = np.array([cosmo_CLASS_LCDM.pk_lin(k, 0) for k in _k_array_LCDM])
-            _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primordial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
-            
-            # relative velocities transfer function only computed if necessary
-            _Tvcb_array_LCDM = cosmo_CLASS_LCDM.get_transfer(z = 1010)['t_b'][:-1]/_k_array_LCDM if user_params.USE_RELATIVE_VELOCITIES else np.zeros(len(_k_array_LCDM))
-         
-            #_Tvcb_array_LCDM = _transfer_LCDM['t_b'][:-1]
-
-
-        # with ncdm components and normalisation with As (not sigma_8)
-        # no need to define a LCDM transfer function
-        # however necessary to initialise this part to fill the C arrays
-        # and avoid a segmentation fault
-        if user_params.USE_SIGMA_8_NORM is False and n_ncdm > 0:
-            
-            # define dummy default arrays
-            _k_array_LCDM    = np.array([1, 2, 3, 4, 5])
-            _Tm_array_LCDM   = np.zeros(5)
-            _Tvcb_array_LCDM = np.zeros(5)
+            nu_dm_params = {'u_ncdmdm' : cosmo_params.U_NU_DM, 'gauge' : 'newtonian', 'omega_nudm' : omega_nudm}
+        else:
+            # need to check some of the parameters here
+            nu_dm_params = {'u_urDM_0' : cosmo_params.U_NU_DM, 'alpha_urDM' : 1.0, 'n_urDM' : 3, 'gauge' : 'newtonian', 'omega_nudm' : omega_nudm}
         
 
-        # if ncdm component
-        if n_ncdm > 0:
+    #############################################
+    # preparing the input for CLASS
 
-            print("CLASS parameters are :\n", params_class)
+    deg_ncdm_str     = ",".join(map(str, deg_ncdm))
+    m_ncdm_str       = ",".join(map(str, m_ncdm))
+    T_ncdm_str       = ",".join(map(str, T_ncdm))
+    fluid_approx_str = ",".join(map(str, fluid_approx))
 
-            # creating a Class object
-            cosmo_CLASS = Class()
-            cosmo_CLASS.set(params_class)
-            cosmo_CLASS.compute()
+    # set m_ncdm_, N_ur and N_ncdm according to what is computed above
+    params_class =  params_class_init | {'omega_cdm' : omega_cdm,
+                                        'm_ncdm' : m_ncdm_str,
+                                        'N_ur' : n_ur,
+                                        'deg_ncdm' : deg_ncdm_str,
+                                        'N_ncdm' : n_ncdm,
+                                        'T_ncdm' : T_ncdm_str,
+                                        'ncdm_fluid_approximation' : fluid_approx_str,} 
+                                        #'k_per_decade_for_pk' : 40,}
+    
+    
+    # adding the properties of DM-neutrinos interactions
+    params_class = params_class | nu_dm_params
 
-            # Get the transfer functions
+    # update the value of P_k_max 
+    params_class['P_k_max_h/Mpc'] = k_max / _h
 
-            _transfer = cosmo_CLASS.get_transfer()
-            _k_array  = _transfer['k (h/Mpc)'][:-1] * _h
-            _mps_array =  np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array])
-            _Tm_array  =  np.sqrt(_k_array**3 * _mps_array / primordial_power_spectrum(_k_array) / (2*np.pi**2) )
-            #_Tvcb_array = _transfer['t_b'][:-1]
+    # assert that we do not have a negative amount of dark matter
+    assert omega_cdm >= 0, ValueError("The abundance of cold dark matter cannot go below 0")
 
-            # relative velocities transfer function only computed if necessary
-            _Tvcb_array = cosmo_CLASS.get_transfer(z = 1010)['t_b'][:-1]/_k_array if user_params.USE_RELATIVE_VELOCITIES else np.zeros(len(_k_array))
- 
-            # get the thermodynamics
-            _thermo  = cosmo_CLASS.get_thermodynamics()
+    #################################################
+    #################################################
+
+
+    # primordial power spectrum as defined in 21cmFAST ps.c
+    def primordial_power_spectrum(k):
+        k0 = 0.05 # reference value of k0 in Mpc^{-1}
+        index = cosmo_params.POWER_INDEX + 0.5 * cosmo_params.ALPHA_S_PS * np.log(k/k0)
+        return 1e-10 * np.exp(cosmo_params.Ln_1010_As) * (k/k0)**(index - 1.0)
+
+    # to normalise to sigma_8 the LCDM power spectrum is needed
+    # if the model is simply LCDM then we only run this part
+    if user_params.USE_SIGMA_8_NORM is True or n_ncdm == 0:
+
+        # Put the correct values for the parameters missing in the init params dict
+        params_class_LCDM = params_class_init | {'omega_cdm' : omega_cdm_LCDM}
+
+        print("CLASS LCDM parameters are :\n", params_class_LCDM)
         
+        # run CLASS
+        cosmo_CLASS_LCDM = Class()
+        cosmo_CLASS_LCDM.set(params_class_LCDM)
+        cosmo_CLASS_LCDM.compute()
+
+        # Get the transfer functions            
+        # the matter transfer function is defined w.r.t. the primordial power spectrum
+        # T_m^2(k) =  (k^3 / (2 \pi^2)) Pm(k) / P_R(k)
+        _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
+        _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'][:-1] * _h
+        _mps_array_LCDM = np.array([cosmo_CLASS_LCDM.pk_lin(k, 0) for k in _k_array_LCDM])
+        _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primordial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
         
-        # if no ncdm is present we just fix the power spectrum to that of LCDM
-        if n_ncdm == 0:
-            
-            _k_array = _k_array_LCDM
-            _Tm_array = _Tm_array_LCDM
-            _Tvcb_array = _Tvcb_array_LCDM
-
-            _thermo  = cosmo_CLASS_LCDM.get_thermodynamics()
-
-
+        # relative velocities transfer function only computed if necessary
+        _Tvcb_array_LCDM = cosmo_CLASS_LCDM.get_transfer(z = 1010)['t_b'][:-1]/_k_array_LCDM if user_params.USE_RELATIVE_VELOCITIES else np.zeros(len(_k_array_LCDM))
         
-        #print(_k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
+        #_Tvcb_array_LCDM = _transfer_LCDM['t_b'][:-1]
 
 
-        # initialise the power spectrum tables in the C-code
-        _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
+    # with ncdm components and normalisation with As (not sigma_8)
+    # no need to define a LCDM transfer function
+    # however necessary to initialise this part to fill the C arrays
+    # and avoid a segmentation fault
+    if user_params.USE_SIGMA_8_NORM is False and n_ncdm > 0:
         
+        # define dummy default arrays
+        _k_array_LCDM    = np.array([1, 2, 3, 4, 5])
+        _Tm_array_LCDM   = np.zeros(5)
+        _Tvcb_array_LCDM = np.zeros(5)
+    
 
-        #return _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM
+    # if ncdm component
+    if n_ncdm > 0:
 
-        # Get the thermodynamical quantities
-        _z   = _thermo['z']
-        _x_e = _thermo['x_e']
-        _T_b = _thermo['Tb [K]']
+        print("CLASS parameters are :\n", params_class)
 
-        # initialise the power ionization and temperature tables in the C-code
-        _c_call_init_IGM_from_input(_z, _T_b, _x_e)   
+        # creating a Class object
+        cosmo_CLASS = Class()
+        cosmo_CLASS.set(params_class)
+        cosmo_CLASS.compute()
+
+        # Get the transfer functions
+
+        _transfer = cosmo_CLASS.get_transfer()
+        _k_array  = _transfer['k (h/Mpc)'][:-1] * _h
+        _mps_array =  np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array])
+        _Tm_array  =  np.sqrt(_k_array**3 * _mps_array / primordial_power_spectrum(_k_array) / (2*np.pi**2) )
+        #_Tvcb_array = _transfer['t_b'][:-1]
+
+        # relative velocities transfer function only computed if necessary
+        _Tvcb_array = cosmo_CLASS.get_transfer(z = 1010)['t_b'][:-1]/_k_array if user_params.USE_RELATIVE_VELOCITIES else np.zeros(len(_k_array))
+
+        # get the thermodynamics
+        _thermo  = cosmo_CLASS.get_thermodynamics()
+    
+    
+    # if no ncdm is present we just fix the power spectrum to that of LCDM
+    if n_ncdm == 0:
+        
+        _k_array = _k_array_LCDM
+        _Tm_array = _Tm_array_LCDM
+        _Tvcb_array = _Tvcb_array_LCDM
+
+        _thermo  = cosmo_CLASS_LCDM.get_thermodynamics()
 
 
+    #################################################
+    #################################################
+    
+    # initialise the power spectrum tables in the C-code
+    _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
+    
+    # Get the thermodynamical quantities
+    _z   = _thermo['z']
+    _x_e = _thermo['x_e']
+    _T_b = _thermo['Tb [K]']
+
+    # initialise the power ionization and temperature tables in the C-code
+    _c_call_init_IGM_from_input(_z, _T_b, _x_e)   
+
+    return (user_params, cosmo_params, astro_params, flag_options)
 
 
+# Gaétan added an option to manually free the memory
+def free_C_memory():
+    lib.FreePhotonConsMemory()
+    lib.free_TF_CLASS()
+    lib.destruct_heat()
+    lib.FreeTsInterpolationTables()
 
 
 def run_lightcone(
@@ -3336,6 +3365,13 @@ def run_lightcone(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
+    
+        
+        #############################################################################
+        # Gaétan: modification for implementation with CLASS
+        user_params, cosmo_params, astro_params, flag_options = init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options)
+        #############################################################################
+       
         (
             random_seed,
             user_params,
@@ -3354,19 +3390,6 @@ def run_lightcone(
             {"init_box": init_box, "perturb": perturb},
             redshift=redshift,
         )
-        
-
-        #############################################################################
-        # Gaétan: modification for implementation with CLASS
-        sigma_A = init_TF_and_IGM_tables(user_params=user_params, cosmo_params=cosmo_params, astro_params = astro_params, flag_options=flag_options, global_kwargs=global_kwargs)
-        #############################################################################
-
-        # Gaétan: modification for implementation of Primordial Magnetic Fields
-        # update the value of sigma_A to that computed in the initialisation
-        # if no value could be computed the default one is used
-        if sigma_A is not None:
-            cosmo_params.update(PMF_SIGMA_A_0 = sigma_A)
-        #############################################################################
 
 
         if user_params.MINIMIZE_MEMORY and not write:
@@ -3681,19 +3704,20 @@ def run_lightcone(
         if flag_options.PHOTON_CONS:
             photon_nonconservation_data = _get_photon_nonconservation_data()
             if photon_nonconservation_data:
-                lib.FreePhotonConsMemory()
+                pass
+                #lib.FreePhotonConsMemory()
         else:
             photon_nonconservation_data = None
 
-        lib.free_TF_CLASS() # Gaétan added that here at the end of the code
-        lib.destruct_heat()
-
-        if (
-            flag_options.USE_TS_FLUCT
-            and user_params.USE_INTERPOLATION_TABLES
-            and lib.interpolation_tables_allocated
-        ):
-            lib.FreeTsInterpolationTables(flag_options())
+        # Gaétan added that here at the end of the code
+        free_C_memory()
+    
+        #if (
+        #    flag_options.USE_TS_FLUCT
+        #    and user_params.USE_INTERPOLATION_TABLES
+        #    and lib.interpolation_tables_allocated
+        #):
+        #    lib.FreeTsInterpolationTables()#flag_options())
 
         out = (
             LightCone(
@@ -3978,7 +4002,7 @@ def calibrate_photon_cons(
 
         # Initialise the analytic expression for the reionisation history
         logger.info("About to start photon conservation correction")
-        _init_photon_conservation_correction(
+        init_photon_conservation_correction(
             user_params=user_params,
             cosmo_params=cosmo_params,
             astro_params=astro_params,

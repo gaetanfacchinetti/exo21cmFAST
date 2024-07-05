@@ -49,7 +49,7 @@ static gsl_spline *erfc_spline;
 
 float calibrated_NF_min;
 
-double *deltaz, *deltaz_smoothed, *NeutralFractions, *z_Q, *Q_value, *nf_vals, *z_vals;
+double *deltaz=NULL, *deltaz_smoothed=NULL, *NeutralFractions=NULL, *z_Q=NULL, *Q_value=NULL, *nf_vals=NULL, *z_vals=NULL;
 int N_NFsamples,N_extrapolated, N_analytic, N_calibrated, N_deltaz;
 
 bool initialised_ComputeLF = false;
@@ -76,7 +76,7 @@ float MinMass, mass_bin_width, inv_mass_bin_width;
 
 double sigmaparam_FgtrM_bias(float z, float sigsmallR, float del_bias, float sig_bias);
 
-float *Mass_InterpTable, *Sigma_InterpTable, *dSigmadm_InterpTable;
+float *Mass_InterpTable=NULL, *Sigma_InterpTable=NULL, *dSigmadm_InterpTable=NULL;
 
 float *log10_overdense_spline_SFR, *log10_Nion_spline, *Overdense_spline_SFR, *Nion_spline;
 float *prev_log10_overdense_spline_SFR, *prev_log10_Nion_spline, *prev_Overdense_spline_SFR, *prev_Nion_spline;
@@ -96,8 +96,9 @@ double *lnMhalo_param_MINI, *Muv_param_MINI, *Mhalo_param_MINI;
 double *log10phi_MINI; *M_uv_z_MINI, *M_h_z_MINI;
 double *deriv, *lnM_temp, *deriv_temp;
 
-double *z_val, *z_X_val, *Nion_z_val, *SFRD_val;
-double *Nion_z_val_MINI, *SFRD_val_MINI;
+double *z_val=NULL, *z_X_val=NULL, *Nion_z_val=NULL, *SFRD_val=NULL;
+double *Nion_z_val_MINI=NULL, *SFRD_val_MINI=NULL;
+
 
 void initialiseSigmaMInterpTable(float M_Min, float M_Max);
 double sigmaFromInterpolationTables(double M);
@@ -129,23 +130,24 @@ double Fcollapprox (double numin, double beta);
 
 int n_redshifts_1DTable;
 double zmin_1DTable, zmax_1DTable, zbin_width_1DTable;
-double *FgtrM_1DTable_linear;
+double *FgtrM_1DTable_linear=NULL;
 
-static gsl_interp_accel *Q_at_z_spline_acc;
-static gsl_spline *Q_at_z_spline;
-static gsl_interp_accel *z_at_Q_spline_acc;
-static gsl_spline *z_at_Q_spline;
+static gsl_interp_accel *Q_at_z_spline_acc=NULL;
+static gsl_spline *Q_at_z_spline=NULL;
+static gsl_interp_accel *z_at_Q_spline_acc=NULL;
+static gsl_spline *z_at_Q_spline=NULL;
 static double Zmin, Zmax, Qmin, Qmax;
 void Q_at_z(double z, double *splined_value);
 void z_at_Q(double Q, double *splined_value);
 
-static gsl_interp_accel *deltaz_spline_for_photoncons_acc;
-static gsl_spline *deltaz_spline_for_photoncons;
+static gsl_interp_accel *deltaz_spline_for_photoncons_acc=NULL;
+static gsl_spline *deltaz_spline_for_photoncons=NULL;
 
-static gsl_interp_accel *NFHistory_spline_acc;
-static gsl_spline *NFHistory_spline;
-static gsl_interp_accel *z_NFHistory_spline_acc;
-static gsl_spline *z_NFHistory_spline;
+static gsl_interp_accel *NFHistory_spline_acc=NULL;
+static gsl_spline *NFHistory_spline=NULL;
+static gsl_interp_accel *z_NFHistory_spline_acc=NULL;
+static gsl_spline *z_NFHistory_spline=NULL;
+
 void initialise_NFHistory_spline(double *redshifts, double *NF_estimate, int NSpline);
 void z_at_NFHist(double xHI_Hist, double *splined_value);
 void NFHist_at_z(double z, double *splined_value);
@@ -225,7 +227,7 @@ double dsigma_dk_LCDM(double k, void *params);
 double sigma_z0(double M); //calculates sigma at z=0 (no dicke)
 double power_in_k(double k); /* Returns the value of the linear power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
 
-double transfer_function(double k);
+double transfer_function(double k, bool with_pmf);
 double transfer_function_LCDM(double k);
 double transfer_function_EH(double k);
 double transfer_function_BBKS(double k);
@@ -305,7 +307,7 @@ double primordial_power_spectrum(double k)
 */
 double power_spectrum(double k)
 {   
-    return  primordial_power_spectrum(k) * pow(transfer_function(k), 2);
+    return  primordial_power_spectrum(k) * pow(transfer_function(k, true), 2);
 }
 
 double power_spectrum_LCDM(double k)
@@ -314,15 +316,21 @@ double power_spectrum_LCDM(double k)
 }
 
 
-double transfer_function(double k)
+double transfer_function(double k, bool with_pmf)
 {
     double T;
 
     if (user_params_ps->POWER_SPECTRUM == 5) // CLASS
         T = transfer_function_CLASS(k);
     else
+    {
         T = transfer_function_LCDM(k) * analytical_transfer_function_nCDM(k);
 
+        // with PMF we add the transfer function induced from PMF
+        // condition put here as so far no implementation of PMF with CLASS
+        if (user_params_ps->PMF_POWER_SPECTRUM && with_pmf)
+            T = T * transfer_function_PMF(k);
+    }
 
     return T;
 }
@@ -540,7 +548,9 @@ double transfer_function_sharp(double k, double R, double frac)
 */
 double transfer_function_PMF(double k)
 {
-    return sqrt(1.0 + pmf_induced_power_spectrum(k) * pow(k, -cosmo_params_ps->POWER_INDEX) / (TWOPI * PI) / (sigma_norm * sigma_norm)  * pow(transfer_function(k), -2));
+    //LOG_DEBUG("k = %e, pmf_ps = %e, primordial = %e, sigma_norm = %e, transfer_func = %e", k, pmf_induced_power_spectrum(k), primordial_power_spectrum(k), sigma_norm,  transfer_function(k, false));
+    return sqrt(1.0 + pmf_induced_power_spectrum(k) / primordial_power_spectrum(k) / (TWOPI * PI) / (sigma_norm * sigma_norm)  * pow(transfer_function(k, false), -2));
+    //return sqrt(pmf_induced_power_spectrum(k) / primordial_power_spectrum(k) / 2.0) / (PI * sigma_norm);
 }
 
 /*
@@ -560,10 +570,6 @@ double analytical_transfer_function_nCDM(double k)
     // Transfer function (already computed by CLASS)
     if (user_params_ps->POWER_SPECTRUM == 5)
         return 1.0;
-
-    // If using PMF then we output the PMF transfer function
-    if (user_params_ps->PMF_POWER_SPECTRUM)
-        return transfer_function_PMF(k);
 
     if (user_params_ps->ANALYTICAL_TF_NCDM == 0) // classical LCDM model
         return 1.0;
@@ -610,6 +616,9 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 
     if (free_tables == false)
     { 
+
+        LOG_DEBUG("INTERPOLATING PMF POWER SPECTRUM TABLES");
+
         double log10_w_array[300], nB_array[50];
 
         const size_t nx = sizeof(nB_array) / sizeof(double); /* x grid points */
@@ -667,6 +676,7 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
             gsl_spline2d_set(spline_log10_ps_v, log10_ps_array, i , j, temp_log10_ps);
 
             //LOG_DEBUG("We are here");
+
         }
 
         fclose(F);
@@ -675,6 +685,9 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
         GSL_ERROR(gsl_status);
 
         free(log10_ps_array);
+        
+        LOG_DEBUG("PMF POWER SPECTRUM TABLES INTERPOLATED");
+
     }
     else
     {
@@ -685,7 +698,7 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 
 }
 
-static const double *kclass, *Tmclass, *Tvclass_vcb, *kclass_LCDM, *Tmclass_LCDM, *Tvclass_vcb_LCDM;
+static const double *kclass=NULL, *Tmclass=NULL, *Tvclass_vcb=NULL, *kclass_LCDM=NULL, *Tmclass_LCDM=NULL, *Tvclass_vcb_LCDM=NULL;
 static gsl_interp_accel *acc_density = NULL, *acc_vcb = NULL, *acc_density_LCDM = NULL, *acc_vcb_LCDM = NULL;
 static gsl_spline *spline_density = NULL, *spline_vcb = NULL, *spline_density_LCDM = NULL, *spline_vcb_LCDM = NULL;
 static TABLE_CLASS_LENGTH, TABLE_CLASS_LENGTH_LCDM;
@@ -706,6 +719,8 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
     TABLE_CLASS_LENGTH = table_length;
     TABLE_CLASS_LENGTH_LCDM = table_length_LCDM;
 
+
+    /*
     if (kclass != NULL)
     {
         free((double *)kclass);
@@ -740,7 +755,7 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
     {
         free((double *)Tvclass_vcb_LCDM);
         Tvclass_vcb_LCDM = NULL;
-    }
+    }*/
 
     kclass      = malloc(table_length * sizeof(double));
     Tmclass     = malloc(table_length * sizeof(double));
@@ -839,78 +854,25 @@ int free_TF_CLASS()
 {
 
     LOG_DEBUG("FREEING TF CLASS POINTERS");
+
+    free_pointer((void**)&spline_density, free_gsl_spline);
+    free_pointer((void**)&spline_vcb, free_gsl_spline);
+    free_pointer((void**)&spline_density_LCDM, free_gsl_spline);
+    free_pointer((void**)&spline_vcb_LCDM, free_gsl_spline);
     
-    
-    if (spline_density != NULL){
-        gsl_spline_free(spline_density);
-        spline_density = NULL;
-    }
+    free_pointer((void**)&acc_density, free_gsl_interp_accel);
+    free_pointer((void**)&acc_vcb, free_gsl_interp_accel);
+    free_pointer((void**)&acc_density_LCDM, free_gsl_interp_accel);
+    free_pointer((void**)&acc_vcb_LCDM, free_gsl_interp_accel);
 
-    if (acc_density != NULL){
-        gsl_interp_accel_free(acc_density);
-        acc_density = NULL;
-    }
+    free_pointer((void**)&kclass, free);
+    free_pointer((void**)&Tmclass, free);
+    free_pointer((void**)&Tvclass_vcb, free);
+    free_pointer((void**)&kclass_LCDM, free);
+    free_pointer((void**)&Tmclass_LCDM, free);
+    free_pointer((void**)&Tvclass_vcb_LCDM, free);
 
-    if (spline_vcb != NULL){
-        gsl_spline_free (spline_vcb);
-        spline_vcb = NULL;
-    }
-
-    if (acc_vcb != NULL){
-        gsl_interp_accel_free(acc_vcb);
-        acc_vcb = NULL;
-    }
-
-    if (spline_density_LCDM != NULL){
-        gsl_spline_free(spline_density_LCDM);
-        spline_density_LCDM = NULL;
-    }
-
-    if (acc_density_LCDM != NULL){
-        gsl_interp_accel_free(acc_density_LCDM);
-        acc_density_LCDM = NULL;
-    }
-
-    if (spline_vcb_LCDM != NULL){
-        gsl_spline_free (spline_vcb_LCDM);
-        spline_vcb_LCDM = NULL;
-    }
-
-    if (acc_vcb_LCDM != NULL){
-        gsl_interp_accel_free(acc_vcb_LCDM);
-        acc_vcb_LCDM = NULL;
-    }
-
-    if (kclass != NULL){
-        free((double *)kclass);
-        kclass = NULL;
-    }
-     
-    
-    if (Tmclass != NULL){
-        free((double *)Tmclass);
-        Tmclass = NULL;
-    }
-
-    if (Tvclass_vcb != NULL){
-        free((double *)Tvclass_vcb);
-        Tvclass_vcb = NULL;
-    }
-
-    if (kclass_LCDM != NULL){
-        free((double *)kclass_LCDM);
-        kclass_LCDM = NULL;
-    }
-
-    if (Tmclass_LCDM != NULL){
-        free((double *)Tmclass_LCDM);
-        Tmclass_LCDM = NULL;
-    }
-
-    if (Tvclass_vcb_LCDM != NULL){
-        free((double *)Tvclass_vcb_LCDM);
-        Tvclass_vcb_LCDM = NULL;
-    }
+    LOG_DEBUG("TF CLASS POINTERS FREED");
 
     return 1;
 }
@@ -928,7 +890,7 @@ double TF_CLASS(double k, int flag_dv)
     double ans;
 
     if (k > kclass[TABLE_CLASS_LENGTH-1]) { // k>kmax
-        LOG_WARNING("Called TF_CLASS with k=%f, larger than kmax! Returning value at kmax = %f.", k, kclass[TABLE_CLASS_LENGTH-1]);
+        LOG_SUPER_DEBUG("Called TF_CLASS with k=%f, larger than kmax! Returning value at kmax = %f.", k, kclass[TABLE_CLASS_LENGTH-1]);
         if(flag_dv == 0){ // output is density
             return (Tmclass[TABLE_CLASS_LENGTH]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
         }
@@ -1064,7 +1026,8 @@ double _int2_pmf_induced_power(double lnx1, void *params)
 
     if(status!=0) {
         LOG_ERROR("gsl integration error occured!");
-        LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
+        LOG_ERROR("function argument: lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
+        LOG_ERROR("data : nB = %e, x = k/kA = %e, x1 = k1/k = %e", nB, x, x1);
         GSL_ERROR(status);
     }
 
@@ -1080,68 +1043,81 @@ double _int2_pmf_induced_power(double lnx1, void *params)
 */
 double pmf_induced_power_spectrum(double k)
 {
+
+    //LOG_DEBUG("Computing the PMF transfer function for k = %e Mpc^{-1}", k);
+
     double sB0 = cosmo_params_ps->PMF_SIGMA_B_0;
     double sA0 = cosmo_params_ps->PMF_SIGMA_A_0;
     double nB  = cosmo_params_ps->PMF_B_INDEX;
     
     //double kA_approx = pow(sB0*sB0 / pow(2*PI, 3.0 + nB) / 4.2e+5, -1.0/(5.0 + nB));
-    double kA_approx = 2 * M_PI * pow(sB0 * sB0 / sA0 / sA0, -1.0/(5.0 + nB));  
-    double amplitude = pow(2*PI * sB0, 2) / gsl_sf_gamma((nB+3.0)/2.0);
+    double kA_approx = TWOPI * pow(sB0 / sA0, -2.0/(5.0 + nB));  // in Mpc^{-1}
+    double amplitude = pow(TWOPI * sB0, 2) / gsl_sf_gamma((nB+3.0)/2.0) * pow(2.0, (nB+3.0)/2.0); // in nG^2 Mpc^{3+nB}
+
+   
 
     double dimensionless_power_spectrum_v = 0;
     double log10_w = log10(k/kA_approx);
 
-    if (user_params_ps->USE_PMF_TABLES == true)
-    {   
-        if (nB < -2.9 || nB > 0)
-            LOG_ERROR("Cannot use PMF_TABLES for PMF_B_INDEX < -2.9 or > 0.0");
 
-        if (log10_w < -3.5)
-            dimensionless_power_spectrum_v = 0;
-        else if (log10_w > 0.8)
-            dimensionless_power_spectrum_v = 0;
-        else
-            dimensionless_power_spectrum_v = pow(10, gsl_spline2d_eval(spline_log10_ps_v, nB, log10_w, acc_nB, acc_w));
-    }
-    else
+    /*
+    Condition imposed from physical considerations
+    if kA ~ 10 - 10^3 Mpc^{-1} there is no need to
+    look for the contribution of the PMF below 10^{-10} k_A
+    this already corresponds to 10^{-7} Mpc^{-1} at least 
+    where PMF are not expected to play a role
+    */
+    if (log10_w > -10)
     {
-        struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .x  = k/kA_approx,};
 
-        gsl_function F;
-        F.function = _int2_pmf_induced_power;
-        F.params = &parameters_gsl_pmf_2;
-        gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
-        double rel_tol  = 1e-3; //10.0 * FRACT_FLOAT_ERR;
-        double result, error;
-        double lower_limit = -3.0-log(kA_approx);
-        double upper_limit = 3.0;
-        int status;
+        // if in the parameter space where the table is defined use it otherwise the value is recomputed
+        if (user_params_ps->USE_PMF_TABLES == true && log10_w > -3.5 && log10_w < 0.8 && nB > -2.9 && nB < 0)  
+            dimensionless_power_spectrum_v = pow(10, gsl_spline2d_eval(spline_log10_ps_v, nB, log10_w, acc_nB, acc_w));
+        else
+        {
+            struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .x  = k/kA_approx,};
 
-        gsl_set_error_handler_off();
+            gsl_function F;
+            F.function = _int2_pmf_induced_power;
+            F.params = &parameters_gsl_pmf_2;
+            gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+            double rel_tol  = 1e-3; //10.0 * FRACT_FLOAT_ERR;
+            double result, error;
+            double lower_limit = -3.0-log(kA_approx);
+            double upper_limit = 3.0;
+            int status;
 
-        status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+            gsl_set_error_handler_off();
 
-        if(status!=0) {
-            LOG_ERROR("gsl integration error occured!");
-            LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
-            GSL_ERROR(status);
+            status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+
+            if(status!=0) {
+                LOG_ERROR("gsl integration error occured!");
+                LOG_ERROR("function argument: lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
+                LOG_ERROR("data : nB = %e, k = %e", nB, k);
+                GSL_ERROR(status);
+            }
+
+            gsl_integration_workspace_free(w);
+
+            /* Eq. 21 of Adi et al. 2023 [arXiv:2306.11319]
+            the expression is devided by the prefactor alpha = f_b/MU_0/rhob_0, A_B^2 and k_A^(7+n_B)
+            these prefactors are added below */
+            dimensionless_power_spectrum_v =  pow(10, 2*log10_w) * result / pow(4*PI, 2);
         }
-
-        gsl_integration_workspace_free(w);
-
-        dimensionless_power_spectrum_v =  pow(10, 2*log10_w) * result / pow(4*PI, 2);
     }
 
-    double power_spectrum_v = pow(amplitude, 2) * pow(kA_approx, 7.0+2*nB) * dimensionless_power_spectrum_v;
+    double power_spectrum_v = pow(amplitude, 2) * pow(kA_approx, 7.0+2*nB) * dimensionless_power_spectrum_v; // in nG^4 / Mpc
     
-    double fb = cosmo_params_ps->OMb / cosmo_params_ps->OMm;
-    double rhob_0 = cosmo_params_ps->OMb  * RHOcrit;
-    double rhom_0 = cosmo_params_ps->OMm  * RHOcrit;
-    double kB = 2*PI * pow(16.0*PI/25.0 * sB0 * sB0 * 2.7338505671410205e+19 / rhob_0 / rhom_0 , -1.0/(5.0+nB)) ;
+    double fb     = cosmo_params_ps->OMb / cosmo_params_ps->OMm;
+    double rhob_0 = cosmo_params_ps->OMb  * RHOcrit; // in Msun / Mpc^3
+    double rhom_0 = cosmo_params_ps->OMm  * RHOcrit; // in Msun / Mpc^3
+    double sJ0    = 5.0 / 4.0 * sqrt(MU_0 * G / PI * rhob_0 * rhom_0) * Msun / CMperMPC / CMperMPC; // in nG
+    double kJ     = 2.0 * PI * pow(sB0 / sJ0 , -2.0/(5.0+nB)); // in Mpc^{-1} 
 
-    double power = pow(fb /rhob_0, 2) * power_spectrum_v  * 1.5249989378701802e-56; // The last numerical term is a conversion factor to get the correct units of Mpc^{3} in the end
-
-    return power * pow(GROWTH_FROM_PMF, 2) * pow(1.0  + pow(k / kB, 2), -2);
+    
+    double alpha = fb / rhob_0 / MU_0 /Msun * CMperMPC; // in nG^{-2} Mpc^2 s^{-2}
+    return alpha * alpha * power_spectrum_v * pow(GROWTH_FROM_PMF, 2) * pow(1.0  + pow(k / kJ, 2), -2);
 
 }
 
@@ -1613,11 +1589,15 @@ double sheth_delc(double del, double sig){
  */
 double dNdM_st(double growthf, double M){
 
-    double sigma, dsigmadm, nuhat;
+    double sigma, dsigmadm, nuhat, res;
     setFromInterpolationTables(growthf, M, &sigma, &dsigmadm);  
     nuhat = sqrt(cosmo_params_ps->SHETH_q) * Deltac / sigma;
 
     return (-(cosmo_params_ps->OMm)*RHOcrit/M) * (dsigmadm/sigma) * sqrt(2./PI)*cosmo_params_ps->SHETH_A * (1+ pow(nuhat, -2*cosmo_params_ps->SHETH_p)) * nuhat * pow(E, -nuhat*nuhat/2.0);
+
+    //LOG_DEBUG("In the mass function: %e %e %e %e %e", M, res, sigma, dsigmadm, growthf);
+    //LOG_DEBUG("M, dNdM, sigma, dsigmadm: %e, %e, %e, %e", M, res, sigma, dsigmadm);
+    //return res;
 }
 
 /*
@@ -1683,10 +1663,12 @@ double dNdM_WatsonFOF_z(double z, double growthf, double M){
  */
 double dNdM(double growthf, double M){
    
-    double sigma, dsigmadm;
-    setFromInterpolationTables(growthf, M, &sigma, &dsigmadm);    
+    double sigma, dsigmadm, res;
+    setFromInterpolationTables(growthf, M, &sigma, &dsigmadm);  
 
-    return (-(cosmo_params_ps->OMm)*RHOcrit/M) * sqrt(2/PI) * (Deltac/(sigma*sigma)) * dsigmadm * pow(E, -(Deltac*Deltac)/(2*sigma*sigma));
+    res = (-(cosmo_params_ps->OMm)*RHOcrit/M) * sqrt(2/PI) * (Deltac/(sigma*sigma)) * dsigmadm * pow(E, -(Deltac*Deltac)/(2*sigma*sigma));
+
+    return res;
 }
 
 
@@ -1732,7 +1714,6 @@ void setFromInterpolationTables(double growthf, double M, double *sigma, double 
         *sigma =  growthf * sigma_z0(M);
         *dsigmadm = (growthf*growthf/(2.*(* sigma))) * dsigmasqdm_z0(M);
     }
-
 
 }
 
@@ -1974,6 +1955,8 @@ double dNion_General(double lnM, void *params){
         MassFunction = dNdM_WatsonFOF_z(z, growthf, M);
     }
 
+    //LOG_DEBUG("M, dNdM : %e, %e, %d", M, MassFunction, user_params_ps->HMF);
+
     return MassFunction * M * M * exp(-MassTurnover/M) * Fstar * Fesc;
 }
 
@@ -2023,8 +2006,8 @@ double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_st
             LOG_ERROR("Function evaluated at lower-limit: %e",dNion_General(lower_limit,&parameters_gsl_SFR));
             LOG_ERROR("Function evaluated at upper-limit: %e",dNion_General(upper_limit,&parameters_gsl_SFR));
             LOG_ERROR("Mass Function Choice: %d",user_params_ps->HMF);
-            LOG_ERROR("Mass Function at min: %e",dNdM(growthf, exp(lower_limit)));
-            LOG_ERROR("Mass Function at max: %e",dNdM(growthf, exp(upper_limit)));
+            LOG_ERROR("Mass Function at min: %e",dNdM_st(growthf, exp(lower_limit)));
+            LOG_ERROR("Mass Function at max: %e",dNdM_st(growthf, exp(upper_limit)));
             GSL_ERROR(status);
         }
         gsl_integration_workspace_free (w);
@@ -2245,12 +2228,14 @@ void initialiseSigmaMInterpTable(float M_Min, float M_Max)
     inv_mass_bin_width = 1./mass_bin_width;
 }
 
+
 void freeSigmaMInterpTable()
 {
-    free(Mass_InterpTable);
-    free(Sigma_InterpTable);
-    free(dSigmadm_InterpTable);
-    Mass_InterpTable = NULL;
+    
+    free_pointer((void**)&Mass_InterpTable, free);
+    free_pointer((void**)&Sigma_InterpTable, free);
+    free_pointer((void**)&dSigmadm_InterpTable, free);
+    //Mass_InterpTable = NULL;
 }
 
 
@@ -2876,7 +2861,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
         Fesc = pow(M/1e10,Alpha_esc);
 
 
-    LOG_DEBUG("values : M = %e, exp(-Mturn/M) = %e, Fstar = %e, Fesc = %e, dNdM = %e", M, exp(-MassTurnover/M), Fstar, Fesc, dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2));
+    //LOG_DEBUG("values : M = %e, exp(-Mturn/M) = %e, Fstar = %e, Fesc = %e, dNdM = %e", M, exp(-MassTurnover/M), Fstar, Fesc, dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2));
 
     return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
 }
@@ -4205,6 +4190,8 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
     // If it fails to produce a monotonically increasing curve (for Q as a function of z) after 10 attempts we crash out
     while(fail_condition!=0) {
 
+        //LOG_DEBUG("ENTERING THIS LOOP");
+
         a = a_start;
         if(num_fails < 3) {
             da = 3e-3 - ((double)num_fails)*(1e-3);
@@ -4235,12 +4222,18 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
             // Ionizing emissivity (num of photons per baryon)
             if (flag_options->USE_MASS_DEPENDENT_ZETA) {
-                Nion0 = ION_EFF_FACTOR*Nion_General(z0, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
+                Nion0 = ION_EFF_FACTOR*Nion_General(z0, 1.01*astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
                                                 astro_params->ALPHA_ESC, astro_params->F_STAR10, astro_params->F_ESC10,
                                                 Mlim_Fstar, Mlim_Fesc);
-                Nion1 = ION_EFF_FACTOR*Nion_General(z1, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
+                Nion1 = ION_EFF_FACTOR*Nion_General(z1, 1.01*astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
                                                 astro_params->ALPHA_ESC, astro_params->F_STAR10, astro_params->F_ESC10,
                                                 Mlim_Fstar, Mlim_Fesc);
+
+                if(Nion0 != Nion0 || Nion1 != Nion1)
+                {
+                    LOG_ERROR("Nion_General outputs a nan result");
+                    return(0);
+                }
             }
             else {
                 //set the minimum source mass
@@ -4284,6 +4277,9 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
                 Trec = 0.93 * 1e9 * SperYR * pow(C_HII/3.,-1) * pow(T_0/2e4,0.7) * pow((1.+zi)/7.,-3);
                 Q1 = Q0 + ((Nion0-Nion1)/2./delta_a - Q0/Trec/dadt)*da;
             }
+
+
+            //LOG_DEBUG("Ok : %e, %e %e", zi, Q1_prev, Q1);
 
             // Curve is no longer monotonically increasing, we are going to have to exit and start again
             if(Q1 < Q1_prev) {
@@ -4339,6 +4335,7 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
     for (i=0; i<nbin; i++){
         z_Q[i] = z_arr[cnt-i];
         Q_value[i] = Q_arr[cnt-i];
+        //LOG_DEBUG("z_arr, Q: %e, %e, %e", z_Q[i], Q_value[i], istart);
     }
 
     gsl_set_error_handler_off();
@@ -4361,6 +4358,8 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
         z_value[i] = z_Q[nbin-1-i];
     }
 
+    
+
     gsl_status = gsl_spline_init(z_at_Q_spline, Q_z, z_value, nbin);
     GSL_ERROR(gsl_status);
 
@@ -4368,7 +4367,7 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
     free(Q_arr);
 
     if (flag_options->USE_MASS_DEPENDENT_ZETA) {
-      freeSigmaMInterpTable;
+      freeSigmaMInterpTable();
     }
 
     LOG_DEBUG("Initialised PhotonCons.");
@@ -4883,7 +4882,7 @@ void z_at_Q(double Q, double *splined_value){
     float returned_value;
 
     if (Q < Qmin) {
-        LOG_ERROR("The minimum value of Q is %.4e",Qmin);
+        LOG_ERROR("The minimum value of Q is %.4e and you passed Q = %.4e", Qmin, Q);
 //        Throw(ParameterError);
         Throw(PhotonConsError);
     }
@@ -4902,10 +4901,19 @@ void z_at_Q(double Q, double *splined_value){
 }
 
 void free_Q_value() {
+
+    free_pointer((void**)&Q_at_z_spline, free_gsl_spline);
+    free_pointer((void**)&z_at_Q_spline, free_gsl_spline);
+
+    free_pointer((void**)&Q_at_z_spline_acc, gsl_interp_accel_free);
+    free_pointer((void**)&z_at_Q_spline_acc, gsl_interp_accel_free);
+
+    /*
     gsl_spline_free (Q_at_z_spline);
     gsl_interp_accel_free (Q_at_z_spline_acc);
     gsl_spline_free (z_at_Q_spline);
     gsl_interp_accel_free (z_at_Q_spline_acc);
+    */
 }
 
 void initialise_NFHistory_spline(double *redshifts, double *NF_estimate, int NSpline){
@@ -5018,47 +5026,91 @@ int ObtainPhotonConsData(
     return(0);
 }
 
+
+int ObtainQanalyticVsZ(double *z_at_Q_data, double *Q_data, int *Ndata_analytic)
+{
+
+    int i;
+    *Ndata_analytic = N_analytic;
+
+    for(i=0;i<N_analytic;i++) {
+        z_at_Q_data[i] = z_Q[i];
+        Q_data[i] = Q_value[i];
+    }
+
+    return(0);
+}
+
+
 void FreePhotonConsMemory() {
-    LOG_DEBUG("Freeing some photon cons memory.");
-    free(deltaz);
-    free(deltaz_smoothed);
-    free(NeutralFractions);
-    free(z_Q);
-    free(Q_value);
-    free(nf_vals);
-    free(z_vals);
+
+    LOG_DEBUG("FREEING SOME PHOTON CONS. MEMORY");
+
+    free_pointer((void**)&deltaz, free);
+    free_pointer((void**)&deltaz_smoothed, free);
+    free_pointer((void**)&NeutralFractions, free);
+    free_pointer((void**)&z_Q, free);
+    free_pointer((void**)&Q_value, free);
+    free_pointer((void**)&nf_vals, free);
+    free_pointer((void**)&z_vals, free);
 
     free_Q_value();
 
+    free_pointer((void**)&NFHistory_spline, free_gsl_spline);
+    free_pointer((void**)&z_NFHistory_spline, free_gsl_spline);
+    free_pointer((void**)&deltaz_spline_for_photoncons, free_gsl_spline);
+
+    free_pointer((void**)&NFHistory_spline_acc, gsl_interp_accel_free);
+    free_pointer((void**)&z_NFHistory_spline_acc, gsl_interp_accel_free);
+    free_pointer((void**)&deltaz_spline_for_photoncons_acc, gsl_interp_accel_free);
+
+    /*
     gsl_spline_free (NFHistory_spline);
     gsl_interp_accel_free (NFHistory_spline_acc);
     gsl_spline_free (z_NFHistory_spline);
     gsl_interp_accel_free (z_NFHistory_spline_acc);
     gsl_spline_free (deltaz_spline_for_photoncons);
     gsl_interp_accel_free (deltaz_spline_for_photoncons_acc);
-    LOG_DEBUG("Done Freeing photon cons memory.");
+    */
+
+    LOG_DEBUG("PHOTON CONS. MEMORY FREED");
 
     photon_cons_allocated = false;
 }
 
-void FreeTsInterpolationTables(struct FlagOptions *flag_options) {
-    LOG_DEBUG("Freeing some interpolation table memory.");
-	freeSigmaMInterpTable();
+void FreeTsInterpolationTables(){//struct FlagOptions *flag_options) {
+    
+    LOG_DEBUG("FREEING SOME INTERPOLATION TABLE MEMORY");
+	
+    freeSigmaMInterpTable();
+
+    LOG_DEBUG("SIGMA INTERP TABLE FREED");
+
+    free_pointer((void**)&z_val, free); //z_val = NULL;
+    free_pointer((void**)&Nion_z_val, free);
+    free_pointer((void**)&z_X_val, free);// z_X_val = NULL;
+    free_pointer((void**)&SFRD_val, free);
+    free_pointer((void**)&Nion_z_val_MINI, free);
+    free_pointer((void**)&SFRD_val_MINI, free);
+    free_pointer((void**)&FgtrM_1DTable_linear, free);
+    
+    /*
     if (flag_options->USE_MASS_DEPENDENT_ZETA) {
-        free(z_val); z_val = NULL;
-        free(Nion_z_val);
-        free(z_X_val); z_X_val = NULL;
-        free(SFRD_val);
+        free_pointer((void**)&z_val, free); //z_val = NULL;
+        free_pointer((void**)&Nion_z_val, free);
+        free_pointer((void**)&z_X_val, free);// z_X_val = NULL;
+        free_pointer((void**)&SFRD_val, free);
         if (flag_options->USE_MINI_HALOS){
-            free(Nion_z_val_MINI);
-            free(SFRD_val_MINI);
+            free_pointer((void**)Nion_z_val_MINI, free);
+            free_pointer((void**)&SFRD_val_MINI, free);
         }
     }
     else{
-        free(FgtrM_1DTable_linear);
+        free_pointer((void**)&FgtrM_1DTable_linear, free);
     }
+    */
 
-    LOG_DEBUG("Done Freeing interpolation table memory.");
+    LOG_DEBUG("INTERPOLATION TABLE MEMORY FREED");
 	interpolation_tables_allocated = false;
 }
 
@@ -5115,7 +5167,7 @@ float* ComputeTransferFunction(struct UserParams *user_params, struct CosmoParam
     float* result = malloc(length * sizeof(float));
 
     for (int i = 0; i < length; i++) 
-        result[i] = (float) transfer_function(k[i]);
+        result[i] = (float) transfer_function(k[i], true);
 
     free_ps();
     free_TF_CLASS();
@@ -5525,6 +5577,7 @@ float* ComputeNionGeneral(struct UserParams *user_params, struct CosmoParams *co
     double mlim_fstar  = (double) params[6];
     double mlim_fesc   = (double) params[7];
 
+    LOG_DEBUG("global_params : PhotonConsEndCalibz = %e", global_params.PhotonConsEndCalibz);
 
     for (int i = 0; i < length; i++) 
         result[i] = (float) Nion_General((double) z[i], m_min, m_turn, alpha_star, alpha_esc, f_star10, f_esc10, mlim_fstar, mlim_fesc);

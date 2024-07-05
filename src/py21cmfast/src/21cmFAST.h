@@ -28,6 +28,7 @@ struct CosmoParams{
     float SHETH_p;
     float SHETH_A;
     double PMF_SIGMA_B_0;
+    double PMF_SIGMA_A_0;
     double PMF_B_INDEX;
 
     float NEUTRINO_MASS_1;
@@ -217,6 +218,7 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 int PhotonCons_Calibration(double *z_estimate, double *xH_estimate, int NSpline);
 int ComputeZstart_PhotonCons(double *zstart);
 
+int ObtainQanalyticVsZ(double *z_at_Q_data, double *Q_data, int *Ndata_analytic);
 int ObtainPhotonConsData(double *z_at_Q_data, double *Q_data, int *Ndata_analytic, double *z_cal_data, double *nf_cal_data, int *Ndata_calibration,
                          double *PhotonCons_NFdata, double *PhotonCons_deltaz, int *Ndata_PhotonCons);
 
@@ -227,7 +229,7 @@ float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_param
                     struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                     int Npoints, float *redshifts, float *global_xHI);
 
-/* Function called by the python wrapper interface */         
+/* Function called by the python wrapper interface for debugging and tests */         
 float* ComputeMatterPowerSpectrum(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, float *k, int length);
 float* ComputePowerInVcb(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
@@ -289,7 +291,7 @@ void Broadcast_struct_global_HF(struct UserParams *user_params, struct CosmoPara
 
 void free_TsCalcBoxes(struct UserParams *user_params, struct FlagOptions *flag_options);
 void FreePhotonConsMemory();
-void FreeTsInterpolationTables(struct FlagOptions *flag_options);
+void FreeTsInterpolationTables();//struct FlagOptions *flag_options);
 bool photon_cons_allocated = false;
 bool interpolation_tables_allocated = false;
 int SomethingThatCatches(bool sub_func);

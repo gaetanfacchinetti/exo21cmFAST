@@ -13,6 +13,25 @@
 struct CosmoParams *cosmo_params_ufunc;
 struct UserParams *user_params_ufunc;
 
+/* ----- Freeing pointers safely ------ */
+typedef void (*free_func_t)(void *);
+
+void free_pointer(void **ptr, free_func_t free_func) {
+    if (ptr != NULL && *ptr != NULL) {
+        free_func(*ptr);
+        *ptr = NULL;
+    }
+}
+
+void free_gsl_spline(void *ptr) {
+    gsl_spline_free((gsl_spline *)ptr);
+}
+
+void free_gsl_interp_accel(void *ptr) {
+    gsl_interp_accel_free((gsl_interp_accel *)ptr);
+}
+/* --------------------------------------- */
+
 void Broadcast_struct_global_UF(struct UserParams *user_params, struct CosmoParams *cosmo_params){
     cosmo_params_ufunc = cosmo_params;
     user_params_ufunc = user_params;

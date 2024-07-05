@@ -72,6 +72,10 @@ from .wrapper import (
     igm_temp_from_table,
     igm_xe_from_table,
     init_TF_and_IGM_tables,
+    free_C_memory,
+    init_photon_conservation_correction,
+    get_Q_analytic_nonconservation_data,
+    _setup_inputs,
 )
 
 configure_logging()

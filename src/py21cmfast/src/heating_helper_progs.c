@@ -4,7 +4,7 @@ struct CosmoParams *cosmo_params_hf;
 struct AstroParams *astro_params_hf;
 struct FlagOptions *flag_options_hf;
 
-static const double *zt, *TK, *xion;
+static const double *zt=NULL, *TK=NULL, *xion=NULL;
 static gsl_interp_accel *acc_TK = NULL, *acc_xion = NULL;
 static gsl_spline *spline_TK = NULL, *spline_xion = NULL;
 static TABLE_IGM_EVOL_NPTS;
@@ -126,6 +126,17 @@ int init_heat()
 void destruct_heat()
 {
 
+    LOG_DEBUG("FREEING HEATING TABLES");
+
+    free_pointer((void**)&spline_TK, free_gsl_spline);
+    free_pointer((void**)&spline_xion, free_gsl_spline);
+    free_pointer((void**)&acc_TK, free_gsl_interp_accel);
+    free_pointer((void**)&acc_xion, free_gsl_interp_accel);
+    free_pointer((void**)&zt, free);
+    free_pointer((void**)&TK, free);
+    free_pointer((void**)&xion, free);
+
+    /*
     if (spline_TK != NULL)
     {
         gsl_spline_free (spline_TK);
@@ -166,7 +177,11 @@ void destruct_heat()
     {
         free((double *)xion);
         xion = NULL;
-    }
+    } 
+    */
+
+    LOG_DEBUG("HEATING TABLES FREED");
+    return 1;
 }
 
 float get_Ts(float z, float delta, float TK, float xe, float Jalpha, float * curr_xalpha){
@@ -251,7 +266,7 @@ int init_FcollTable(float zmin, float zmax)
 
 void prepare_tables_IGM_evolution(int table_length)
 {
-
+    /*
     if (zt != NULL)
     {
         free((double *)zt);
@@ -268,7 +283,7 @@ void prepare_tables_IGM_evolution(int table_length)
     {
         free((double *)xion);
         xion = NULL;
-    }
+    }*/
     
 
     zt    = malloc(table_length * sizeof(double));

@@ -94,6 +94,7 @@
 #define TWOPI (double) (2.0*PI)
 #define FOURPI (double) (4.0*PI)
 #define G (double) 6.67259e-8 // cm^3 g^-1 s^-2
+#define MU_0 (double) (4.0*PI*1e+18) // g^-1 cm nG^2 s^2
 #define hplank (double) 6.62606896e-27 // erg s
 #define TINY (double) 1e-30
 #define FRACT_FLOAT_ERR (double) 1e-7 // fractional floating point error
