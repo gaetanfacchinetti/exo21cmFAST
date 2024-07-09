@@ -193,8 +193,8 @@ struct parameters_gsl_SFR_con_int_{
 
 struct parameters_gsl_pmf_induced_power_int_{
     double nB;
-    double x1;
-    double x;
+    double v;
+    double w;
 };
 
 
@@ -619,7 +619,7 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 
         LOG_DEBUG("INTERPOLATING PMF POWER SPECTRUM TABLES");
 
-        double log10_w_array[300], nB_array[50];
+        double log10_w_array[300], nB_array[100];
 
         const size_t nx = sizeof(nB_array) / sizeof(double); /* x grid points */
         const size_t ny = sizeof(log10_w_array) / sizeof(double); /* y grid points */
@@ -718,44 +718,6 @@ int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params
     const table_length_LCDM = length_LCDM;
     TABLE_CLASS_LENGTH = table_length;
     TABLE_CLASS_LENGTH_LCDM = table_length_LCDM;
-
-
-    /*
-    if (kclass != NULL)
-    {
-        free((double *)kclass);
-        kclass = NULL;
-    }
-
-    if (Tmclass != NULL)
-    {
-        free((double *)Tmclass);
-        Tmclass = NULL;
-    }
-
-    if (Tvclass_vcb != NULL)
-    {
-        free((double *)Tvclass_vcb);
-        Tvclass_vcb = NULL;
-    }
-
-    if (kclass_LCDM != NULL)
-    {
-        free((double *)kclass_LCDM);
-        kclass_LCDM = NULL;
-    }
-
-    if (Tmclass_LCDM != NULL)
-    {
-        free((double *)Tmclass_LCDM);
-        Tmclass_LCDM = NULL;
-    }
-
-    if (Tvclass_vcb_LCDM != NULL)
-    {
-        free((double *)Tvclass_vcb_LCDM);
-        Tvclass_vcb_LCDM = NULL;
-    }*/
 
     kclass      = malloc(table_length * sizeof(double));
     Tmclass     = malloc(table_length * sizeof(double));
@@ -992,28 +954,29 @@ double _int1_pmf_induced_power(double mu, void *params)
 {   
     struct parameters_gsl_pmf_induced_power_int_ vals = *(struct parameters_gsl_pmf_induced_power_int_ *)params;
 
-    double x1 = vals.x1;
+    double v = vals.v;
     double nB = vals.nB;
-    double x = vals.x;
+    double w = vals.w;
 
-    double y = sqrt(x*x + x1*x1 - 2*x*x1*mu);
-    return pow(y, nB) * exp(-2.0*y*y) * (x*x + (x*x - 2*x*x1*mu)*mu*mu);
+    //double y = sqrt(w*w + v*v - 2*v*w*mu);
+    //return pow(y, nB) * exp(-2.0*y*y) * (x*x + (x*x - 2*x*x1*mu)*mu*mu);
+    return pow(1.0 + v*v - 2.0*v*mu, nB/2.0) * (1.0 + mu*mu * (1.0 - 2*v*mu)) * exp(-4*w*w*v*(v-mu) - 2*w*w) * v;
 }
 
-double _int2_pmf_induced_power(double lnx1, void *params)
+double _int2_pmf_induced_power(double lnv, void *params)
 {
     struct parameters_gsl_pmf_induced_power_int_ vals = *(struct parameters_gsl_pmf_induced_power_int_ *)params;
 
     double nB = vals.nB;
-    double x = vals.x;
-    double x1 = exp(lnx1);
+    double w = vals.w;
+    double v = exp(lnv);
 
-    struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_1 = {.x1 = x1, .nB = nB, .x  = x};
+    struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_1 = {.v = v, .nB = nB, .w  = w};
     
     gsl_function F;
     F.function = _int1_pmf_induced_power;
     F.params = &parameters_gsl_pmf_1;
-    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
+    gsl_integration_workspace * w_gsl = gsl_integration_workspace_alloc (1000);
     double rel_tol = 1e-3;
     double result, error;
     double lower_limit = -1.0;
@@ -1022,18 +985,18 @@ double _int2_pmf_induced_power(double lnx1, void *params)
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w_gsl, &result, &error);
 
     if(status!=0) {
         LOG_ERROR("gsl integration error occured!");
         LOG_ERROR("function argument: lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
-        LOG_ERROR("data : nB = %e, x = k/kA = %e, x1 = k1/k = %e", nB, x, x1);
+        LOG_ERROR("data : nB = %e, w = k/kA = %e, v = k1/k = %e", nB, w, v);
         GSL_ERROR(status);
     }
 
-    gsl_integration_workspace_free(w);
+    gsl_integration_workspace_free(w_gsl);
 
-    return x1*x1 *  pow(x1, nB) * exp(-2.0*x1*x1) * result * x1;
+    return result * pow(v, nB+2.0);
     // last exp(lnx1) = x1 is here because we integrate over lnx1 and not x1)
 }
 
@@ -1063,33 +1026,33 @@ double pmf_induced_power_spectrum(double k)
     /*
     Condition imposed from physical considerations
     if kA ~ 10 - 10^3 Mpc^{-1} there is no need to
-    look for the contribution of the PMF below 10^{-10} k_A
-    this already corresponds to 10^{-7} Mpc^{-1} at least 
+    look for the contribution of the PMF below 10^{-5} k_A
+    this already corresponds to 10^{-2} Mpc^{-1} at least 
     where PMF are not expected to play a role
     */
-    if (log10_w > -10)
+    if (log10_w > -5)
     {
 
         // if in the parameter space where the table is defined use it otherwise the value is recomputed
-        if (user_params_ps->USE_PMF_TABLES == true && log10_w > -3.5 && log10_w < 0.8 && nB > -2.9 && nB < 0)  
+        if (user_params_ps->USE_PMF_TABLES == true && log10_w < 1.0 && nB >= -3.0 && nB <= 0)  
             dimensionless_power_spectrum_v = pow(10, gsl_spline2d_eval(spline_log10_ps_v, nB, log10_w, acc_nB, acc_w));
         else
         {
-            struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .x  = k/kA_approx,};
+            struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .w  = k/kA_approx};
 
             gsl_function F;
             F.function = _int2_pmf_induced_power;
             F.params = &parameters_gsl_pmf_2;
-            gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+            gsl_integration_workspace * w_gsl = gsl_integration_workspace_alloc(1000);
             double rel_tol  = 1e-3; //10.0 * FRACT_FLOAT_ERR;
             double result, error;
-            double lower_limit = -3.0-log(kA_approx);
-            double upper_limit = 3.0;
+            double lower_limit = log(1e-5)-log(pow(10, log10_w));
+            double upper_limit = 4.0;
             int status;
 
             gsl_set_error_handler_off();
 
-            status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+            status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w_gsl, &result, &error);
 
             if(status!=0) {
                 LOG_ERROR("gsl integration error occured!");
@@ -1098,16 +1061,16 @@ double pmf_induced_power_spectrum(double k)
                 GSL_ERROR(status);
             }
 
-            gsl_integration_workspace_free(w);
+            gsl_integration_workspace_free(w_gsl);
 
             /* Eq. 21 of Adi et al. 2023 [arXiv:2306.11319]
             the expression is devided by the prefactor alpha = f_b/MU_0/rhob_0, A_B^2 and k_A^(7+n_B)
             these prefactors are added below */
-            dimensionless_power_spectrum_v =  pow(10, 2*log10_w) * result / pow(4*PI, 2);
+            dimensionless_power_spectrum_v =  pow(10, (7.0 + 2*nB)*log10_w) * result;
         }
     }
 
-    double power_spectrum_v = pow(amplitude, 2) * pow(kA_approx, 7.0+2*nB) * dimensionless_power_spectrum_v; // in nG^4 / Mpc
+    double power_spectrum_v = pow(amplitude, 2) * pow(kA_approx, 7.0+2*nB) * dimensionless_power_spectrum_v / pow(4*PI, 2); // in nG^4 / Mpc
     
     double fb     = cosmo_params_ps->OMb / cosmo_params_ps->OMm;
     double rhob_0 = cosmo_params_ps->OMb  * RHOcrit; // in Msun / Mpc^3
@@ -1249,7 +1212,7 @@ double sigma_z0(double M){
 
     double result, error, lower_limit, upper_limit;
     gsl_function F;
-    double rel_tol  = FRACT_FLOAT_ERR*10; //<- relative tolerance
+    double rel_tol = FRACT_FLOAT_ERR*10; //<- relative tolerance
     gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
     double kstart, kend;
 
@@ -1271,6 +1234,10 @@ double sigma_z0(double M){
         kstart = 1.0e-99/Radius;
         kend = 350.0/Radius;
     }
+
+    // decrease the required precision if including primordial magnetic fields
+    if (user_params_ps->PMF_POWER_SPECTRUM)
+        rel_tol = 1e-3;
 
     lower_limit = log(kstart);
 
@@ -1427,7 +1394,7 @@ void init_ps(){
     //    InitTFCLASS()
     //}
 
-    if (user_params_ps->ANALYTICAL_TF_NCDM == 4) // PMF
+    if (user_params_ps->PMF_POWER_SPECTRUM)
         interpolate_power_spectrum_from_pmf(false);
 
     omhh = cosmo_params_ps->OMm*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle;
@@ -1549,7 +1516,7 @@ void init_ps(){
 void free_ps(){
 
     // we free the PS interpolator if using PMF
-    if (user_params_ps->ANALYTICAL_TF_NCDM == 4)
+    if (user_params_ps->PMF_POWER_SPECTRUM)
         interpolate_power_spectrum_from_pmf(true);
 
   return;

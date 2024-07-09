@@ -118,6 +118,7 @@
 #define k_B (double) 1.380658e-16 // erg / K
 #define m_p (double) 1.6726231e-24 // proton mass (g)
 #define m_e (double) 9.10938188e-28 // electron mass (g)
+#define m_H (double) 1.673532703758904e-24 // hydrogen mass (g)
 #define e_charge (double) 4.80320467e-10 // elemetary charge (esu=g^1/2 cm^3/2 s^-1
 #define SQDEG_ALLSKY (double) ((360.0*360.0)/PI) // Square degrees in all sky
 #define G_AB_Jy (double) 3631.0 // AB mag constant in Jy
@@ -128,6 +129,7 @@
 #define HeI_NUIONIZATION (double) (24.59*NU_over_EV) // ionization frequency of HeI
 #define T21 (double) 0.0682 // temperature corresponding to the 21cm photon
 #define A10_HYPERFINE (double) 2.85e-15 // spontaneous emission coefficient in s^-1
+#define G_TO_ERG (double) (8.987551787368175e+20) // conversion factor from g*c^2 to erg
 
 #define Lambda_21 (double) 21.106114054160 //Wavelength of 21cm Radiation in cm
 #define A21_Lya (double) 6.24e8 //Spontaneous emission coefficient for Lyman-Alpha line in s^-1

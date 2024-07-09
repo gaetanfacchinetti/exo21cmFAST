@@ -2902,8 +2902,8 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     if user_params.power_spectrum_model.upper() != "CLASS" or _CLASS_IMPORTED is False or user_params.USE_CLASS_TABLES is True:
         
         if _CLASS_IMPORTED is False:
-            logger.warning("Classy module not found, use precomputed table for the computation!")
-            if user_params.USE_CLASS_TABLES is False : 
+            if user_params.power_spectrum_model.upper == "CLASS" and user_params.USE_CLASS_TABLES is False :
+                logger.warning("Classy module not found, use precomputed table for the computation!") 
                 user_params.update(USE_CLASS_TABLES = True)
 
         # initialise to small empty arrays to avoid segmentation fault with GSL

@@ -1130,3 +1130,97 @@ int FunctionThatCatches(bool sub_func, bool pass, double *result){
     *result = 5.0;
     return 0;
 }
+
+
+/* --------------------------------------------------------------------- */
+/*  
+    Functions related to energy injection with primordial magnetic fields 
+    Same functions as those implemented in HYREC version: https://github.com/gaetanfacchinetti/HYREC-2
+*/
+
+// Fit of the Lorentz force
+double fit_Lorentz_force_average(double x)
+{
+    return 0.104 * pow(x, 2.70)/(0.0103 + pow(x, 1.62));
+}
+
+/* 
+  Energy injection rate due to ambipolar diffusion (result is in erg / cm^3 / s) 
+  - z       : redshift
+  - xe      : free electron fraction
+  - Tgas    : Temperature of the gas (in K)
+  - obh2    : \Omega_{\rm b} h^2, baryon abundance times hubble parameter squared
+  - sigma_A : alfven magnetic scale (in nG, ~30 nG fixed by the value of the Aflven mode)
+  - sigma_B : \sigma_{B, 0} (in nG),  standard deviation of the PMF spectrum on 1 Mpc scale today
+  - nB      : power index of the PMF spectrum
+
+  Same function as in HYREC with adapted units
+*/
+double dEdtdV_heat_ambipolar_pmf(double z, double xe, double Tgas, double obh2, double sigmaA, double sigmaB, double nB)
+{
+    double zi = 1088;
+
+    double gamma_AD = 6.49e-10 * pow(Tgas, 0.375) / (2.0 * m_H); // in cm^3 / s / g
+    double rho_b    = obh2 * RHOcrit * pow(1+z, 3) * Msun * pow(CMperMPC, -3); // in g / cm^3
+    double eta_AD = (1.0-xe)/xe / rho_b / rho_b / gamma_AD; // in s * cm^3 / g
+
+    /* 
+    Note that, assuming Helium ionization history similar to Hydrogen ionization history,
+    the factor (1-xe)/xe above should become (1-3/4*YHe)/(1-YHe) ? with YHe = rho_He/rho_b
+    and if indeed xe = ne/nH where nH is the total number of hydrogen (neutral and excited),
+    that is nH = nHI + nHII. This factor is exaclty equal to rho_n / rho_+ with
+    rho_n = rho_HI + rho_HeI and rho_+ = rho_HII + rho_HeII (negleting second ionization)
+    */
+
+    // prefactor sigma(k_A)^4 kA^2 in convinient units
+    double sA4kA2 = 1.0 / CMperMPC / CMperMPC * pow(sigmaB / sigmaA, 4.0/(5.0+nB)) * pow(sigmaA, 4) * 4.0 * PI * PI; // in nG^4 / cm^2
+
+    // result: (MU_0 in g^-1 cm nG^2 s^2)
+    double res =  sA4kA2 * pow(1+z, 10) * eta_AD / MU_0 / MU_0 * fit_Lorentz_force_average(nB + 3.0);  
+    // result in // in g / cm / s^3
+    // this is equivalent to erg / cm^3 / s as 1.0 * g * cm^2 / s^2 = 1.0 erg
+
+    return (z < zi) ? res : 0.0;
+}
+
+
+/* 
+  Energy injection rate due to turbulences in units of Hubble time
+  - z    : redshift 
+  - tdti : ratio of damping time over initial time
+  - nB   : power index of the PMF spectrum 
+*/
+double decay_rate_pmf_turbulences(double z, double tdti, double nB)
+{
+    double zi = 1088;
+
+    if (z > zi)
+    return 0;
+
+    double m = 2.0*(nB+3.0)/(nB + 5.0);
+    return 3.0*m/2.0 * pow(log(1+tdti), m)/pow(log(1+tdti) + 1.5 * log((1+zi)/(1+z)), m+1);
+}
+
+
+// Variance of the pmf power spectrum at the Jean's scale
+double sigma_Jeans_pmf(double obh2, double ocbh2)
+{
+  return 2.116 * sqrt(obh2 / 0.02242) * sqrt(ocbh2 / 0.1424);
+}
+
+/*  Energy injection rate due to turbulences (result is in erg / cm^3 / s)
+    - sigmaB (magnetic variance)  in nG
+    - sigmaA (alfven variance) in nG
+    - H in 1/s
+*/
+double dEdtdV_heat_turbulences_pmf(double z, double H, double obh2, double ocbh2, double sigmaA, double sigmaB, double nB)
+{
+
+    double zi = 1088;
+
+    double en =  pow(1+z, 4) / (2.0*MU_0) * sigmaA * sigmaA * pow(sigmaB/sigmaA, 4.0/(5.0+nB)); // in units of g / cm / s^2  (i.e. erg / cm^3)
+    double tdti = sigma_Jeans_pmf(obh2, ocbh2) / sigmaA;
+  
+    return (z < zi) ? en * decay_rate_pmf_turbulences(z, tdti, nB) * H : 0.0;
+
+}
