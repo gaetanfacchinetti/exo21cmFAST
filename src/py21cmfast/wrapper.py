@@ -2962,7 +2962,6 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
             if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
                 cosmo_params.update(PMF_SIGMA_A_0 = sigma_A)
-            #    return sigma_A
             
             
         return (user_params, cosmo_params, astro_params, flag_options)
@@ -2979,7 +2978,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     neff_array = [3.044, 2.0308, 1.0176, 0.00441]
     
 
-    params_class_init = {'output' : 'mPk, vTk',
+    params_class_init = {'output' : 'mPk',
         'h': _h,
         'YHe' : global_params.Y_He,
         'omega_b': cosmo_params.OMb * _h**2,
@@ -2995,6 +2994,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     # function at redshift z=1010 (slows down the computation)
     if user_params.USE_RELATIVE_VELOCITIES is True:
         params_class_init = params_class_init | {'z_pk' : 1010}
+        params_class_init['output'] = 'mPk, vTk'
     
     #################################################
     #################################################
@@ -3168,8 +3168,10 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         # Get the transfer functions            
         # the matter transfer function is defined w.r.t. the primordial power spectrum
         # T_m^2(k) =  (k^3 / (2 \pi^2)) Pm(k) / P_R(k)
-        _transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
-        _k_array_LCDM = _transfer_LCDM['k (h/Mpc)'][:-1] * _h
+        
+        #_transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
+        #_k_array_LCDM = _transfer_LCDM['k (h/Mpc)'][:-1] * _h
+        _k_array = np.logspace(np.log10(1e-4), np.log10(params_class_LCDM['P_k_max_h/Mpc'] * _h), 500)
         _mps_array_LCDM = np.array([cosmo_CLASS_LCDM.pk_lin(k, 0) for k in _k_array_LCDM])
         _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primordial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
         
@@ -3194,7 +3196,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     # if ncdm component
     if n_ncdm > 0:
 
-        print("CLASS parameters are :\n", params_class)
+        print("CLASS parameters are :\n", params_class, flush=True)
 
         # creating a Class object
         cosmo_CLASS = Class()
@@ -3203,8 +3205,9 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
         # Get the transfer functions
 
-        _transfer = cosmo_CLASS.get_transfer()
-        _k_array  = _transfer['k (h/Mpc)'][:-1] * _h
+        _k_array = np.logspace(np.log10(1e-4), np.log10(params_class['P_k_max_h/Mpc'] * _h), 500)
+        #_transfer = cosmo_CLASS.get_transfer()
+        #_k_array  = _transfer['k (h/Mpc)'][:-1] * _h
         _mps_array =  np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array])
         _Tm_array  =  np.sqrt(_k_array**3 * _mps_array / primordial_power_spectrum(_k_array) / (2*np.pi**2) )
         #_Tvcb_array = _transfer['t_b'][:-1]
@@ -3701,15 +3704,18 @@ def run_lightcone(
 
             pf = pf2
 
+
+        photon_nonconservation_data = None
         if flag_options.PHOTON_CONS:
             photon_nonconservation_data = _get_photon_nonconservation_data()
-            if photon_nonconservation_data:
-                pass
+        
+        #    if photon_nonconservation_data:
                 #lib.FreePhotonConsMemory()
-        else:
-            photon_nonconservation_data = None
+        #else:
+        #    photon_nonconservation_data = None
 
         # Gaétan added that here at the end of the code
+        # we free all the memory anyways (and pointers point back to NULL)
         free_C_memory()
     
         #if (
