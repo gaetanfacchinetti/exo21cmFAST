@@ -1156,13 +1156,19 @@ double fit_Lorentz_force_average(double x)
 
   Same function as in HYREC with adapted units
 */
-double dEdtdV_heat_ambipolar_pmf(double z, double xe, double Tgas, double obh2, double sigmaA, double sigmaB, double nB)
+double dEdtdV_heat_ambipolar_pmf(double z, double xe, double Tgas)
 {
     double zi = 1088;
 
+    double obh2   = cosmo_params_ufunc->OMb * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle;
+    double sigmaA = cosmo_params_ufunc->PMF_SIGMA_A_0;
+    double sigmaB = cosmo_params_ufunc->PMF_SIGMA_B_0;
+    double nB     = cosmo_params_ufunc->PMF_B_INDEX;
+
     double gamma_AD = 6.49e-10 * pow(Tgas, 0.375) / (2.0 * m_H); // in cm^3 / s / g
     double rho_b    = obh2 * RHOcrit * pow(1+z, 3) * Msun * pow(CMperMPC, -3); // in g / cm^3
-    double eta_AD = (1.0-xe)/xe / rho_b / rho_b / gamma_AD; // in s * cm^3 / g
+    double eta_AD   = (1.0-xe)/xe / rho_b / rho_b / gamma_AD; // in s * cm^3 / g
+
 
     /* 
     Note that, assuming Helium ionization history similar to Hydrogen ionization history,
@@ -1208,19 +1214,39 @@ double sigma_Jeans_pmf(double obh2, double ocbh2)
   return 2.116 * sqrt(obh2 / 0.02242) * sqrt(ocbh2 / 0.1424);
 }
 
+
+/* 
+    Hubble rate (in s)
+    (may not be fully consistent with the value of OMl = 1-OMm defined in the cosmo_params)
+    - z : redshift
+*/
+double hubble_rate(z)
+{
+    double OMl = global_params.OMtot - global_params.OMk - global_params.OMr - cosmo_params_ufunc->OMm;
+    double Ez2 =  OMl * pow(1.+z, 3*(1+global_params.wl)) + cosmo_params_ufunc->OMm *pow(1.+z,3.) + global_params.OMr *pow(1.+z,4.) + global_params.OMk * pow(1.+z, 2);
+
+    return 1e+7 * cosmo_params_ufunc->hlittle  * sqrt(Ez2) / CMperMPC;
+}
+
 /*  Energy injection rate due to turbulences (result is in erg / cm^3 / s)
     - sigmaB (magnetic variance)  in nG
     - sigmaA (alfven variance) in nG
     - H in 1/s
 */
-double dEdtdV_heat_turbulences_pmf(double z, double H, double obh2, double ocbh2, double sigmaA, double sigmaB, double nB)
+double dEdtdV_heat_turbulences_pmf(double z)
 {
-
+    
     double zi = 1088;
 
+    double obh2   = cosmo_params_ufunc->OMb * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle;
+    double omh2   = cosmo_params_ufunc->OMm * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle;
+    double sigmaA = cosmo_params_ufunc->PMF_SIGMA_A_0;
+    double sigmaB = cosmo_params_ufunc->PMF_SIGMA_B_0;
+    double nB     = cosmo_params_ufunc->PMF_B_INDEX;
+
     double en =  pow(1+z, 4) / (2.0*MU_0) * sigmaA * sigmaA * pow(sigmaB/sigmaA, 4.0/(5.0+nB)); // in units of g / cm / s^2  (i.e. erg / cm^3)
-    double tdti = sigma_Jeans_pmf(obh2, ocbh2) / sigmaA;
+    double tdti = sigma_Jeans_pmf(obh2, omh2) / sigmaA;
   
-    return (z < zi) ? en * decay_rate_pmf_turbulences(z, tdti, nB) * H : 0.0;
+    return (z < zi) ? en * decay_rate_pmf_turbulences(z, tdti, nB) * hubble_rate(z) : 0.0;
 
 }

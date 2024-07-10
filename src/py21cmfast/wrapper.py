@@ -2963,7 +2963,6 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
                 cosmo_params.update(PMF_SIGMA_A_0 = sigma_A)
             
-            
         return (user_params, cosmo_params, astro_params, flag_options)
     
 

@@ -82,6 +82,7 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     double lower_int_limit,Luminosity_converstion_factor,T_inv_TS_fast_inv;
     double J_LW_ave, J_alpha_tot_MINI, J_alpha_ave_MINI, J_LW_ave_MINI,dxheat_dzp_MINI,Xheat_ave_MINI;
     double dadia_dzp, dcomp_dzp, dxheat_dt, dxion_source_dt, dxion_sink_dt, T, x_e, dxe_dzp, n_b;
+    double dpmf_ad_dzp, dpmf_turb_dzp; // ambipolar diffusion and turblulence heating term from primordial magnetic fields
     double dspec_dzp, dxheat_dzp, dxlya_dt, dstarlya_dt, fcoll_R;
     double Trad_fast,xc_fast,xc_inverse,TS_fast,TSold_fast,xa_tilde_fast,TS_prefactor,xa_tilde_prefactor,gamma_alpha;
     double T_inv,T_inv_sq,xi_power,xa_tilde_fast_arg,Trad_fast_inv,TS_fast_inv,dcomp_dzp_prefactor;
@@ -1969,7 +1970,7 @@ LOG_SUPER_DEBUG("Initialised heat");
                             dstarlya_dt_prefactor_MINI,dstarlyLW_dt_prefactor_MINI,prefactor_2_MINI,const_zp_prefactor_MINI,\
                             dstarlya_cont_dt_box,dstarlya_inj_dt_box,dstarlya_cont_dt_prefactor,dstarlya_inj_dt_prefactor,\
                             dstarlya_cont_dt_box_MINI,dstarlya_inj_dt_box_MINI,dstarlya_cont_dt_prefactor_MINI,dstarlya_inj_dt_prefactor_MINI) \
-                    private(box_ct,x_e,T,dxion_sink_dt,dxe_dzp,dadia_dzp,dspec_dzp,dcomp_dzp,dxheat_dzp,J_alpha_tot,T_inv,T_inv_sq,\
+                    private(box_ct,x_e,T,dxion_sink_dt,dxe_dzp,dadia_dzp,dpmf_ad_dzp,dpmf_turb_dzp,dspec_dzp,dcomp_dzp,dxheat_dzp,J_alpha_tot,T_inv,T_inv_sq,\
                             eps_CMB,dCMBheat_dzp,E_continuum,E_injected,Ndot_alpha_cont,Ndot_alpha_inj,eps_Lya_cont,eps_Lya_inj,\
                             Ndot_alpha_cont_MINI,Ndot_alpha_inj_MINI,eps_Lya_cont_MINI,eps_Lya_inj_MINI,prev_Ts,tau21,xCMB,\
                             xc_fast,xi_power,xa_tilde_fast_arg,TS_fast,TSold_fast,xa_tilde_fast,dxheat_dzp_MINI,J_alpha_tot_MINI,curr_delNL0) \
@@ -2124,6 +2125,11 @@ LOG_SUPER_DEBUG("Initialised heat");
                                 dxheat_dzp_MINI = dxheat_dt_box_MINI[box_ct] * dt_dzp * 2.0 / 3.0 / k_B / (1.0+x_e);
                             }
 
+                            // next primordial magnetic field contribution from ambipolar diffusion and turbulences
+                            dpmf_ad_dzp   = (user_params->PMF_HEATING_AD)   ? dt_dzp * 2.0 / 3.0 * dEdtdV_heat_ambipolar_pmf(zp, x_e, T) / k_B / (N_b0*pow(1.+zp,3.)) / (1.+curr_delNL0*growth_factor_zp) : 0.0;
+                            dpmf_turb_dzp = (user_params->PMF_HEATING_TURB) ? dt_dzp * 2.0 / 3.0 * dEdtdV_heat_turbulences_pmf(zp) / k_B / (N_b0*pow(1.+zp,3.)) / (1.+curr_delNL0*growth_factor_zp) : 0.0;
+
+
                             //next, CMB heating rate
                             dCMBheat_dzp = 0.;
                             if (flag_options->USE_CMB_HEATING) {
@@ -2167,9 +2173,9 @@ LOG_SUPER_DEBUG("Initialised heat");
                             //Add CMB and Lya heating rates, and evolve
                             if (T < MAX_TK) {
                                 if (flag_options->USE_MINI_HALOS){
-                                    T += ( dxheat_dzp + dxheat_dzp_MINI + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + eps_Lya_cont_MINI + eps_Lya_inj_MINI) * dzp;
+                                    T += ( dxheat_dzp + dxheat_dzp_MINI + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_ad_dzp + dpmf_turb_dzp + eps_Lya_cont_MINI + eps_Lya_inj_MINI) * dzp;
                                 } else {
-                                    T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj) * dzp;
+                                    T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_ad_dzp + dpmf_turb_dzp) * dzp;
                                 }
 
                             }
@@ -2384,6 +2390,11 @@ LOG_SUPER_DEBUG("Initialised heat");
                     //next, CMB heating rate
                     dCMBheat_dzp = 0.;
 
+
+                    // next primordial magnetic field contribution from ambipolar diffusion and turbulences
+                    dpmf_ad_dzp   = (user_params->PMF_HEATING_AD)   ? dt_dzp * 2.0 / 3.0 * dEdtdV_heat_ambipolar_pmf(zp, x_e, T) / k_B / (N_b0*pow(1.+zp,3.)) / (1.+curr_delNL0*growth_factor_zp) : 0.0;
+                    dpmf_turb_dzp = (user_params->PMF_HEATING_TURB) ? dt_dzp * 2.0 / 3.0 * dEdtdV_heat_turbulences_pmf(zp) / k_B / (N_b0*pow(1.+zp,3.)) / (1.+curr_delNL0*growth_factor_zp) : 0.0;
+
                     if (flag_options->USE_CMB_HEATING) {
                         eps_CMB = (3./4.) * (T_cmb*(1.+zp)/T21) * A10_HYPERFINE * f_H * (hplank*hplank/Lambda_21/Lambda_21/m_p) * (1.+2.*T/T21);
                         dCMBheat_dzp = -eps_CMB * (2./3./k_B/(1.+x_e))/hubble(zp)/(1.+zp);
@@ -2417,7 +2428,7 @@ LOG_SUPER_DEBUG("Initialised heat");
                         x_e = 0;
                     //Add CMB and Lya heating rates, and evolve
                     if (T < MAX_TK) {
-                        T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj) * dzp;
+                        T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_ad_dzp + dpmf_turb_dzp) * dzp;
                     }
 
                     if (T<0){ // spurious bahaviour of the trapazoidalintegrator. generally overcooling in underdensities
