@@ -5,9 +5,10 @@ struct AstroParams *astro_params_hf;
 struct FlagOptions *flag_options_hf;
 
 static const double *zt=NULL, *TK=NULL, *xion=NULL;
-static gsl_interp_accel *acc_TK = NULL, *acc_xion = NULL;
-static gsl_spline *spline_TK = NULL, *spline_xion = NULL;
-static TABLE_IGM_EVOL_NPTS;
+static const double *zB=NULL, *chiB=NULL;
+static gsl_interp_accel *acc_TK = NULL, *acc_xion = NULL, *acc_chiB = NULL;
+static gsl_spline *spline_TK = NULL, *spline_xion = NULL, *spline_chiB = NULL;
+static TABLE_IGM_EVOL_NPTS, TABLE_PMF_EVOL_NPTS;
 
 float determine_zpp_min, zpp_bin_width;
 
@@ -40,16 +41,19 @@ double get_M_min_ion(float z){
 // int init_heat();
 
 /* destruction/deallocation routine */
-void destruct_heat();
+int destruct_heat();
 
 // * returns the spectral emissity * //
 double spectral_emissivity(double nu_norm, int flag, int Population);
 
-// * Ionization fraction from RECFAST. * //
+// * Ionization fraction from RECFAST or input table. * //
 double xion_IGM_TABLE(float z);
 
-// * IGM temperature from RECFAST; includes Compton heating and adiabatic expansion only. * //
+// * IGM temperature from RECFAST or input table; includes Compton heating and adiabatic expansion only. * //
 double T_IGM_TABLE(float z);
+
+// * PMF amplitude from HYREC or input table * //
+double chiB_PMF_TABLE(float z);
 
 // approximation for the adiabatic index at z=6-50 from 2302.08506
 float cT_approx(float z);
@@ -123,7 +127,7 @@ int init_heat()
     return 0;
 }
 
-void destruct_heat()
+int destruct_heat()
 {
 
     LOG_DEBUG("FREEING HEATING TABLES");
@@ -136,53 +140,23 @@ void destruct_heat()
     free_pointer((void**)&TK, free);
     free_pointer((void**)&xion, free);
 
-    /*
-    if (spline_TK != NULL)
-    {
-        gsl_spline_free (spline_TK);
-        spline_TK = NULL;
-    }
-
-    if (acc_TK != NULL)
-    {
-        gsl_interp_accel_free(acc_TK);
-        acc_TK = NULL;
-    }
-
-    if (spline_xion != NULL)
-    {
-        gsl_spline_free (spline_xion);
-        spline_xion = NULL;
-    }
-    
-    if (acc_xion != NULL)
-    {
-        gsl_interp_accel_free(acc_xion);
-        acc_xion = NULL;
-    }
- 
-    if (zt != NULL)
-    {
-        free((double *)zt);
-        zt = NULL;
-    } 
-    
-    if (TK != NULL)
-    {
-        free((double *)TK);
-        TK = NULL;
-    }
-    
-    if (xion != NULL)
-    {
-        free((double *)xion);
-        xion = NULL;
-    } 
-    */
-
     LOG_DEBUG("HEATING TABLES FREED");
     return 1;
 }
+
+int destruct_pmf()
+{
+    LOG_DEBUG("FREEING PMF TABLES");
+    
+    free_pointer((void**)&spline_chiB, free_gsl_spline);
+    free_pointer((void**)&acc_chiB, free_gsl_interp_accel);
+    free_pointer((void**)&zB, free);
+
+    LOG_DEBUG("PMF TABLES FREED");
+    return 1;
+}
+
+
 
 float get_Ts(float z, float delta, float TK, float xe, float Jalpha, float * curr_xalpha){
     double Trad,xc,xa_tilde;
@@ -264,28 +238,12 @@ int init_FcollTable(float zmin, float zmax)
 // ******************************************************************** //
 
 
+
+// ------------------------------------------------------
+// Initialisation routines for IGM evolution
+
 void prepare_tables_IGM_evolution(int table_length)
 {
-    /*
-    if (zt != NULL)
-    {
-        free((double *)zt);
-        zt = NULL;
-    }
-
-    if (TK != NULL)
-    {
-        free((double *)TK);
-        TK = NULL;
-    }
-
-    if (xion != NULL)
-    {
-        free((double *)xion);
-        xion = NULL;
-    }*/
-    
-
     zt    = malloc(table_length * sizeof(double));
     TK    = malloc(table_length * sizeof(double));
     xion  = malloc(table_length * sizeof(double));
@@ -356,7 +314,47 @@ int InitIGMEvolutionTablesFromInput(float *z, float *igm_temp, float *igm_xe, in
     return 1;
 }
 
+// ------------------------------------------------------
 
+// ------------------------------------------------------ 
+// Initialisation routines for Primordial Magnetic Fields
+
+void prepare_tables_PMF_evolution(int table_length)
+{
+    zB    = malloc(table_length * sizeof(double));
+    chiB  = malloc(table_length * sizeof(double));
+}
+
+
+void init_spline_PMF_evolution()
+{
+    // Set up spline table
+    acc_chiB   = gsl_interp_accel_alloc ();
+    spline_chiB  = gsl_spline_alloc (gsl_interp_cspline, TABLE_IGM_EVOL_NPTS);
+    gsl_spline_init(spline_chiB, zB, chiB, TABLE_PMF_EVOL_NPTS);
+}
+
+
+// Initialise the tables for the values of chiB from PMF
+int InitPMFEvolutionTablesFromInput(float *z, float *input_chiB, int length)
+{
+    const table_length = length;
+    TABLE_PMF_EVOL_NPTS = table_length;
+
+    prepare_tables_PMF_evolution(TABLE_PMF_EVOL_NPTS);
+
+    for (int i = 0; i < table_length; i++)
+    {
+        *((double *)zB + i) = (double)z[i];
+        *((double *)chiB + i) = (double)input_chiB[i];
+    }
+    
+    init_spline_PMF_evolution();
+
+    return 1;
+}
+
+// ------------------------------------------------------
 
 
 // IGM temperature from RECFAST; includes Compton heating and adiabatic expansion only.
@@ -389,6 +387,21 @@ double xion_IGM_TABLE(float z)
     }
     return ans;
 }
+
+double chiB_PMF_TABLE(float z)
+{
+    double ans;
+    if (z > zB[TABLE_PMF_EVOL_NPTS-1]) { // Called at z>500! Bail out
+        LOG_ERROR("Called chiB_PMF_TABLE with z=%f", z);
+        Throw ValueError;
+    }
+    else { // Do spline
+        ans = gsl_spline_eval (spline_chiB, z, acc_chiB);
+    }
+    return ans;
+}
+
+// ------------------------------------------------------
 
 
 // approximation for the adiabatic index at z=6-50 from 2302.08506 (also 1506.04152). Linear only, used to initialize the Tk box at high z so it's not homogeneous. Otherwise half of the adiabatic fluctuations are missing. Definition is \delta Tk = Tk * cT * \delta (at each z).

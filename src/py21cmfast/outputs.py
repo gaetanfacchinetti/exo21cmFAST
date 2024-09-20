@@ -400,6 +400,7 @@ class TsBox(_AllParamsBox):
     ):
         self.prev_spin_redshift = prev_spin_redshift
         self.perturbed_field_redshift = perturbed_field_redshift
+        
         super().__init__(**kwargs)
 
     def _get_box_structures(self) -> dict[str, dict | tuple[int]]:
@@ -411,6 +412,10 @@ class TsBox(_AllParamsBox):
             "x_e_box": shape,
             "Tk_box": shape,
             "J_21_LW_box": shape,
+            "dpmf_ad_dt_box" : shape,
+            "dpmf_turb_dt_box" : shape,
+            "dxheat_dt_box" : shape,
+            "dxheat_dt_box_MINI" : shape,
         }
 
     @cached_property

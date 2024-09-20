@@ -17,6 +17,7 @@ float *del_fcoll_Rct_MINI;
 
 double *dxheat_dt_box, *dxion_source_dt_box, *dxlya_dt_box, *dstarlya_dt_box;
 double *dxheat_dt_box_MINI, *dxion_source_dt_box_MINI, *dxlya_dt_box_MINI, *dstarlya_dt_box_MINI;
+double *dpmf_ad_dt_box, *dpmf_turb_dt_box; // ambipolar diffusion and turblulence heating term from primordial magnetic fields
 double *dstarlyLW_dt_box, *dstarlyLW_dt_box_MINI;
 
 //Arrays needed for Heating calculations
@@ -81,9 +82,9 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     double Tk_ave, J_alpha_ave, xalpha_ave, J_alpha_tot, Xheat_ave, Xion_ave, nuprime, Ts_ave;
     double lower_int_limit,Luminosity_converstion_factor,T_inv_TS_fast_inv;
     double J_LW_ave, J_alpha_tot_MINI, J_alpha_ave_MINI, J_LW_ave_MINI,dxheat_dzp_MINI,Xheat_ave_MINI;
-    double dadia_dzp, dcomp_dzp, dxheat_dt, dxion_source_dt, dxion_sink_dt, T, x_e, dxe_dzp, n_b;
-    double dpmf_ad_dzp, dpmf_turb_dzp; // ambipolar diffusion and turblulence heating term from primordial magnetic fields
+    double dadia_dzp, dcomp_dzp, dxheat_dt, dxion_source_dt, dxion_sink_dt, T, x_e, chiB, rho_B_t, dxe_dzp, n_b;
     double dspec_dzp, dxheat_dzp, dxlya_dt, dstarlya_dt, fcoll_R;
+    double dpmf_energy_ad_dzp, dpmf_energy_turb_dzp; 
     double Trad_fast,xc_fast,xc_inverse,TS_fast,TSold_fast,xa_tilde_fast,TS_prefactor,xa_tilde_prefactor,gamma_alpha;
     double T_inv,T_inv_sq,xi_power,xa_tilde_fast_arg,Trad_fast_inv,TS_fast_inv,dcomp_dzp_prefactor;
 
@@ -204,6 +205,9 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
 
             zpp_interp_table = calloc(zpp_interp_points_SFR, sizeof(float));
         }
+
+        dpmf_ad_dt_box   = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));  // Gaetan 
+        dpmf_turb_dt_box = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));  // Gaetan
 
         if(flag_options->USE_MASS_DEPENDENT_ZETA) {
 
@@ -483,8 +487,9 @@ LOG_SUPER_DEBUG("Initialised heat");
 
     if (redshift >= global_params.Z_HEAT_MAX){
         LOG_SUPER_DEBUG("redshift %f >= Z_HEAT_MAX. Doing fast initial heating.", redshift);
-        xe = xion_IGM_TABLE(redshift);
-        TK = T_IGM_TABLE(redshift);
+        xe   = xion_IGM_TABLE(redshift);
+        TK   = T_IGM_TABLE(redshift);
+        this_spin_temp->pmf_chiB = (user_params->PMF_HEATING_AD || user_params->PMF_HEATING_TURB) ? chiB_PMF_TABLE(redshift) : 0.0;
         cT_ad = cT_approx(redshift); //finding the adiabatic index at the initial redshift from 2302.08506 to fix adiabatic fluctuations.
         growth_factor_zp = dicke(redshift);
 
@@ -1961,7 +1966,7 @@ LOG_SUPER_DEBUG("Initialised heat");
                     }
                 }
 
-#pragma omp parallel shared(dxheat_dt_box,dxion_source_dt_box,dxlya_dt_box,dstarlya_dt_box,dfcoll_dz_val,del_fcoll_Rct,freq_int_heat_tbl_diff,\
+#pragma omp parallel shared(dxheat_dt_box,dxion_source_dt_box,dxlya_dt_box,dstarlya_dt_box, dpmf_ad_dt_box, dpmf_turb_dt_box, dfcoll_dz_val,del_fcoll_Rct,freq_int_heat_tbl_diff,\
                             m_xHII_low_box,inverse_val_box,freq_int_heat_tbl,freq_int_ion_tbl_diff,freq_int_ion_tbl,freq_int_lya_tbl_diff,\
                             freq_int_lya_tbl,dstarlya_dt_prefactor,R_ct,previous_spin_temp,this_spin_temp,const_zp_prefactor,prefactor_1,\
                             prefactor_2,delNL0,growth_factor_zp,dt_dzp,zp,dgrowth_factor_dzp,dcomp_dzp_prefactor,Trad_fast,dzp,TS_prefactor,\
@@ -1970,7 +1975,7 @@ LOG_SUPER_DEBUG("Initialised heat");
                             dstarlya_dt_prefactor_MINI,dstarlyLW_dt_prefactor_MINI,prefactor_2_MINI,const_zp_prefactor_MINI,\
                             dstarlya_cont_dt_box,dstarlya_inj_dt_box,dstarlya_cont_dt_prefactor,dstarlya_inj_dt_prefactor,\
                             dstarlya_cont_dt_box_MINI,dstarlya_inj_dt_box_MINI,dstarlya_cont_dt_prefactor_MINI,dstarlya_inj_dt_prefactor_MINI) \
-                    private(box_ct,x_e,T,dxion_sink_dt,dxe_dzp,dadia_dzp,dpmf_ad_dzp,dpmf_turb_dzp,dspec_dzp,dcomp_dzp,dxheat_dzp,J_alpha_tot,T_inv,T_inv_sq,\
+                    private(box_ct,x_e,chiB,rho_B_t,T,dxion_sink_dt,dxe_dzp,dadia_dzp,dpmf_energy_ad_dzp,dpmf_energy_turb_dzp,dspec_dzp,dcomp_dzp,dxheat_dzp,J_alpha_tot,T_inv,T_inv_sq,\
                             eps_CMB,dCMBheat_dzp,E_continuum,E_injected,Ndot_alpha_cont,Ndot_alpha_inj,eps_Lya_cont,eps_Lya_inj,\
                             Ndot_alpha_cont_MINI,Ndot_alpha_inj_MINI,eps_Lya_cont_MINI,eps_Lya_inj_MINI,prev_Ts,tau21,xCMB,\
                             xc_fast,xi_power,xa_tilde_fast_arg,TS_fast,TSold_fast,xa_tilde_fast,dxheat_dzp_MINI,J_alpha_tot_MINI,curr_delNL0) \
@@ -2054,8 +2059,9 @@ LOG_SUPER_DEBUG("Initialised heat");
                             // Note here, that by construction it doesn't matter if using MINIMIZE_MEMORY as only need the R_ct = 0 box
                             curr_delNL0 = delNL0[0][box_ct];
 
-                            x_e = previous_spin_temp->x_e_box[box_ct];
-                            T = previous_spin_temp->Tk_box[box_ct];
+                            x_e  = previous_spin_temp->x_e_box[box_ct];
+                            T    = previous_spin_temp->Tk_box[box_ct];
+                            chiB = previous_spin_temp->pmf_chiB;
 
                             // add prefactors
                             dxheat_dt_box[box_ct] *= const_zp_prefactor;
@@ -2126,9 +2132,13 @@ LOG_SUPER_DEBUG("Initialised heat");
                             }
 
                             // next primordial magnetic field contribution from ambipolar diffusion and turbulences
-                            dpmf_ad_dzp   = (user_params->PMF_HEATING_AD)   ? dt_dzp * 2.0 / 3.0 * dEdtdV_heat_ambipolar_pmf(zp, x_e, T) / k_B / (N_b0*pow(1.+zp,3.)) / (1.+curr_delNL0*growth_factor_zp) : 0.0;
-                            dpmf_turb_dzp = (user_params->PMF_HEATING_TURB) ? dt_dzp * 2.0 / 3.0 * dEdtdV_heat_turbulences_pmf(zp) / k_B / (N_b0*pow(1.+zp,3.)) / (1.+curr_delNL0*growth_factor_zp) : 0.0;
+                            rho_B_t = pow(cosmo_params->PMF_SIGMA_A * pow(cosmo_params->PMF_SB/cosmo_params->PMF_SIGMA_A, 2.0/(5.0+cosmo_params->PMF_NB)), 2) / (2.0 * MU_0) / (C*C); // in g / cm^3
 
+                            dpmf_ad_dt_box[box_ct]   = (user_params->PMF_HEATING_AD)   ? decay_rate_heat_ambipolar_pmf(zp, x_e, T, chiB, rho_b0*pow(1.+zp,3.) * (1.+curr_delNL0*growth_factor_zp))  : 0.0;
+                            dpmf_turb_dt_box[box_ct] = (user_params->PMF_HEATING_TURB) ? decay_rate_heat_turbulences_pmf(zp, chiB) : 0.0;
+                            
+                            dpmf_energy_ad_dzp   = rho_B_t * dt_dzp * dpmf_ad_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp);
+                            dpmf_energy_turb_dzp = rho_B_t * dt_dzp * dpmf_turb_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp);
 
                             //next, CMB heating rate
                             dCMBheat_dzp = 0.;
@@ -2173,9 +2183,9 @@ LOG_SUPER_DEBUG("Initialised heat");
                             //Add CMB and Lya heating rates, and evolve
                             if (T < MAX_TK) {
                                 if (flag_options->USE_MINI_HALOS){
-                                    T += ( dxheat_dzp + dxheat_dzp_MINI + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_ad_dzp + dpmf_turb_dzp + eps_Lya_cont_MINI + eps_Lya_inj_MINI) * dzp;
+                                    T += ( dxheat_dzp + dxheat_dzp_MINI + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_energy_ad_dzp + dpmf_energy_turb_dzp + eps_Lya_cont_MINI + eps_Lya_inj_MINI) * dzp;
                                 } else {
-                                    T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_ad_dzp + dpmf_turb_dzp) * dzp;
+                                    T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_energy_ad_dzp + dpmf_energy_turb_dzp) * dzp;
                                 }
 
                             }
@@ -2184,8 +2194,18 @@ LOG_SUPER_DEBUG("Initialised heat");
                                 T = T_cmb*(1+zp);
                             }
 
+                            chiB += -(previous_spin_temp->dpmf_ad_dt_ave + previous_spin_temp->dpmf_turb_dt_ave)/(2*chiB) * dt_dzp;
+
                             this_spin_temp->x_e_box[box_ct] = x_e;
                             this_spin_temp->Tk_box[box_ct] = T;
+                            this_spin_temp->pmf_chiB = chiB;
+
+                            // saving the heating rates in the spin temperature box
+                            this_spin_temp->dpmf_ad_dt_box[box_ct]   = dpmf_ad_dt_box[box_ct];
+                            this_spin_temp->dpmf_turb_dt_box[box_ct] = dpmf_turb_dt_box[box_ct];
+                            this_spin_temp->dxheat_dt_box[box_ct] = dxheat_dt_box[box_ct];
+                            if (flag_options->USE_MINI_HALOS)
+                                this_spin_temp->dxheat_dt_box_MINI[box_ct] = dxheat_dt_box_MINI[box_ct];
 
                             J_alpha_tot = ( dxlya_dt_box[box_ct] + dstarlya_dt_box[box_ct] ); //not really d/dz, but the lya flux
                             if (flag_options->USE_MINI_HALOS){
@@ -2264,14 +2284,14 @@ LOG_SUPER_DEBUG("Initialised heat");
             }
         }
         else {
-            #pragma omp parallel shared(previous_spin_temp,x_int_XHII,inverse_diff,delNL0_rev,dens_grid_int_vals,ST_over_PS,zpp_growth,dfcoll_interp1,\
+            #pragma omp parallel shared(previous_spin_temp,dpmf_ad_dt_box,dpmf_turb_dt_box,x_int_XHII,inverse_diff,delNL0_rev,dens_grid_int_vals,ST_over_PS,zpp_growth,dfcoll_interp1,\
                             density_gridpoints,dfcoll_interp2,freq_int_heat_tbl_diff,freq_int_heat_tbl,freq_int_ion_tbl_diff,freq_int_ion_tbl,\
                             freq_int_lya_tbl_diff,freq_int_lya_tbl,dstarlya_dt_prefactor,const_zp_prefactor,prefactor_1,growth_factor_zp,dzp,\
                             dstarlya_cont_dt_prefactor, dstarlya_inj_dt_prefactor,\
                             dt_dzp,dgrowth_factor_dzp,dcomp_dzp_prefactor,this_spin_temp,xc_inverse,TS_prefactor,xa_tilde_prefactor,Trad_fast_inv,\
                             zpp_for_evolve_list,sigma_Tmin,sigma_atR) \
-                    private(box_ct,x_e,T,xHII_call,m_xHII_low,inverse_val,dxheat_dt,dxion_source_dt,dxlya_dt,dstarlya_dt,curr_delNL0,R_ct,\
-                            dstarlya_cont_dt,dstarlya_inj_dt,prev_Ts,tau21,xCMB,\
+                    private(box_ct,x_e,T, chiB, rho_B_t,xHII_call,m_xHII_low,inverse_val,dxheat_dt,dxion_source_dt,dxlya_dt,dstarlya_dt,curr_delNL0,R_ct,\
+                            dstarlya_cont_dt,dstarlya_inj_dt,prev_Ts,tau21,xCMB,dpmf_energy_ad_dzp,dpmf_energy_turb_dzp,\
                             eps_CMB, dCMBheat_dzp, E_continuum, E_injected, Ndot_alpha_cont, Ndot_alpha_inj, eps_Lya_cont, eps_Lya_inj,\
                             dfcoll_dz_val,dxion_sink_dt,dxe_dzp,dadia_dzp,dspec_dzp,dcomp_dzp,dxheat_dzp,J_alpha_tot,T_inv,T_inv_sq,xc_fast,xi_power,\
                             xa_tilde_fast_arg,TS_fast,TSold_fast,xa_tilde_fast) \
@@ -2280,8 +2300,9 @@ LOG_SUPER_DEBUG("Initialised heat");
                 #pragma omp for reduction(+:J_alpha_ave,xalpha_ave,Xheat_ave,Xion_ave,Ts_ave,Tk_ave,x_e_ave)
                 for (box_ct=0; box_ct<HII_TOT_NUM_PIXELS; box_ct++){
 
-                    x_e = previous_spin_temp->x_e_box[box_ct];
-                    T = previous_spin_temp->Tk_box[box_ct];
+                    x_e  = previous_spin_temp->x_e_box[box_ct];
+                    T    = previous_spin_temp->Tk_box[box_ct];
+                    chiB = previous_spin_temp->pmf_chiB;
 
                     xHII_call = x_e;
 
@@ -2390,10 +2411,15 @@ LOG_SUPER_DEBUG("Initialised heat");
                     //next, CMB heating rate
                     dCMBheat_dzp = 0.;
 
-
                     // next primordial magnetic field contribution from ambipolar diffusion and turbulences
-                    dpmf_ad_dzp   = (user_params->PMF_HEATING_AD)   ? dt_dzp * 2.0 / 3.0 * dEdtdV_heat_ambipolar_pmf(zp, x_e, T) / k_B / (N_b0*pow(1.+zp,3.)) / (1.+curr_delNL0*growth_factor_zp) : 0.0;
-                    dpmf_turb_dzp = (user_params->PMF_HEATING_TURB) ? dt_dzp * 2.0 / 3.0 * dEdtdV_heat_turbulences_pmf(zp) / k_B / (N_b0*pow(1.+zp,3.)) / (1.+curr_delNL0*growth_factor_zp) : 0.0;
+                    rho_B_t = pow(cosmo_params->PMF_SIGMA_A * pow(cosmo_params->PMF_SB/cosmo_params->PMF_SIGMA_A, 2.0/(5.0+cosmo_params->PMF_NB)), 2) / (2.0 * MU_0) / (C*C); // in g / cm^3
+
+                    dpmf_ad_dt_box[box_ct]   = (user_params->PMF_HEATING_AD)   ? decay_rate_heat_ambipolar_pmf(zp, x_e, T, chiB, rho_b0*pow(1.+zp,3.) * (1.+curr_delNL0*growth_factor_zp))  : 0.0;
+                    dpmf_turb_dt_box[box_ct] = (user_params->PMF_HEATING_TURB) ? decay_rate_heat_turbulences_pmf(zp, chiB) : 0.0;
+                    
+                    dpmf_energy_ad_dzp   = rho_B_t * dt_dzp * dpmf_ad_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp);
+                    dpmf_energy_turb_dzp = rho_B_t * dt_dzp * dpmf_turb_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp);
+
 
                     if (flag_options->USE_CMB_HEATING) {
                         eps_CMB = (3./4.) * (T_cmb*(1.+zp)/T21) * A10_HYPERFINE * f_H * (hplank*hplank/Lambda_21/Lambda_21/m_p) * (1.+2.*T/T21);
@@ -2428,15 +2454,22 @@ LOG_SUPER_DEBUG("Initialised heat");
                         x_e = 0;
                     //Add CMB and Lya heating rates, and evolve
                     if (T < MAX_TK) {
-                        T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_ad_dzp + dpmf_turb_dzp) * dzp;
+                        T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dpmf_energy_ad_dzp + dpmf_energy_turb_dzp) * dzp;
                     }
 
                     if (T<0){ // spurious bahaviour of the trapazoidalintegrator. generally overcooling in underdensities
                         T = T_cmb*(1+zp);
                     }
 
+                    chiB += -(previous_spin_temp->dpmf_ad_dt_ave + previous_spin_temp->dpmf_turb_dt_ave)/(2*chiB) * dt_dzp;
+
                     this_spin_temp->x_e_box[box_ct] = x_e;
                     this_spin_temp->Tk_box[box_ct] = T;
+                    this_spin_temp->pmf_chiB = chiB;
+                    
+                    // saving the heating rates in the spin temperature box
+                    this_spin_temp->dpmf_ad_dt_box[box_ct]   = dpmf_ad_dt_box[box_ct];
+                    this_spin_temp->dpmf_turb_dt_box[box_ct] = dpmf_turb_dt_box[box_ct];
 
                     J_alpha_tot = ( dxlya_dt + dstarlya_dt ); //not really d/dz, but the lya flux
 

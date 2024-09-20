@@ -616,15 +616,33 @@ def pmf_induced_matter_power_spectrum(k, *, user_params=None, cosmo_params=None,
     params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     return  _generic_c_call(k, lib.ComputePMFInducedMatterPowerSpectrum, *params)
 
-
+# Intergalactic medium termperature (in K) from the averaged homogeneous evolution equations
 def igm_temp_from_table(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     return  _generic_c_call(z, lib.ComputeTKFromTable, *params)
-    
+
+# Intergalactic medium free electron fraction from the averaged homogeneous evolution equations
 def igm_xe_from_table(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     params = init_TF_and_IGM_tables(user_params = user_params, cosmo_params = cosmo_params, astro_params = astro_params, flag_options = flag_options)
     return  _generic_c_call(z, lib.ComputeXionFromTable, *params)
     
+# Hubble rate in (s^{-1})
+def hubble_rate(z, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None):
+    params = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options})
+    return _generic_c_call(z, lib.ComputeHubbleRate, *params)
+
+# Heating rate from PMF turbulences (in 1/s)
+def dEdtdV_heat_turbulences_pmf(z, chiB, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    params = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options}) 
+    c_params = [chiB]
+    return _generic_c_call_params(z, c_params, lib.ComputeDecayRateHeatTurbulencesPMF, *params)
+
+# Heating rate from PMF ambipolar diffusion (in 1/s)
+def dEdtdV_heat_ambipolar_pmf(z, xe, Tk, chiB, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+    params = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options}) 
+    c_params = [xe, Tk, chiB]
+    return _generic_c_call_params(z, c_params, lib.ComputeDecayRateHeatAmbipolarPMF, *params)
+
 
 def _generic_c_call(var, c_func, user_params, cosmo_params, astro_params, flag_options):
 
@@ -2762,6 +2780,7 @@ def run_coeval(
 
         lib.free_TF_CLASS() # Gaétan added that here at the end of the code
         lib.destruct_heat()
+        lib.destruct_pmf()
     
         return coevals
 
@@ -2839,6 +2858,20 @@ def _c_call_init_IGM_from_input(z, TK, xe):
     assert status == 1, "FATAL ERROR: error in calling InitIGMEvolutionTablesFromInput from heating_helper_prog.c"
 
 
+def _c_call_init_PMF_from_input(z, chiB):
+
+    # Convert the data to the right type
+    z = np.array(z, dtype="float32")
+    _z = ffi.cast("float *", ffi.from_buffer(z))
+
+    chiB = np.array(chiB, dtype="float32")
+    _chiB = ffi.cast("float *", ffi.from_buffer(chiB))
+
+
+    status = lib.InitPMFEvolutionTablesFromInput(_z, _chiB, len(z))
+    assert status == 1, "FATAL ERROR: error in calling InitPMFEvolutionTablesFromInput from heating_helper_prog.c"
+
+
 
 def _compute_sigma_A_PMF(cosmo_hyrec):
     
@@ -2855,8 +2888,8 @@ def _compute_sigma_A_PMF(cosmo_hyrec):
 
     # compute the typical Alfven magnetic scale sigma_A
     vA_sigmaB0 = 1./np.sqrt(pyhy.rho_gamma(cosmo_hyrec) * _MU_0_ * _C_LIGHT_**2 * 4/3) # in nG^{-1}
-    kA = pyhy.compute_acoustic_damping_scale(cosmo_hyrec) # in Mpc^{-1}, this makes a first call to HYREC C-code without exotic energy injection
-    sigma_A = kA/vA_sigmaB0/(2*np.pi) # in nG
+    k_gamma = pyhy.compute_acoustic_damping_scale(cosmo_hyrec) # in Mpc^{-1}, this makes a first call to HYREC C-code without exotic energy injection
+    sigma_A = k_gamma/vA_sigmaB0/(2*np.pi) # in nG
     
     return sigma_A
 
@@ -2932,7 +2965,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             ###########
             ## Effect of primordial magnetic fiels
 
-            sigma_A = cosmo_params.PMF_SIGMA_A_0
+            sigma_A = cosmo_params.PMF_SIGMA_A
             
             # Alfven magnetic scale in case of PMF effect
             if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
@@ -2949,7 +2982,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                 if user_params.PMF_HEATING_AD and not user_params.PMF_HEATING_TURB:
                     heating_channel = 2
                 
-                injec_hyrec_params = {'sigmaB_PMF' : cosmo_params.PMF_SIGMA_B_0, 'nB_PMF' : cosmo_params.PMF_B_INDEX, 'sigmaA_PMF' : sigma_A, 'heat_channel_PMF' : heating_channel}
+                injec_hyrec_params = {'sB_PMF' : cosmo_params.PMF_SB, 'nB_PMF' : cosmo_params.PMF_NB, 'sigmaA_PMF' : sigma_A, 'heat_channel_PMF' : heating_channel}
             
             # define the exotic energy injection object for HYREC
             # so far, only exotic injection from primordial magnetic fields included
@@ -2957,11 +2990,12 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             ###########
 
             # run HYREC and pass the result to 21cmFAST C-code
-            z_hyrec, xe_hyrec, Tm_hyrec = pyhy.call_run_hyrec(cosmo_hyrec(), injec_hyrec())
-            _c_call_init_IGM_from_input(z_hyrec, Tm_hyrec, xe_hyrec)  
+            res_hyrec = pyhy.call_run_hyrec(cosmo_hyrec(), injec_hyrec())
+            _c_call_init_IGM_from_input(res_hyrec['z'], res_hyrec['Tm'], res_hyrec['xe'])  
+            _c_call_init_PMF_from_input(res_hyrec['z'], res_hyrec['chiB'])
 
             if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
-                cosmo_params.update(PMF_SIGMA_A_0 = sigma_A)
+                cosmo_params.update(PMF_SIGMA_A = sigma_A)
             
         return (user_params, cosmo_params, astro_params, flag_options)
     
@@ -3250,6 +3284,7 @@ def free_C_memory():
     lib.FreePhotonConsMemory()
     lib.free_TF_CLASS()
     lib.destruct_heat()
+    lib.destruct_pmf()
     lib.FreeTsInterpolationTables()
 
 
@@ -3534,13 +3569,20 @@ def run_lightcone(
         }
 
         global_q = {quantity: np.zeros(len(scrollz)) for quantity in global_quantities}
-        global_xHIIdb = np.zeros(len(scrollz))
+        global_xHIIdb  = np.zeros(len(scrollz))
+        dpmf_ad_dt     = np.zeros(len(scrollz))
+        dpmf_turb_dt   = np.zeros(len(scrollz))
+        dxheat_dt      = np.zeros(len(scrollz))
+        dxheat_dt_MINI = np.zeros(len(scrollz))
+        chiB           = np.zeros(len(scrollz))
+
         pf = None
 
         perturb_files = []
         spin_temp_files = []
         ionize_files = []
         brightness_files = []
+
         log10_mturnovers = np.zeros(len(scrollz))
         log10_mturnovers_mini = np.zeros(len(scrollz))
 
@@ -3663,7 +3705,21 @@ def run_lightcone(
                 )
 
             # compute the product xHII*(1+delta_b)
-            global_xHIIdb[iz] = np.mean((1.0 - ib2.xH_box) * (1.0 + pf2.density))
+            global_xHIIdb[iz]  = np.mean((1.0 - ib2.xH_box) * (1.0 + pf2.density))
+            
+            if flag_options.USE_TS_FLUCT:
+                dpmf_ad_dt[iz]       = np.mean(st2.dpmf_ad_dt_box)
+                dpmf_turb_dt[iz]     = np.mean(st2.dpmf_turb_dt_box)
+                dxheat_dt[iz]        = np.mean(st2.dxheat_dt_box)
+
+                st2.dpmf_ad_dt_ave   = dpmf_ad_dt[iz]
+                st2.dpmf_turb_dt_ave = dpmf_turb_dt[iz]
+                chiB[iz]             = st2.chiB 
+                
+                if flag_options.USE_MINI_HALOS:
+                    dxheat_dt_MINI[iz] = np.mean(st2.dxheat_dt_box_MINI)
+
+                print(z, ":", st2.dpmf_ad_dt_ave, st2.dpmf_turb_dt_ave, chiB[iz])
 
             # Interpolate the lightcone
             if z < max_redshift:
@@ -3734,7 +3790,9 @@ def run_lightcone(
                 init_box.random_seed,
                 lc,
                 node_redshifts=scrollz,
-                global_quantities=(global_q | {'xHIIdb' : global_xHIIdb, 'log10_mturnovers' : log10_mturnovers, 'log10_mturnovers_mini' : log10_mturnovers_mini}),
+                global_quantities=(global_q | {'xHIIdb' : global_xHIIdb, 'dpmf_ad_dt' : dpmf_ad_dt, 'dpmf_turb_dt' : dpmf_turb_dt,
+                                               'dxheat_dt' : dxheat_dt, 'dxheat_dt_MINI' : dxheat_dt_MINI,
+                                               'log10_mturnovers' : log10_mturnovers, 'log10_mturnovers_mini' : log10_mturnovers_mini, 'chiB' : chiB}),
                 photon_nonconservation_data=photon_nonconservation_data,
                 _globals=dict(global_params.items()),
                 cache_files={

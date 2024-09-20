@@ -27,9 +27,9 @@ struct CosmoParams{
     float SHETH_q;
     float SHETH_p;
     float SHETH_A;
-    double PMF_SIGMA_B_0;
-    double PMF_SIGMA_A_0;
-    double PMF_B_INDEX;
+    double PMF_SB;
+    double PMF_SIGMA_A;
+    double PMF_NB;
 
     float NEUTRINO_MASS_1;
     float NEUTRINO_MASS_2;
@@ -158,10 +158,17 @@ struct PerturbHaloField{
 
 
 struct TsBox{
+    float *dpmf_ad_dt_box;
+    float *dpmf_turb_dt_box;
+    float *dxheat_dt_box;
+    float *dxheat_dt_box_MINI;
     float *Ts_box;
     float *x_e_box;
     float *Tk_box;
     float *J_21_LW_box;
+    double pmf_chiB;
+    double dpmf_ad_dt_ave;
+    double dpmf_turb_dt_ave;
 };
 
 struct IonizedBox{
@@ -276,11 +283,23 @@ float *ComputeDSigmaSqDmDk(struct UserParams *user_params, struct CosmoParams *c
 float* ComputeNionGeneral(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
                         struct AstroParams *astro_params, struct FlagOptions *flag_options, 
                         float *z, float *params, int length);
+float* ComputeHubbleRate(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *z, int length);
+float* ComputeDecayRateHeatTurbulencesPMF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *z, float *params, int length);
+float* ComputeDecayRateHeatAmbipolarPMF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *z, float *params, int length);
 int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length, int length_LCDM);
 int InitIGMEvolutionTablesFromInput(float *z, float *igm_temp, float *igm_xe, int length);
+int InitPMFEvolutionTablesFromInput(float *z, float *input_chiB, int length);
 int InitIGMEvolutionTablesFromRECFAST();
 int free_TF_CLASS();
-void destruct_heat();
+int destruct_heat();
+int destruct_pmf();
+
 /* ---------------------------------------------- */
 
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params);

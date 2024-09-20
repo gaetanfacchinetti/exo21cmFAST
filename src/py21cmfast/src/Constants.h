@@ -119,6 +119,7 @@
 #define m_p (double) 1.6726231e-24 // proton mass (g)
 #define m_e (double) 9.10938188e-28 // electron mass (g)
 #define m_H (double) 1.673532703758904e-24 // hydrogen mass (g)
+#define m_He (double) 6.646476708597453e-24 // helium mass (g)
 #define e_charge (double) 4.80320467e-10 // elemetary charge (esu=g^1/2 cm^3/2 s^-1
 #define SQDEG_ALLSKY (double) ((360.0*360.0)/PI) // Square degrees in all sky
 #define G_AB_Jy (double) 3631.0 // AB mag constant in Jy

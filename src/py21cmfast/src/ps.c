@@ -1009,15 +1009,14 @@ double pmf_induced_power_spectrum(double k)
 
     //LOG_DEBUG("Computing the PMF transfer function for k = %e Mpc^{-1}", k);
 
-    double sB0 = cosmo_params_ps->PMF_SIGMA_B_0;
-    double sA0 = cosmo_params_ps->PMF_SIGMA_A_0;
-    double nB  = cosmo_params_ps->PMF_B_INDEX;
+    double sB = cosmo_params_ps->PMF_SB;
+    double sA = cosmo_params_ps->PMF_SIGMA_A;
+    double nB  = cosmo_params_ps->PMF_NB;
     
     //double kA_approx = pow(sB0*sB0 / pow(2*PI, 3.0 + nB) / 4.2e+5, -1.0/(5.0 + nB));
-    double kA_approx = TWOPI * pow(sB0 / sA0, -2.0/(5.0 + nB));  // in Mpc^{-1}
-    double amplitude = pow(TWOPI * sB0, 2) / gsl_sf_gamma((nB+3.0)/2.0) * pow(2.0, (nB+3.0)/2.0); // in nG^2 Mpc^{3+nB}
+    double kA_approx = TWOPI * pow(sB / sA, -2.0/(5.0 + nB));  // in Mpc^{-1}
+    double amplitude = pow(TWOPI * sB, 2) / gsl_sf_gamma((nB+3.0)/2.0) * pow(2.0, (nB+3.0)/2.0); // in nG^2 Mpc^{3+nB}
 
-   
 
     double dimensionless_power_spectrum_v = 0;
     double log10_w = log10(k/kA_approx);
@@ -1076,7 +1075,7 @@ double pmf_induced_power_spectrum(double k)
     double rhob_0 = cosmo_params_ps->OMb  * RHOcrit; // in Msun / Mpc^3
     double rhom_0 = cosmo_params_ps->OMm  * RHOcrit; // in Msun / Mpc^3
     double sJ0    = 5.0 / 4.0 * sqrt(MU_0 * G / PI * rhob_0 * rhom_0) * Msun / CMperMPC / CMperMPC; // in nG
-    double kJ     = 2.0 * PI * pow(sB0 / sJ0 , -2.0/(5.0+nB)); // in Mpc^{-1} 
+    double kJ     = 2.0 * PI * pow(sB / sJ0 , -2.0/(5.0+nB)); // in Mpc^{-1} 
 
     
     double alpha = fb / rhob_0 / MU_0 /Msun * CMperMPC; // in nG^{-2} Mpc^2 s^{-2}

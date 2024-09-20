@@ -5,9 +5,12 @@
 #define RHOcrit (double) ( (3.0*Ho*Ho / (8.0*PI*G)) * (CMperMPC*CMperMPC*CMperMPC)/Msun) // Msun Mpc^-3 ---- at z=0
 #define RHOcrit_cgs (double) (3.0*Ho*Ho / (8.0*PI*G)) // g pcm^-3 ---- at z=0
 #define No  (double) (RHOcrit_cgs*cosmo_params_ufunc->OMb*(1-global_params.Y_He)/m_p)  //  current hydrogen number density estimate  (#/cm^3)  ~1.92e-7
-#define He_No (double) (RHOcrit_cgs*cosmo_params_ufunc->OMb*global_params.Y_He/(4.0*m_p)) //  current helium number density estimate
-#define N_b0 (double) (No+He_No) // present-day baryon num density, H + He
-#define f_H (double) (No/(No+He_No))  // hydrogen number fraction
+#define He_No (double) (RHOcrit_cgs*cosmo_params_ufunc->OMb*global_params.Y_He/(4.0*m_p)) //  current helium number density estimate (#/cm^3)
+#define rho0 (double) (RHOcrit_cgs*cosmo_params_ufunc->OMb*(1-global_params.Y_He)) //  current hydrogen density estimate  (g/cm^3)
+#define He_rho0 (double) (RHOcrit_cgs*cosmo_params_ufunc->OMb*global_params.Y_He) //  current helium density estimate  (g/cm^3)
+#define N_b0 (double) (No+He_No) // present-day baryon num density, H + He (#/cm^3)
+#define rho_b0 (double) (rho0 + He_rho0) // present-day baryon density, H + He (g/cm^3)
+#define f_H (double) (No/(No+He_No))  // hydrogen number fraction 
 #define f_He (double) (He_No/(No+He_No))  // helium number fraction
 
 struct CosmoParams *cosmo_params_ufunc;
@@ -369,13 +372,13 @@ double growth_from_pmf(double z)
         solve the equation in terms of these variables
     */
     
-    if (z >= 1100)
+    if (z >= 1080)
         return 0.0;
     
     if (z < 1e-2)
         z = 1e-2;
 
-    double x = log(1.0/(1.0 + 1100));
+    double x = log(1.0/(1.0 + 1080));
     double dx = 0.001;
     double y = 0.0;
     double dy = 0.0;
@@ -1145,30 +1148,35 @@ double fit_Lorentz_force_average(double x)
 }
 
 /* 
-  Energy injection rate due to ambipolar diffusion (result is in erg / cm^3 / s) 
+  Energy injection rate due to ambipolar diffusion (result is in 1 / s) 
   - z       : redshift
   - xe      : free electron fraction
   - Tgas    : Temperature of the gas (in K)
-  - obh2    : \Omega_{\rm b} h^2, baryon abundance times hubble parameter squared
-  - sigma_A : alfven magnetic scale (in nG, ~30 nG fixed by the value of the Aflven mode)
-  - sigma_B : \sigma_{B, 0} (in nG),  standard deviation of the PMF spectrum on 1 Mpc scale today
-  - nB      : power index of the PMF spectrum
+  - rhob    : density of baryons (in cm^{-3}) (if negative recomputes the homogeneous value)
 
   Same function as in HYREC with adapted units
 */
-double dEdtdV_heat_ambipolar_pmf(double z, double xe, double Tgas)
+double dEdtdV_heat_ambipolar_pmf(double z, double xe, double Tgas, double rhob)
+{
+    return 0.0;
+}
+double dEdtdV_heat_turbulences_pmf(double z, double xe, double Tgas, double rhob)
+{
+    return 0.0;
+}
+double decay_rate_heat_ambipolar_pmf(double z, double xe, double Tgas, double chiB, double rhob)
 {
     double zi = 1088;
 
-    double obh2   = cosmo_params_ufunc->OMb * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle;
-    double sigmaA = cosmo_params_ufunc->PMF_SIGMA_A_0;
-    double sigmaB = cosmo_params_ufunc->PMF_SIGMA_B_0;
-    double nB     = cosmo_params_ufunc->PMF_B_INDEX;
+    double ob     = cosmo_params_ufunc->OMb;
+    double sigmaA = cosmo_params_ufunc->PMF_SIGMA_A;
+    double sigmaB = cosmo_params_ufunc->PMF_SB;
+    double nB     = cosmo_params_ufunc->PMF_NB;
 
     double gamma_AD = 6.49e-10 * pow(Tgas, 0.375) / (2.0 * m_H); // in cm^3 / s / g
-    double rho_b    = obh2 * RHOcrit * pow(1+z, 3) * Msun * pow(CMperMPC, -3); // in g / cm^3
-    double eta_AD   = (1.0-xe)/xe / rho_b / rho_b / gamma_AD; // in s * cm^3 / g
+    double rho_b = (rhob <= 0) ? ob * RHOcrit * Msun * pow(CMperMPC, -3) : rhob; // in g / cm^3
 
+    double eta_AD   = (1.0-xe)/xe / rho_b / rho_b / gamma_AD; // in s * cm^3 / g
 
     /* 
     Note that, assuming Helium ionization history similar to Hydrogen ionization history,
@@ -1178,13 +1186,17 @@ double dEdtdV_heat_ambipolar_pmf(double z, double xe, double Tgas)
     rho_n = rho_HI + rho_HeI and rho_+ = rho_HII + rho_HeII (negleting second ionization)
     */
 
-    // prefactor sigma(k_A)^4 kA^2 in convinient units
-    double sA4kA2 = 1.0 / CMperMPC / CMperMPC * pow(sigmaB / sigmaA, 4.0/(5.0+nB)) * pow(sigmaA, 4) * 4.0 * PI * PI; // in nG^4 / cm^2
+    double rhoA = sigmaA * sigmaA / (2.0 * MU_0); // in g / cm / s^2
 
     // result: (MU_0 in g^-1 cm nG^2 s^2)
-    double res =  sA4kA2 * pow(1+z, 10) * eta_AD / MU_0 / MU_0 * fit_Lorentz_force_average(nB + 3.0);  
-    // result in // in g / cm / s^3
-    // this is equivalent to erg / cm^3 / s as 1.0 * g * cm^2 / s^2 = 1.0 erg
+    double res = pow(4.0 * PI, 2) * rhoA * eta_AD * fit_Lorentz_force_average(nB + 3.0) * pow(chiB, 4) * pow(CMperMPC, -2); // in 1/s
+    
+    //  g / cm / s^3 is equivalent to erg / cm^3 / s as 1.0 * g * cm^2 / s^2 = 1.0 erg
+
+    // prefactor sigma(k_A)^4 kA^2 in convinient units
+    // double sA4kA2 = 1.0 / CMperMPC / CMperMPC * pow(sigmaB / sigmaA, 4.0/(5.0+nB)) * pow(sigmaA, 4) * 4.0 * PI * PI; // in nG^4 / cm^2
+    //double res =  sA4kA2 * pow(1+z, 10) * eta_AD / MU_0 / MU_0 * fit_Lorentz_force_average(nB + 3.0);  
+    //LOG_DEBUG("21cmFAST: z=%e, xe=%e, Tgas=%e, obh2=%e, sigmaA=%e, sigmaB=%e, nB=%e, rhob=%e, eta_AD=%e, sA4kA2=%e", z, xe, Tgas, ob * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle, sigmaA, sigmaB, nB, rho_b, eta_AD, sA4kA2);
 
     return (z < zi) ? res : 0.0;
 }
@@ -1216,37 +1228,96 @@ double sigma_Jeans_pmf(double obh2, double ocbh2)
 
 
 /* 
-    Hubble rate (in s)
+    Hubble rate (in 1/s)
     (may not be fully consistent with the value of OMl = 1-OMm defined in the cosmo_params)
     - z : redshift
 */
-double hubble_rate(z)
+double hubble_rate(double z)
 {
     double OMl = global_params.OMtot - global_params.OMk - global_params.OMr - cosmo_params_ufunc->OMm;
     double Ez2 =  OMl * pow(1.+z, 3*(1+global_params.wl)) + cosmo_params_ufunc->OMm *pow(1.+z,3.) + global_params.OMr *pow(1.+z,4.) + global_params.OMk * pow(1.+z, 2);
 
-    return 1e+7 * cosmo_params_ufunc->hlittle  * sqrt(Ez2) / CMperMPC;
+    
+    double res =  1e+7 * cosmo_params_ufunc->hlittle  * sqrt(Ez2) / CMperMPC;
+    return res;
 }
 
-/*  Energy injection rate due to turbulences (result is in erg / cm^3 / s)
-    - sigmaB (magnetic variance)  in nG
-    - sigmaA (alfven variance) in nG
-    - H in 1/s
-*/
-double dEdtdV_heat_turbulences_pmf(double z)
+/*  Energy injection rate due to turbulences (result is in erg / cm^3 / s) */
+double decay_rate_heat_turbulences_pmf(double z, double chiB)
 {
     
     double zi = 1088;
 
     double obh2   = cosmo_params_ufunc->OMb * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle;
     double omh2   = cosmo_params_ufunc->OMm * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle;
-    double sigmaA = cosmo_params_ufunc->PMF_SIGMA_A_0;
-    double sigmaB = cosmo_params_ufunc->PMF_SIGMA_B_0;
-    double nB     = cosmo_params_ufunc->PMF_B_INDEX;
+    double sigmaA = cosmo_params_ufunc->PMF_SIGMA_A;
+    double sigmaB = cosmo_params_ufunc->PMF_SB;
+    double nB     = cosmo_params_ufunc->PMF_NB;
 
-    double en =  pow(1+z, 4) / (2.0*MU_0) * sigmaA * sigmaA * pow(sigmaB/sigmaA, 4.0/(5.0+nB)); // in units of g / cm / s^2  (i.e. erg / cm^3)
+    // decay time over the initial time
     double tdti = sigma_Jeans_pmf(obh2, omh2) / sigmaA;
-  
-    return (z < zi) ? en * decay_rate_pmf_turbulences(z, tdti, nB) * hubble_rate(z) : 0.0;
 
+    // slope of the energy density decay
+    double m   = 2.0 * (nB + 3.0) / (nB + 5.0);
+
+    // ratio apearing in the final expression
+    double r   = pow(1+tdti, -2.0/3.0);
+    
+    return  (z < zi) ? - m / log(r*(1+z)/(1+zi)) * hubble_rate(z) * pow(chiB, 2) : 0.0; // in 1 /s
+
+}
+
+//double en =  pow(1+z, 4) / (2.0*MU_0) * sigmaA * sigmaA * pow(sigmaB/sigmaA, 4.0/(5.0+nB)); // in units of g / cm / s^2  (i.e. erg / cm^3)
+//return (z < zi) ? en * decay_rate_pmf_turbulences(z, tdti, nB) * hubble_rate(z) : 0.0;
+
+
+
+float* ComputeHubbleRate(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *z, int length) 
+{
+
+    Broadcast_struct_global_UF(user_params, cosmo_params);
+    float* result = malloc(length * sizeof(float));
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) hubble_rate(z[i]);
+
+    return result;
+}
+
+float* ComputeDecayRateHeatTurbulencesPMF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *z, float *params, int length)
+
+{
+    Broadcast_struct_global_UF(user_params, cosmo_params);
+    float* result = malloc(length * sizeof(float));
+
+    double chiB = (double) params[0];
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) decay_rate_heat_turbulences_pmf(z[i], chiB);
+
+    return result;
+}
+
+
+
+float* ComputeDecayRateHeatAmbipolarPMF(struct UserParams *user_params, struct CosmoParams *cosmo_params, 
+                        struct AstroParams *astro_params, struct FlagOptions *flag_options, 
+                        float *z, float *params, int length)
+
+{
+    Broadcast_struct_global_UF(user_params, cosmo_params);
+    float* result = malloc(length * sizeof(float));
+
+    double xe    = (double) params[0];
+    double Tk    = (double) params[1];
+    double chiB  = (double) params[2];
+
+    for (int i = 0; i < length; i++) 
+        result[i] = (float) decay_rate_heat_ambipolar_pmf(z[i], xe, Tk, chiB, -1);
+
+    return result;
 }
