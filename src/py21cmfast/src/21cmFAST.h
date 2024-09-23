@@ -12,6 +12,7 @@ struct CosmoParams{
     double OMm;
     double OMl;
     double OMb;
+    double OMr;
     double POWER_INDEX;
     double Omch2;
     double Ombh2;

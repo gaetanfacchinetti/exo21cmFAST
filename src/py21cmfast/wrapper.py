@@ -2969,10 +2969,10 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
     # define general parameters for CLASS
     
-    _h = cosmo_params.hlittle
+    _h             = cosmo_params.hlittle
     omega_cdm_LCDM = (cosmo_params.OMm - cosmo_params.OMb) * _h**2
-    m_min = ((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
-    k_max = 20*(2.78e+11 * (_h**2) * cosmo_params.OMm / m_min)**(1./3.) # rough approximation of the maximal value of k we need
+    m_min          = ((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
+    k_max_21cm     = 20*(2.78e+11 * (_h**2) * cosmo_params.OMm / m_min)**(1./3.) # rough approximation of the maximal value of k we need
     #k_max = 10.0/mass_to_radius((10**astro_params.M_TURN)/50.0) if (not flag_options.USE_MINI_HALOS) else 1e+3
     neff_array = [3.044, 2.0308, 1.0176, 0.00441]
     
@@ -2984,7 +2984,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         'A_s': 1e-10 * np.exp(cosmo_params.Ln_1010_As),
         'n_s': cosmo_params.POWER_INDEX,
         'alpha_s' : cosmo_params.ALPHA_S_PS,
-        'P_k_max_h/Mpc': k_max / _h,
+        'P_k_max_h/Mpc': k_max_21cm / _h,
         'reio_parametrization': 'reio_none', 
         # 21cmFAST will take care of the reionization
         }
@@ -3082,10 +3082,11 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             T_ncdm   = np.append(T_ncdm,  0.71611 * (omega_wdm * 93.14 / m_wdm)**(1./3.))
             fluid_approx = np.append(fluid_approx, user_params.CLASS_FLUID_APPROX_WDM)
 
+
+            # moved below
             # if all DM in WDM, we don't need to evaluate the power spectrum at extremely large modes
             # we cut at 10 times the WDM cutoff
-            if f_wdm == 1:
-                k_max = np.min([k_max, 10./(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/m_wdm, 0.11) / m_wdm * 1.54518467138)])
+            #if f_wdm == 1: 
 
 
     #############################################
@@ -3134,9 +3135,6 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     # adding the properties of DM-neutrinos interactions
     params_class = params_class | nu_dm_params
 
-    # update the value of P_k_max 
-    params_class['P_k_max_h/Mpc'] = k_max / _h
-
     # assert that we do not have a negative amount of dark matter
     assert omega_cdm >= 0, ValueError("The abundance of cold dark matter cannot go below 0")
 
@@ -3152,7 +3150,9 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
 
     # to normalise to sigma_8 the LCDM power spectrum is needed
     # if the model is simply LCDM then we only run this part
-    if user_params.USE_SIGMA_8_NORM is True or n_ncdm == 0:
+    # if n_wdm > 0 then we need the LCDM value to compare
+    # the transfer function to and check we have taken a value of k_max large enough
+    if (user_params.USE_SIGMA_8_NORM is True or n_ncdm == 0) or (n_wdm > 0):
 
         # Put the correct values for the parameters missing in the init params dict
         params_class_LCDM = params_class_init | {'omega_cdm' : omega_cdm_LCDM}
@@ -3167,24 +3167,23 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         # Get the transfer functions            
         # the matter transfer function is defined w.r.t. the primordial power spectrum
         # T_m^2(k) =  (k^3 / (2 \pi^2)) Pm(k) / P_R(k)
-        
-        #_transfer_LCDM = cosmo_CLASS_LCDM.get_transfer()
-        #_k_array_LCDM = _transfer_LCDM['k (h/Mpc)'][:-1] * _h
-        _k_array = np.logspace(np.log10(1e-4), np.log10(params_class_LCDM['P_k_max_h/Mpc'] * _h), 500)
+        _k_array_LCDM   = np.logspace(np.log10(1e-4), np.log10(params_class_LCDM['P_k_max_h/Mpc'] * _h), 500)
         _mps_array_LCDM = np.array([cosmo_CLASS_LCDM.pk_lin(k, 0) for k in _k_array_LCDM])
         _Tm_array_LCDM  = np.sqrt(_k_array_LCDM**3 * _mps_array_LCDM / primordial_power_spectrum(_k_array_LCDM) / (2*np.pi**2) )
         
         # relative velocities transfer function only computed if necessary
-        _Tvcb_array_LCDM = cosmo_CLASS_LCDM.get_transfer(z = 1010)['t_b'][:-1]/_k_array_LCDM if user_params.USE_RELATIVE_VELOCITIES else np.zeros(len(_k_array_LCDM))
+        _Tvcb_array_LCDM = np.zeros(len(_k_array_LCDM))
+        if user_params.USE_RELATIVE_VELOCITIES:
+            _transfer_1010_LCDM = cosmo_CLASS_LCDM.get_transfer(z = 1010)
+            _k_CLASS_LCDM       = _transfer_1010_LCDM['k (h/Mpc)'][:-1] * _h # we don't take the last point for numerical issues and instead use the value of the second to last (in the interpolation below)
+            _Tvcb_array_LCDM    = interp1d(_k_CLASS_LCDM, _transfer_1010_LCDM['t_b'][:-1], bounds_error = False, fill_value = (0.0, _transfer_1010_LCDM['t_b'][-2]))(_k_array_LCDM)/_k_array_LCDM
         
-        #_Tvcb_array_LCDM = _transfer_LCDM['t_b'][:-1]
-
 
     # with ncdm components and normalisation with As (not sigma_8)
     # no need to define a LCDM transfer function
     # however necessary to initialise this part to fill the C arrays
     # and avoid a segmentation fault
-    if user_params.USE_SIGMA_8_NORM is False and n_ncdm > 0:
+    if (user_params.USE_SIGMA_8_NORM is False and n_ncdm > 0) and (n_wdm == 0):
         
         # define dummy default arrays
         _k_array_LCDM    = np.array([1, 2, 3, 4, 5])
@@ -3195,24 +3194,75 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     # if ncdm component
     if n_ncdm > 0:
 
-        print("CLASS parameters are :\n", params_class, flush=True)
-
         # creating a Class object
         cosmo_CLASS = Class()
-        cosmo_CLASS.set(params_class)
-        cosmo_CLASS.compute()
 
-        # Get the transfer functions
+        k_max = np.array([k_max_21cm])
 
-        _k_array = np.logspace(np.log10(1e-4), np.log10(params_class['P_k_max_h/Mpc'] * _h), 500)
-        #_transfer = cosmo_CLASS.get_transfer()
-        #_k_array  = _transfer['k (h/Mpc)'][:-1] * _h
-        _mps_array =  np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array])
-        _Tm_array  =  np.sqrt(_k_array**3 * _mps_array / primordial_power_spectrum(_k_array) / (2*np.pi**2) )
-        #_Tvcb_array = _transfer['t_b'][:-1]
+        if n_wdm > 0:
+            # rough approximation of the maximum k we need for warm dark matter
+            # be careful that m_wdm is in eV for CLASS
+            k_max_wdm = 3.0/(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/(1e-3 * m_wdm), 0.11) / (1e-3 * m_wdm) * 1.54518467138)
+            
+            if k_max_wdm < k_max_21cm:
+                n = int(np.floor(np.min([50, (np.log10(k_max_21cm) - np.log10(k_max_wdm))/0.04]))) # np.log10(1.2) ~ 0.04
+                k_max = np.logspace(np.log10(k_max_wdm), np.log10(k_max_21cm), n)
+
+        ncdm_precision: bool = False      
+        n_call_class: int    = 0
+
+        # for pure wdm scenarios or scenarios where computing the matter power spectrum
+        # at large modes can be sources of issues we go through trial and errors to find
+        # a good value of k_max that would be interesting
+        while ncdm_precision is False and n_call_class < len(k_max) :
+
+            # update the value of P_k_max 
+            params_class['P_k_max_h/Mpc'] = k_max[n_call_class] / _h
+            cosmo_CLASS.set(params_class)
+            
+            # try to run CLASS
+            try:
+                print(str(n_call_class) + ": CLASS parameters are :\n", params_class, flush=True)
+                cosmo_CLASS.compute()
+            except Exception as e:
+                print(str(n_call_class) + ": Problem with the class solver with NCDM components:", flush = True)
+                raise e
+            
+            # we increase the number of class calls in the loop by one
+            n_call_class = n_call_class + 1
+
+            # Get the transfer functions
+            _k_array_temp   = np.logspace(np.log10(1e-4), np.log10(params_class['P_k_max_h/Mpc'] * _h), 500)
+            _mps_array_temp = np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array_temp])
+            _Tm_array_temp  = np.sqrt(_k_array_temp**3 * _mps_array_temp / primordial_power_spectrum(_k_array_temp) / (2*np.pi**2) )
+
+            # Let us say we do not need to go further if we find a decrease of the power of the order 1e-2
+            if (_Tm_array[-1] / _Tm_array_LCDM[-1]) < 1e-2:
+                ncdm_precision = True
+                
+        if (ncdm_precision is False) and (n_wdm > 0):
+            print("Precision could not be achieved T_NCDM/T_LCDM(k_max) =", _Tm_array[-1] / _Tm_array_LCDM[-1], flush=True)
+        
+        if n_wdm > 0:
+            # in the wdm case, we may have computed the power spectrum up to a given k
+            # because 21cm will extrapolate from the last value it is safer to set it to
+            # zero after the maximum value of k we computed 
+            _k_array  =  np.logspace(np.log10(1e-4), np.log10(k_max_21cm * _h), 500)
+            _Tm_array = interp1d(_k_array_temp, _Tm_array_temp, bounds_error = False, fill_value = 0.0)(_k_array)
+            print("The value of k_max set is =", k_max[n_call_class], "Mpc^{-1} | T_NCDM/T_LCDM(k_max) =", _Tm_array[-1] / _Tm_array_LCDM[-1], flush=True)
+        else:
+            # if not wdm then we just take the array of k and transfer function as it has been computed
+            _k_array   = _k_array_temp
+            _Tm_array  = _Tm_array_temp
+
+
 
         # relative velocities transfer function only computed if necessary
-        _Tvcb_array = cosmo_CLASS.get_transfer(z = 1010)['t_b'][:-1]/_k_array if user_params.USE_RELATIVE_VELOCITIES else np.zeros(len(_k_array))
+        _Tvcb_array = np.zeros(len(_k_array))
+        if user_params.USE_RELATIVE_VELOCITIES:
+            _transfer_1010 = cosmo_CLASS.get_transfer(z = 1010)
+            _k_CLASS       = _transfer_1010['k (h/Mpc)'][:-1] * _h # we don't take the last point for numerical issues and instead use the value of the second to last (in the interpolation below)
+            _Tvcb_array    = interp1d(_k_CLASS, _transfer_1010['t_b'][:-1], bounds_error = False, fill_value = (0.0, _transfer_1010['t_b'][-2]))(_k_array)/_k_array
 
         # get the thermodynamics
         _thermo  = cosmo_CLASS.get_thermodynamics()
@@ -3221,8 +3271,8 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     # if no ncdm is present we just fix the power spectrum to that of LCDM
     if n_ncdm == 0:
         
-        _k_array = _k_array_LCDM
-        _Tm_array = _Tm_array_LCDM
+        _k_array    = _k_array_LCDM
+        _Tm_array   = _Tm_array_LCDM
         _Tvcb_array = _Tvcb_array_LCDM
 
         _thermo  = cosmo_CLASS_LCDM.get_thermodynamics()
