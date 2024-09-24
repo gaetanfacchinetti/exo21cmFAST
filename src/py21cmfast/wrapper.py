@@ -3204,9 +3204,12 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             # be careful that m_wdm is in eV for CLASS
             k_max_wdm = 3.0/(0.049 * pow(cosmo_params.OMm * _h * _h /0.25/(1e-3 * m_wdm), 0.11) / (1e-3 * m_wdm) * 1.54518467138)
             
+            print("k_max_wdm (init) =", k_max_wdm, "Mpc^{-1}", flush = True)
+
             if k_max_wdm < k_max_21cm:
                 n = int(np.floor(np.min([50, (np.log10(k_max_21cm) - np.log10(k_max_wdm))/0.04]))) # np.log10(1.2) ~ 0.04
                 k_max = np.logspace(np.log10(k_max_wdm), np.log10(k_max_21cm), n)
+                
 
         ncdm_precision: bool = False      
         n_call_class: int    = 0
@@ -3237,11 +3240,13 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             _Tm_array_temp  = np.sqrt(_k_array_temp**3 * _mps_array_temp / primordial_power_spectrum(_k_array_temp) / (2*np.pi**2) )
 
             # Let us say we do not need to go further if we find a decrease of the power of the order 1e-2
-            if (_Tm_array[-1] / _Tm_array_LCDM[-1]) < 1e-2:
+            # first get the value of the LCDM transfer function at the k_max considered here
+            _Tm_LCDM = interp1d(_k_array_LCDM, _Tm_array_LCDM)(_k_array_temp[-1])
+            if (_Tm_array_temp[-1] / _Tm_LCDM) < 1e-2:
                 ncdm_precision = True
                 
         if (ncdm_precision is False) and (n_wdm > 0):
-            print("Precision could not be achieved T_NCDM/T_LCDM(k_max) =", _Tm_array[-1] / _Tm_array_LCDM[-1], flush=True)
+            print("Precision could not be achieved T_NCDM/T_LCDM(k_max) =", _Tm_array_temp[-1] / _Tm_LCDM, flush=True)
         
         if n_wdm > 0:
             # in the wdm case, we may have computed the power spectrum up to a given k
@@ -3249,7 +3254,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             # zero after the maximum value of k we computed 
             _k_array  =  np.logspace(np.log10(1e-4), np.log10(k_max_21cm * _h), 500)
             _Tm_array = interp1d(_k_array_temp, _Tm_array_temp, bounds_error = False, fill_value = 0.0)(_k_array)
-            print("The value of k_max set is =", k_max[n_call_class], "Mpc^{-1} | T_NCDM/T_LCDM(k_max) =", _Tm_array[-1] / _Tm_array_LCDM[-1], flush=True)
+            print("The value of k_max set is =", k_max[n_call_class-1], "Mpc^{-1} | T_NCDM/T_LCDM(k_max) =", _Tm_array_temp[-1] / _Tm_LCDM, flush=True)
         else:
             # if not wdm then we just take the array of k and transfer function as it has been computed
             _k_array   = _k_array_temp
