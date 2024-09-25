@@ -330,7 +330,7 @@ void init_spline_PMF_evolution()
 {
     // Set up spline table
     acc_chiB   = gsl_interp_accel_alloc ();
-    spline_chiB  = gsl_spline_alloc (gsl_interp_cspline, TABLE_IGM_EVOL_NPTS);
+    spline_chiB  = gsl_spline_alloc (gsl_interp_cspline, TABLE_PMF_EVOL_NPTS);
     gsl_spline_init(spline_chiB, zB, chiB, TABLE_PMF_EVOL_NPTS);
 }
 

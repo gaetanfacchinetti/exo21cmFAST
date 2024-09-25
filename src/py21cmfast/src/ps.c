@@ -220,6 +220,7 @@ double power_spectrum_LCDM(double k);
 double transfer_function_PMF(double k);
 double pmf_induced_power_spectrum(double k);
 void interpolate_power_spectrum_from_pmf(bool free_tables);
+double MB_PMF_TABLE(float z);
 
 double window_function(double kR);
 double dsigma_dlnk(double k, void *params);
@@ -698,6 +699,83 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 
 }
 
+
+// ------------------------------------------------------ 
+// Initialisation routines for Primordial Magnetic Fields
+
+static const double *zB_growth=NULL, *MB=NULL;
+static gsl_interp_accel *acc_MB = NULL;
+static gsl_spline *spline_MB = NULL;
+static TABLE_PMF_GROWTH_EVOL_NPTS;
+
+void prepare_tables_PMF_growth_evolution(int table_length)
+{
+    zB_growth = malloc(table_length * sizeof(double));
+    MB        = malloc(table_length * sizeof(double));
+}
+
+
+void init_spline_PMF_growth_evolution()
+{
+    // Set up spline table
+    acc_MB   = gsl_interp_accel_alloc ();
+    spline_MB  = gsl_spline_alloc (gsl_interp_cspline, TABLE_PMF_GROWTH_EVOL_NPTS);
+    gsl_spline_init(spline_MB, zB_growth, MB, TABLE_PMF_GROWTH_EVOL_NPTS);
+}
+
+
+// Initialise the tables for the values of chiB from PMF
+int InitPMFGrowthEvolutionTablesFromInput(float *z, float *input_MB, int length)
+{
+    const table_length = length;
+    TABLE_PMF_GROWTH_EVOL_NPTS = table_length;
+
+    prepare_tables_PMF_growth_evolution(TABLE_PMF_GROWTH_EVOL_NPTS);
+
+    for (int i = 0; i < table_length; i++)
+    {
+        *((double *)zB_growth + i) = (double)z[i];
+        *((double *)MB + i) = (double)input_MB[i];
+    }
+    
+    init_spline_PMF_growth_evolution();
+
+    return 1;
+}
+
+double MB_PMF_TABLE(float z)
+{
+    double ans;
+    if (z > zB_growth[TABLE_PMF_GROWTH_EVOL_NPTS-1]) { // Called at z>500! Bail out
+        LOG_ERROR("Called MB_PMF_TABLE with z=%f", z);
+        Throw ValueError;
+    }
+    else { // Do spline
+        ans = gsl_spline_eval (spline_MB, z, acc_MB);
+    }
+    return ans;
+}
+
+
+int destruct_pmf_growth()
+{
+    LOG_DEBUG("FREEING PMF TABLES");
+    
+    free_pointer((void**)&spline_MB, free_gsl_spline);
+    free_pointer((void**)&acc_MB, free_gsl_interp_accel);
+    free_pointer((void**)&zB_growth, free);
+
+    LOG_DEBUG("PMF GROWTH TABLES FREED");
+    return 1;
+}
+
+
+
+
+// ------------------------------------------------------ 
+
+
+
 static const double *kclass=NULL, *Tmclass=NULL, *Tvclass_vcb=NULL, *kclass_LCDM=NULL, *Tmclass_LCDM=NULL, *Tvclass_vcb_LCDM=NULL;
 static gsl_interp_accel *acc_density = NULL, *acc_vcb = NULL, *acc_density_LCDM = NULL, *acc_vcb_LCDM = NULL;
 static gsl_spline *spline_density = NULL, *spline_vcb = NULL, *spline_density_LCDM = NULL, *spline_vcb_LCDM = NULL;
@@ -1084,6 +1162,8 @@ double pmf_induced_power_spectrum(double k)
 }
 
 
+
+
 //
 //
 // Part 2. 
@@ -1411,7 +1491,10 @@ void init_ps(){
     GROWTH_FROM_PMF = 0;
 
     if (user_params_ps->PMF_POWER_SPECTRUM)
-        GROWTH_FROM_PMF = growth_from_pmf(0);
+    {   
+        GROWTH_FROM_PMF = MB_PMF_TABLE(global_params.Z_HEAT_MAX) / dicke(global_params.Z_HEAT_MAX);
+        LOG_DEBUG("GROWTH_FROM_PMF: %e, (%e old value), unnormalised_D(0) = %e, MB = %e, D(z=35) = %e", GROWTH_FROM_PMF, growth_from_pmf(0.0), unnormalised_dicke(0, cosmo_params_ps->OMm, cosmo_params_ps->OMl), MB_PMF_TABLE(global_params.Z_HEAT_MAX), dicke(global_params.Z_HEAT_MAX));
+    }
 
    
     if (user_params_ps->USE_SIGMA_8_NORM)

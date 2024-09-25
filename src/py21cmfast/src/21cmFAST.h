@@ -295,10 +295,12 @@ float* ComputeDecayRateHeatAmbipolarPMF(struct UserParams *user_params, struct C
 int InitTFCLASS(struct UserParams *user_params, struct CosmoParams *cosmo_params, float *k, float *Tm, float *Tvcb, float *k_LCDM, float *Tm_LCDM, float *Tvcb_LCDM, int length, int length_LCDM);
 int InitIGMEvolutionTablesFromInput(float *z, float *igm_temp, float *igm_xe, int length);
 int InitPMFEvolutionTablesFromInput(float *z, float *input_chiB, int length);
+int InitPMFGrowthEvolutionTablesFromInput(float *z, float *input_MB, int length);
 int InitIGMEvolutionTablesFromRECFAST();
 int free_TF_CLASS();
 int destruct_heat();
 int destruct_pmf();
+int destruct_pmf_growth();
 
 /* ---------------------------------------------- */
 

@@ -632,13 +632,13 @@ def hubble_rate(z, *, user_params=None, cosmo_params=None, astro_params=None, fl
     return _generic_c_call(z, lib.ComputeHubbleRate, *params)
 
 # Heating rate from PMF turbulences (in 1/s)
-def dEdtdV_heat_turbulences_pmf(z, chiB, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+def decay_rate_heat_turbulences_pmf(z, chiB, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     params = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options}) 
     c_params = [chiB]
     return _generic_c_call_params(z, c_params, lib.ComputeDecayRateHeatTurbulencesPMF, *params)
 
 # Heating rate from PMF ambipolar diffusion (in 1/s)
-def dEdtdV_heat_ambipolar_pmf(z, xe, Tk, chiB, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
+def decay_rate_heat_ambipolar_pmf(z, xe, Tk, chiB, *, user_params=None, cosmo_params=None, astro_params=None, flag_options=None) : 
     params = _setup_inputs({ "user_params": user_params, "cosmo_params": cosmo_params, "astro_params" : astro_params, "flag_options" : flag_options}) 
     c_params = [xe, Tk, chiB]
     return _generic_c_call_params(z, c_params, lib.ComputeDecayRateHeatAmbipolarPMF, *params)
@@ -2781,6 +2781,7 @@ def run_coeval(
         lib.free_TF_CLASS() # Gaétan added that here at the end of the code
         lib.destruct_heat()
         lib.destruct_pmf()
+        lib.destruct_pmf_growth()
     
         return coevals
 
@@ -2873,6 +2874,21 @@ def _c_call_init_PMF_from_input(z, chiB):
 
 
 
+def _c_call_init_PMF_growth_from_input(z, MB):
+
+    # Convert the data to the right type
+    z = np.array(z, dtype="float32")
+    _z = ffi.cast("float *", ffi.from_buffer(z))
+
+    MB = np.array(MB, dtype="float32")
+    _MB = ffi.cast("float *", ffi.from_buffer(MB))
+
+
+    status = lib.InitPMFGrowthEvolutionTablesFromInput(_z, _MB, len(z))
+    assert status == 1, "FATAL ERROR: error in calling InitPMFEvolutionTablesFromInput from heating_helper_prog.c"
+
+
+
 def _compute_sigma_A_PMF(cosmo_hyrec):
     
     """
@@ -2889,7 +2905,7 @@ def _compute_sigma_A_PMF(cosmo_hyrec):
     # compute the typical Alfven magnetic scale sigma_A
     vA_sigmaB0 = 1./np.sqrt(pyhy.rho_gamma(cosmo_hyrec) * _MU_0_ * _C_LIGHT_**2 * 4/3) # in nG^{-1}
     k_gamma = pyhy.compute_acoustic_damping_scale(cosmo_hyrec) # in Mpc^{-1}, this makes a first call to HYREC C-code without exotic energy injection
-    sigma_A = k_gamma/vA_sigmaB0/(2*np.pi) # in nG
+    sigma_A = k_gamma/vA_sigmaB0/(2.0*np.pi) # in nG
     
     return sigma_A
 
@@ -2935,7 +2951,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     if user_params.power_spectrum_model.upper() != "CLASS" or _CLASS_IMPORTED is False or user_params.USE_CLASS_TABLES is True:
         
         if _CLASS_IMPORTED is False:
-            if user_params.power_spectrum_model.upper == "CLASS" and user_params.USE_CLASS_TABLES is False :
+            if user_params.power_spectrum_model.upper() == "CLASS" and user_params.USE_CLASS_TABLES is False :
                 logger.warning("Classy module not found, use precomputed table for the computation!") 
                 user_params.update(USE_CLASS_TABLES = True)
 
@@ -2993,6 +3009,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             res_hyrec = pyhy.call_run_hyrec(cosmo_hyrec(), injec_hyrec())
             _c_call_init_IGM_from_input(res_hyrec['z'], res_hyrec['Tm'], res_hyrec['xe'])  
             _c_call_init_PMF_from_input(res_hyrec['z'], res_hyrec['chiB'])
+            _c_call_init_PMF_growth_from_input(res_hyrec['z'], res_hyrec['MB'])
 
             if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
                 cosmo_params.update(PMF_SIGMA_A = sigma_A)
@@ -3191,7 +3208,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
         # Put the correct values for the parameters missing in the init params dict
         params_class_LCDM = params_class_init | {'omega_cdm' : omega_cdm_LCDM}
 
-        print("CLASS LCDM parameters are :\n", params_class_LCDM)
+        print("CLASS LCDM parameters are :\n", params_class_LCDM, flush=True)
         
         # run CLASS
         cosmo_CLASS_LCDM = Class()
@@ -3285,6 +3302,7 @@ def free_C_memory():
     lib.free_TF_CLASS()
     lib.destruct_heat()
     lib.destruct_pmf()
+    lib.destruct_pmf_growth()
     lib.FreeTsInterpolationTables()
 
 
@@ -3714,12 +3732,12 @@ def run_lightcone(
 
                 st2.dpmf_ad_dt_ave   = dpmf_ad_dt[iz]
                 st2.dpmf_turb_dt_ave = dpmf_turb_dt[iz]
-                chiB[iz]             = st2.chiB 
+                chiB[iz]             = st2.pmf_chiB 
                 
                 if flag_options.USE_MINI_HALOS:
                     dxheat_dt_MINI[iz] = np.mean(st2.dxheat_dt_box_MINI)
 
-                print(z, ":", st2.dpmf_ad_dt_ave, st2.dpmf_turb_dt_ave, chiB[iz])
+                print(z, ":", st2.dpmf_ad_dt_ave, st2.dpmf_turb_dt_ave, chiB[iz], flush = True)
 
             # Interpolate the lightcone
             if z < max_redshift:

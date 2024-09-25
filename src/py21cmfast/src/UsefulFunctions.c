@@ -1164,6 +1164,17 @@ double dEdtdV_heat_turbulences_pmf(double z, double xe, double Tgas, double rhob
 {
     return 0.0;
 }
+
+/* 
+  Decay rate due to ambipolar diffusion (result is in 1 / s) 
+  - z       : redshift
+  - xe      : free electron fraction
+  - Tgas    : Temperature of the gas (in K)
+  - chiB    : magnetic field comobing variations
+  - rhob    : density of baryons (in g / cm^{-3}) (if negative recomputes the homogeneous value)
+
+  Same function as in HYREC with adapted units
+*/
 double decay_rate_heat_ambipolar_pmf(double z, double xe, double Tgas, double chiB, double rhob)
 {
     double zi = 1088;
@@ -1174,7 +1185,7 @@ double decay_rate_heat_ambipolar_pmf(double z, double xe, double Tgas, double ch
     double nB     = cosmo_params_ufunc->PMF_NB;
 
     double gamma_AD = 6.49e-10 * pow(Tgas, 0.375) / (2.0 * m_H); // in cm^3 / s / g
-    double rho_b = (rhob <= 0) ? ob * RHOcrit * Msun * pow(CMperMPC, -3) : rhob; // in g / cm^3
+    double rho_b = (rhob <= 0) ? ob * RHOcrit * Msun * pow(CMperMPC, -3) : rhob/pow(1+z, 3); // in g / cm^3
 
     double eta_AD   = (1.0-xe)/xe / rho_b / rho_b / gamma_AD; // in s * cm^3 / g
 
