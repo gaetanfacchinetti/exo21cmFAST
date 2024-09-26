@@ -21,6 +21,8 @@ int ComputeBrightnessTemp(float redshift, struct UserParams *user_params, struct
 
     ave = 0.;
 
+    LOG_DEBUG("%d", user_params->N_THREADS);
+
     omp_set_num_threads(user_params->N_THREADS);
 
     float *v = (float *) calloc(HII_TOT_FFT_NUM_PIXELS,sizeof(float));
@@ -461,17 +463,44 @@ int ComputeBrightnessTemp(float redshift, struct UserParams *user_params, struct
         Throw(InfinityorNaNError);
     }
 
+
     LOG_DEBUG("z = %.2f, ave Tb = %e", redshift, ave);
 
     free(v);
+    v = NULL;
+    
     free(vel_gradient);
+    vel_gradient = NULL;
 
     free(x_pos);
+    x_pos = NULL;
+
     free(x_pos_offset);
+    x_pos_offset = NULL;
+
     for(i=0;i<user_params->N_THREADS;i++) {
-        free(delta_T_RSD_LOS[i]);
+        //LOG_DEBUG("In the loop %d, %d", i, user_params->N_THREADS);
+        //LOG_DEBUG("Pointer address before free: %p", (void *)delta_T_RSD_LOS[i]);
+        if (delta_T_RSD_LOS[i] != NULL)
+        {
+            //int size = sizeof(delta_T_RSD_LOS[i]) / sizeof(delta_T_RSD_LOS[i][0]); // Calculate number of elements
+            //LOG_DEBUG("The size of the array is: %d, %d", size, HII_D_PARA);
+            //LOG_DEBUG("Values in the array are:");
+            //for(int j=0; j< HII_D_PARA; j++)
+            //{
+            //   LOG_DEBUG("%d %d : %e", i, j, delta_T_RSD_LOS[i][j]);
+            //}
+
+            free(delta_T_RSD_LOS[i]);
+            delta_T_RSD_LOS[i] = NULL;
+        }
+        //LOG_DEBUG("After delta_T_RSD_LOS[i]");
     }
+
     free(delta_T_RSD_LOS);
+
+
+   
     fftwf_cleanup_threads();
     fftwf_cleanup();
     LOG_DEBUG("Cleaned up.");
