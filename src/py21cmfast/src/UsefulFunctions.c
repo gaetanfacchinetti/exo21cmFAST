@@ -1181,7 +1181,6 @@ double decay_rate_heat_ambipolar_pmf(double z, double xe, double Tgas, double ch
 
     double ob     = cosmo_params_ufunc->OMb;
     double sigmaA = cosmo_params_ufunc->PMF_SIGMA_A;
-    double sigmaB = cosmo_params_ufunc->PMF_SB;
     double nB     = cosmo_params_ufunc->PMF_NB;
 
     double gamma_AD = 6.49e-10 * pow(Tgas, 0.375) / (2.0 * m_H); // in cm^3 / s / g
@@ -1262,7 +1261,6 @@ double decay_rate_heat_turbulences_pmf(double z, double chiB)
     double obh2   = cosmo_params_ufunc->OMb * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle;
     double omh2   = cosmo_params_ufunc->OMm * cosmo_params_ufunc->hlittle * cosmo_params_ufunc->hlittle;
     double sigmaA = cosmo_params_ufunc->PMF_SIGMA_A;
-    double sigmaB = cosmo_params_ufunc->PMF_SB;
     double nB     = cosmo_params_ufunc->PMF_NB;
 
     // decay time over the initial time

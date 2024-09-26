@@ -1090,6 +1090,9 @@ double pmf_induced_power_spectrum(double k)
     double sB = cosmo_params_ps->PMF_SB;
     double sA = cosmo_params_ps->PMF_SIGMA_A;
     double nB  = cosmo_params_ps->PMF_NB;
+
+    if (sB == 0)
+        return 0.0;
     
     //double kA_approx = pow(sB0*sB0 / pow(2*PI, 3.0 + nB) / 4.2e+5, -1.0/(5.0 + nB));
     double kA_approx = TWOPI * pow(sB / sA, -2.0/(5.0 + nB));  // in Mpc^{-1}
