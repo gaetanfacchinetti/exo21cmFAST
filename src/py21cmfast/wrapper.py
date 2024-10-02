@@ -3245,14 +3245,17 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             if (_Tm_array_temp[-1] / _Tm_LCDM) < 1e-2:
                 ncdm_precision = True
                 
-        if (ncdm_precision is False) and (n_wdm > 0):
+        if (ncdm_precision is False) and (n_wdm > 0) and len(k_max) > 1:
+            # if len(k_max) == 1 it must mean that k_max = k_max_21cm 
+            # then we do not need to reach the precision, as long as we
+            # compute everything up to k_max_21cm
             print("Precision could not be achieved T_NCDM/T_LCDM(k_max) =", _Tm_array_temp[-1] / _Tm_LCDM, flush=True)
         
         if n_wdm > 0:
             # in the wdm case, we may have computed the power spectrum up to a given k
             # because 21cm will extrapolate from the last value it is safer to set it to
             # zero after the maximum value of k we computed 
-            _k_array  =  np.logspace(np.log10(1e-4), np.log10(k_max_21cm * _h), 500)
+            _k_array  =  np.logspace(np.log10(1e-4), np.log10(k_max_21cm), 2000)
             _Tm_array = interp1d(_k_array_temp, _Tm_array_temp, bounds_error = False, fill_value = 0.0)(_k_array)
             print("The value of k_max set is =", k_max[n_call_class-1], "Mpc^{-1} | T_NCDM/T_LCDM(k_max) =", _Tm_array_temp[-1] / _Tm_LCDM, flush=True)
         else:
@@ -3286,9 +3289,11 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     #################################################
     #################################################
     
+
     # initialise the power spectrum tables in the C-code
     _c_call_init_TF_CLASS(user_params, cosmo_params, _k_array, _Tm_array, _Tvcb_array, _k_array_LCDM, _Tm_array_LCDM, _Tvcb_array_LCDM)
     
+
     # Get the thermodynamical quantities
     _z   = _thermo['z']
     _x_e = _thermo['x_e']

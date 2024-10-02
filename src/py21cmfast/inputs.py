@@ -445,14 +445,14 @@ class CosmoParams(StructWithDefaults):
         #######################################
         # Generic transfer function parameters
         "ALPHA_NCDM_TF" : 1.0,
-        "BETA_NCDM_TF" : 0.0,
+        "BETA_NCDM_TF"  : 0.0,
         "GAMMA_NCDM_TF" : 0.0,
         "DELTA_NCDM_TF" : 0.0, 
         #######################################
         # Primordial magnetic field parameters
         "PMF_SIGMA_B_0" : 0.1,
         "PMF_SIGMA_A_0" : 44.94,
-        "PMF_B_INDEX" : -2.5,
+        "PMF_B_INDEX"   : -2.5,
         #######################################
     }
 

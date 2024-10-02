@@ -227,6 +227,8 @@ double dsigma_dk_LCDM(double k, void *params);
 double sigma_z0(double M); //calculates sigma at z=0 (no dicke)
 double power_in_k(double k); /* Returns the value of the linear power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
 
+double trapezoid_integral_dsigma_dlnk(int n, double lnk_min, double lnk_max, void * params);
+
 double transfer_function(double k, bool with_pmf);
 double transfer_function_LCDM(double k);
 double transfer_function_EH(double k);
@@ -307,6 +309,7 @@ double primordial_power_spectrum(double k)
 */
 double power_spectrum(double k)
 {   
+    LOG_SUPER_DEBUG("primordial_ps = %f, tf = %f", primordial_power_spectrum(k), transfer_function(k, true));
     return  primordial_power_spectrum(k) * pow(transfer_function(k, true), 2);
 }
 
@@ -852,12 +855,12 @@ double TF_CLASS(double k, int flag_dv)
     double ans;
 
     if (k > kclass[TABLE_CLASS_LENGTH-1]) { // k>kmax
-        LOG_SUPER_DEBUG("Called TF_CLASS with k=%f, larger than kmax! Returning value at kmax = %f.", k, kclass[TABLE_CLASS_LENGTH-1]);
         if(flag_dv == 0){ // output is density
-            return (Tmclass[TABLE_CLASS_LENGTH]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
+            LOG_SUPER_DEBUG("Called TF_CLASS with k=%f > kmax = %f! Returns val = %f (at kmax).", k, kclass[TABLE_CLASS_LENGTH-1], Tmclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
+            return (Tmclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
         }
         else if(flag_dv == 1){ // output is rel velocity
-            return (Tvclass_vcb[TABLE_CLASS_LENGTH]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
+            return (Tvclass_vcb[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
         }    //we just set it to the last value, since sometimes it wants large k for R<<cell_size, which does not matter much.
     }
     else { // Do spline
@@ -920,7 +923,7 @@ double TF_CLASS_LCDM(double k, int flag_dv)
 // at a given k mode linearly extrapolated to z=0
 double power_in_k(double k)
 {
-    //LOG_DEBUG("calling power_in_k = %e, %e, %e", sigma_norm, TWOPI*PI*sigma_norm*sigma_norm, power_spectrum(k));
+    LOG_DEBUG("Calling power_in_k = %e, %e, %e", sigma_norm, TWOPI*PI*sigma_norm*sigma_norm, power_spectrum(k));
     return power_spectrum(k)*TWOPI*PI*sigma_norm*sigma_norm;
 }
 
@@ -1150,6 +1153,8 @@ double dsigma_dlnk(double lnk, void *params){
     double kR = k*Radius;
     double w = window_function(kR);
 
+    //LOG_DEBUG("k = %e, power_spectrum = %e, window = %e, radius = %e", k, p * TWOPI * PI * sigma_norm * sigma_norm, w, Radius);
+
     return k*k*p*w*w * k; 
 }
 
@@ -1254,7 +1259,9 @@ double sigma_z0(double M){
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    double middle_limit = upper_limit > log(10.0) ?  log(10.0) : upper_limit;
+
+    status = gsl_integration_qag (&F, lower_limit, middle_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
 
     if(status!=0) 
     {
@@ -1266,7 +1273,48 @@ double sigma_z0(double M){
 
     gsl_integration_workspace_free(w);
 
+    if (middle_limit < upper_limit){
+        //LOG_DEBUG("USING TRAPZOIDAL RULE, and result = %e before", result);
+        result = result + trapezoid_integral_dsigma_dlnk(1000, middle_limit, upper_limit, F.params);
+        }
+
+    //LOG_DEBUG("Result = %e after (sigma_norm = =m%e)", result, sigma_norm);
     return sigma_norm * sqrt(result);
+}
+
+
+// Trapezoidal rule integration routine
+double trapezoid_integral_dsigma_dlnk(int n, double lnk_min, double lnk_max, void * params) {
+    // Step size in ln(k)
+    double delta_lnk = (lnk_max - lnk_min) / n;
+
+    // Initialize integral value
+    double integral = 0.0;
+
+    // Evaluate the endpoints
+    double lnk_left = lnk_min;
+    double lnk_right = lnk_min + delta_lnk;
+
+    // Add first endpoint contribution (half weight)
+    integral += 0.5 * dsigma_dlnk(lnk_left, params);
+
+    // Loop through bins
+    for (int i = 1; i < n; ++i) {
+        // Move to the next bin
+        lnk_left = lnk_right;
+        lnk_right = lnk_left + delta_lnk;
+
+        // Add full weight of the current point
+        integral += dsigma_dlnk(lnk_left, params);
+    }
+
+    // Add last endpoint contribution (half weight)
+    integral += 0.5 * dsigma_dlnk(lnk_right, params);
+
+    // Multiply by the step size in ln(k) to get the final result
+    integral *= delta_lnk;
+
+    return integral;
 }
 
 
@@ -5266,7 +5314,12 @@ float* ComputeSigmaZ0(struct UserParams *user_params, struct CosmoParams *cosmo_
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+    {
+        if (flag_options->USE_MINI_HALOS == false)
+            initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+        else
+            initialiseSigmaMInterpTable(1e+3, 1.0e+21);
+    }
     
     float* result = malloc(length * sizeof(float));
 
@@ -5314,7 +5367,12 @@ float* ComputeDSigmaSqDmZ0(struct UserParams *user_params, struct CosmoParams *c
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+    {
+        if (flag_options->USE_MINI_HALOS == false)
+            initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+        else
+            initialiseSigmaMInterpTable(1e+3, 1.0e+21);
+    }
 
     float* result = malloc(length * sizeof(float));
 
@@ -5341,7 +5399,12 @@ float* ComputeDNDM(struct UserParams *user_params, struct CosmoParams *cosmo_par
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+    {
+        if (flag_options->USE_MINI_HALOS == false)
+            initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+        else
+            initialiseSigmaMInterpTable(1e+3, 1.0e+21);
+    }
 
     float* result = malloc(length * sizeof(float));
 
@@ -5384,7 +5447,12 @@ float* ComputeDNDMConditionnal(struct UserParams *user_params, struct CosmoParam
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+    {
+        if (flag_options->USE_MINI_HALOS == false)
+            initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+        else
+            initialiseSigmaMInterpTable(1e+3, 1.0e+21);
+    }
 
     float* result = malloc(length * sizeof(float));
 
@@ -5420,7 +5488,12 @@ float* ComputeFgtrMGeneral(struct UserParams *user_params, struct CosmoParams *c
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+    {
+        if (flag_options->USE_MINI_HALOS == false)
+            initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+        else
+            initialiseSigmaMInterpTable(1e+3, 1.0e+21);
+    }
 
     float* result = malloc(length * sizeof(float));
 
@@ -5447,7 +5520,12 @@ float* ComputeNionConditionalM(struct UserParams *user_params, struct CosmoParam
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 5.0e+20);
+    {
+        if (flag_options->USE_MINI_HALOS == false)
+            initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+        else
+            initialiseSigmaMInterpTable(1e+3, 1.0e+21);
+    }
 
     float* result = malloc(length * sizeof(float));
 
@@ -5488,7 +5566,12 @@ float* ComputeDNionConditionalLnM(struct UserParams *user_params, struct CosmoPa
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 5.0e+20);
+    {
+        if (flag_options->USE_MINI_HALOS == false)
+            initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+        else
+            initialiseSigmaMInterpTable(1e+3, 1.0e+21);
+    }
 
     float* result = malloc(length * sizeof(float));
 
@@ -5531,7 +5614,12 @@ float* ComputeNionGeneral(struct UserParams *user_params, struct CosmoParams *co
     init_ps();
 
     if (user_params_ps->USE_INTERPOLATION_TABLES)
-        initialiseSigmaMInterpTable(astro_params->M_TURN/50., 5.0e+20);
+    {
+        if (flag_options->USE_MINI_HALOS == false)
+            initialiseSigmaMInterpTable(astro_params->M_TURN/50., 1.0e+21);
+        else
+            initialiseSigmaMInterpTable(1e+3, 1.0e+21);
+    }
 
     float* result = malloc(length * sizeof(float));
 
