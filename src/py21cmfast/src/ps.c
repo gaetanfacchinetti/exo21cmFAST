@@ -1217,8 +1217,8 @@ double sigma_z0(double M){
 
     double result, error, lower_limit, upper_limit;
     gsl_function F;
-    double rel_tol = FRACT_FLOAT_ERR*10; //<- relative tolerance
-    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
+    double rel_tol = FRACT_FLOAT_ERR*100; //<- relative tolerance
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc (2000);
     double kstart, kend;
 
     double Radius = MtoR(M);
@@ -1261,7 +1261,7 @@ double sigma_z0(double M){
 
     double middle_limit = upper_limit > log(10.0) ?  log(10.0) : upper_limit;
 
-    status = gsl_integration_qag (&F, lower_limit, middle_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag (&F, lower_limit, middle_limit, 0, rel_tol, 2000, GSL_INTEG_GAUSS61, w, &result, &error);
 
     if(status!=0) 
     {
