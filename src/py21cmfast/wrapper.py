@@ -3235,7 +3235,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             n_call_class = n_call_class + 1
 
             # Get the transfer functions
-            _k_array_temp   = np.logspace(np.log10(1e-4), np.log10(params_class['P_k_max_h/Mpc'] * _h), 500)
+            _k_array_temp   = np.logspace(np.log10(cosmo_CLASS.get_transfer(z=0)['k (h/Mpc)'][0] * _h), np.log10(params_class['P_k_max_h/Mpc'] * _h), 500)
             _mps_array_temp = np.array([cosmo_CLASS.pk_lin(k, 0) for k in _k_array_temp])
             _Tm_array_temp  = np.sqrt(_k_array_temp**3 * _mps_array_temp / primordial_power_spectrum(_k_array_temp) / (2*np.pi**2) )
 
@@ -3257,7 +3257,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             # a very small value after the maximum value of k we computed
             # (note that we cannot set it to zero exaclty as the C code interpolates log quantities)
             npts: int = 500 * int(np.log10(k_max_21cm) + 4) # putting 500 points per decade
-            _k_array  =  np.logspace(np.log10(1e-4), np.log10(k_max_21cm), npts)
+            _k_array  =  np.logspace(np.log10(_k_array_temp[0]), np.log10(k_max_21cm), npts)
             _Tm_array = interp1d(_k_array_temp, _Tm_array_temp, bounds_error = False, fill_value = 1e-10 * _Tm_array_temp[-1])(_k_array)
             print("The value of k_max set is =", k_max[n_call_class-1], "Mpc^{-1} | T_NCDM/T_LCDM(k_max) =", _Tm_array_temp[-1] / _Tm_LCDM, flush=True)
         else:
