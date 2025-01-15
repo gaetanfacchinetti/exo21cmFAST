@@ -856,11 +856,11 @@ double TF_CLASS(double k, int flag_dv)
 
     if (k > kclass[TABLE_CLASS_LENGTH-1]) { // k>kmax
         if(flag_dv == 0){ // output is density
-            LOG_SUPER_DEBUG("Called TF_CLASS with k=%f > kmax = %f! Returns val = %f (at kmax).", k, kclass[TABLE_CLASS_LENGTH-1], Tmclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
-            return (Tmclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
+            LOG_SUPER_DEBUG("Called TF_CLASS with k=%f > kmax = %f! Returns val = %f (at kmax), %e.", k, kclass[TABLE_CLASS_LENGTH-1], Tmclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1], kclass[TABLE_CLASS_LENGTH-1]);
+            return (Tmclass[TABLE_CLASS_LENGTH-1]/k/k);
         }
         else if(flag_dv == 1){ // output is rel velocity
-            return (Tvclass_vcb[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
+            return (Tvclass_vcb[TABLE_CLASS_LENGTH-1]/k/k);
         }    //we just set it to the last value, since sometimes it wants large k for R<<cell_size, which does not matter much.
     }
     else { // Do spline
@@ -895,10 +895,10 @@ double TF_CLASS_LCDM(double k, int flag_dv)
     if (k > kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]) { // k>kmax
         LOG_WARNING("Called TF_CLASS_LCDM with k=%f, larger than kmax! Returning value at kmax = %f.", k, kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]);
         if(flag_dv == 0){ // output is density
-            return (Tmclass_LCDM[TABLE_CLASS_LENGTH_LCDM]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]);
+            return (Tmclass_LCDM[TABLE_CLASS_LENGTH_LCDM]/k/k);
         }
         else if(flag_dv == 1){ // output is rel velocity
-            return (Tvclass_vcb_LCDM[TABLE_CLASS_LENGTH_LCDM]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]/kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]);
+            return (Tvclass_vcb_LCDM[TABLE_CLASS_LENGTH_LCDM]/k/k);
         }    //we just set it to the last value, since sometimes it wants large k for R<<cell_size, which does not matter much.
     }
     else { // Do spline

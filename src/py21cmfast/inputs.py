@@ -364,8 +364,8 @@ class CosmoParams(StructWithDefaults):
         Omega matter.
     OMb : float, optional
         Omega baryon, the baryon component.
-    Omch2 : float, optional
-        CDM matter times h2.
+    Omdmh2 : float, optional
+        DM matter times h2.
         Only used if `USE_OMEGA_H2` is True in user_params (overwrites the value of OMm and OMb)
     Ombh2 : float, optional
         Omega baryon, the baryon component times h2.
@@ -422,7 +422,7 @@ class CosmoParams(StructWithDefaults):
         ######################################
         # Additional LCDM parameters
         "Ln_1010_As" : 3.047,
-        "Omch2" : 0.11933,
+        "Omdmh2" : 0.11933,
         "Ombh2" : 0.02242,
         #######################################
         # Warm dark matter parameters

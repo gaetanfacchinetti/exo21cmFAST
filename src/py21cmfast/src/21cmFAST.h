@@ -13,7 +13,7 @@ struct CosmoParams{
     double OMl;
     double OMb;
     double POWER_INDEX;
-    double Omch2;
+    double Omdmh2;
     double Ombh2;
     
     float VOLUME_FACTOR_SHARP_K;
