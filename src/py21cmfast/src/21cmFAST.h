@@ -27,7 +27,7 @@ struct CosmoParams{
     float SHETH_q;
     float SHETH_p;
     float SHETH_A;
-    double PMF_SB;
+    double LOG10_PMF_SB;
     double PMF_SIGMA_A;
     double PMF_NB;
 

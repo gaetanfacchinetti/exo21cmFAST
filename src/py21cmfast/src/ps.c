@@ -620,7 +620,7 @@ void interpolate_power_spectrum_from_pmf(bool free_tables)
 
         LOG_DEBUG("INTERPOLATING PMF POWER SPECTRUM TABLES");
 
-        double log10_w_array[300], nB_array[100];
+        double log10_w_array[500], nB_array[100];
 
         const size_t nx = sizeof(nB_array) / sizeof(double); /* x grid points */
         const size_t ny = sizeof(log10_w_array) / sizeof(double); /* y grid points */
@@ -932,10 +932,10 @@ double TF_CLASS(double k, int flag_dv)
     if (k > kclass[TABLE_CLASS_LENGTH-1]) { // k>kmax
         LOG_SUPER_DEBUG("Called TF_CLASS with k=%f, larger than kmax! Returning value at kmax = %f.", k, kclass[TABLE_CLASS_LENGTH-1]);
         if(flag_dv == 0){ // output is density
-            return (Tmclass[TABLE_CLASS_LENGTH]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
+            return (Tmclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
         }
         else if(flag_dv == 1){ // output is rel velocity
-            return (Tvclass_vcb[TABLE_CLASS_LENGTH]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
+            return (Tvclass_vcb[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]/kclass[TABLE_CLASS_LENGTH-1]);
         }    //we just set it to the last value, since sometimes it wants large k for R<<cell_size, which does not matter much.
     }
     else { // Do spline
@@ -1038,7 +1038,7 @@ double _int1_pmf_induced_power(double mu, void *params)
 
     //double y = sqrt(w*w + v*v - 2*v*w*mu);
     //return pow(y, nB) * exp(-2.0*y*y) * (x*x + (x*x - 2*x*x1*mu)*mu*mu);
-    return pow(1.0 + v*v - 2.0*v*mu, nB/2.0) * (1.0 + mu*mu * (1.0 - 2*v*mu)) * exp(-4*w*w*v*(v-mu) - 2*w*w) * v;
+    return pow(1.0 + v*v - 2.0*v*mu, nB/2.0) * (1.0 + mu*mu * (1.0 - 2*v*mu)) * exp(-4*w*w*v*(v-mu) - 2*w*w);
 }
 
 double _int2_pmf_induced_power(double lnv, void *params)
@@ -1066,15 +1066,17 @@ double _int2_pmf_induced_power(double lnv, void *params)
     status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w_gsl, &result, &error);
 
     if(status!=0) {
+
         LOG_ERROR("gsl integration error occured!");
         LOG_ERROR("function argument: lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
         LOG_ERROR("data : nB = %e, w = k/kA = %e, v = k1/k = %e", nB, w, v);
         GSL_ERROR(status);
+
     }
 
     gsl_integration_workspace_free(w_gsl);
 
-    return result * pow(v, nB+2.0);
+    return result * pow(v, nB+2.0) * v;
     // last exp(lnx1) = x1 is here because we integrate over lnx1 and not x1)
 }
 
@@ -1087,7 +1089,7 @@ double pmf_induced_power_spectrum(double k)
 
     //LOG_DEBUG("Computing the PMF transfer function for k = %e Mpc^{-1}", k);
 
-    double sB = cosmo_params_ps->PMF_SB;
+    double sB = pow(10.0, cosmo_params_ps->LOG10_PMF_SB);
     double sA = cosmo_params_ps->PMF_SIGMA_A;
     double nB  = cosmo_params_ps->PMF_NB;
 
@@ -1099,49 +1101,58 @@ double pmf_induced_power_spectrum(double k)
     double amplitude = pow(TWOPI * sB, 2) / gsl_sf_gamma((nB+3.0)/2.0) * pow(2.0, (nB+3.0)/2.0); // in nG^2 Mpc^{3+nB}
 
 
-    double dimensionless_power_spectrum_v = 0;
+    double dimensionless_power_spectrum_v = 0.0;
     double log10_w = log10(k/kA_approx);
 
 
     /*
     Condition imposed from physical considerations
     if kA ~ 10 - 10^3 Mpc^{-1} there is no need to
-    look for the contribution of the PMF below 10^{-5} k_A
-    this already corresponds to 10^{-2} Mpc^{-1} at least 
+    look for the contribution of the PMF below 10^{-7} k_A
+    this already corresponds to 10^{-4} Mpc^{-1} at least 
     where PMF are not expected to play a role
+
+    when log10_w > 1.0, the factor exp(-2w^2) kills the integral
+    we can set the result to 0.0 then in excellent approximation
     */
-    if (log10_w > -5)
+    if ((log10_w > -7.0) && (log10_w < 1.0))
     {
 
         // if in the parameter space where the table is defined use it otherwise the value is recomputed
-        if (user_params_ps->USE_PMF_TABLES == true && log10_w < 1.0 && nB >= -3.0 && nB <= 0)  
+        if (user_params_ps->USE_PMF_TABLES == true && nB >= -3.0 && nB <= 0)  
             dimensionless_power_spectrum_v = pow(10, gsl_spline2d_eval(spline_log10_ps_v, nB, log10_w, acc_nB, acc_w));
         else
         {
-            struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .w  = k/kA_approx};
-
-            gsl_function F;
-            F.function = _int2_pmf_induced_power;
-            F.params = &parameters_gsl_pmf_2;
-            gsl_integration_workspace * w_gsl = gsl_integration_workspace_alloc(1000);
+            
             double rel_tol  = 1e-3; //10.0 * FRACT_FLOAT_ERR;
             double result, error;
-            double lower_limit = log(1e-5)-log(pow(10, log10_w));
+            double lower_limit = log(1e-8)-log(pow(10, log10_w));
             double upper_limit = 4.0;
             int status;
 
-            gsl_set_error_handler_off();
+            if (lower_limit < upper_limit)
+            {
+                struct parameters_gsl_pmf_induced_power_int_ parameters_gsl_pmf_2 = {.nB = nB, .w  = k/kA_approx};
+                gsl_function F;
+                F.function = _int2_pmf_induced_power;
+                F.params = &parameters_gsl_pmf_2;
+                gsl_integration_workspace * w_gsl = gsl_integration_workspace_alloc(1000);
 
-            status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w_gsl, &result, &error);
+                gsl_set_error_handler_off();
 
-            if(status!=0) {
-                LOG_ERROR("gsl integration error occured!");
-                LOG_ERROR("function argument: lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
-                LOG_ERROR("data : nB = %e, k = %e", nB, k);
-                GSL_ERROR(status);
+                status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w_gsl, &result, &error);
+
+                if(status!=0) {
+                    LOG_ERROR("gsl integration error occured!");
+                    LOG_ERROR("function argument: lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit, upper_limit,rel_tol,result,error);
+                    LOG_ERROR("data : nB = %e, k = %e", nB, k);
+                    GSL_ERROR(status);
+                }
+
+                gsl_integration_workspace_free(w_gsl);
             }
-
-            gsl_integration_workspace_free(w_gsl);
+            else
+                result = 0.0;            
 
             /* Eq. 21 of Adi et al. 2023 [arXiv:2306.11319]
             the expression is devided by the prefactor alpha = f_b/MU_0/rhob_0, A_B^2 and k_A^(7+n_B)
@@ -1394,8 +1405,8 @@ double dsigmasq_dm(double lnk, void *params)
 double dsigmasqdm_z0(double M){
     double result, error, lower_limit, upper_limit;
     gsl_function F;
-    double rel_tol  = FRACT_FLOAT_ERR*10; //<- relative tolerance
-    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
+    double rel_tol  = FRACT_FLOAT_ERR*1000; //<- relative tolerance // previous implementation FRACT_FLOAT_ERR*10
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc (2000);
     double kstart, kend;
 
 
@@ -1430,7 +1441,7 @@ double dsigmasqdm_z0(double M){
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag(&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag(&F, lower_limit, upper_limit, 0, rel_tol, 2000, GSL_INTEG_GAUSS61, w, &result, &error);
 
     if(status!=0) {
         LOG_ERROR("gsl integration error occured!");

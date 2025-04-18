@@ -2889,26 +2889,6 @@ def _c_call_init_PMF_growth_from_input(z, MB):
 
 
 
-def _compute_sigma_A_PMF(cosmo_hyrec):
-    
-    """
-        _compute_sigma_A_PMF(HYREC cosmology)
-
-    give the Alfven scale sigma_A from HYREC (is installed, otherwise returns None)
-    """
-
-    # define a few usefull units and conversion factors
-    _KG_TO_EV_ = 5.60958860380445e+35
-    _C_LIGHT_  = 299792458 # in m / s
-    _MU_0_     = 4 * np.pi * 1e+19 / _KG_TO_EV_ # in m * nG^2 * s^2 / eV
-
-    # compute the typical Alfven magnetic scale sigma_A
-    vA_sigmaB0 = 1./np.sqrt(pyhy.rho_gamma(cosmo_hyrec) * _MU_0_ * _C_LIGHT_**2 * 4/3) # in nG^{-1}
-    k_gamma = pyhy.compute_acoustic_damping_scale(cosmo_hyrec) # in Mpc^{-1}, this makes a first call to HYREC C-code without exotic energy injection
-    sigma_A = k_gamma/vA_sigmaB0/(2.0*np.pi) # in nG
-    
-    return sigma_A
-
 
 def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_params = None, flag_options = None):
 
@@ -2975,6 +2955,13 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                                                     'mnu1' : m_neutrinos[0], 'mnu2' : m_neutrinos[1], 'mnu3' : m_neutrinos[2], 
                                                     'YHe' : global_params.Y_He, 'Omega_k' : global_params.OMk, 'w0' : global_params.wl})
             
+
+            res_bkg = pyhy.call_run_hyrec(cosmo_hyrec(),  pyhy.HyRecInjectionParams()(), zmax = 100000, zmin = 500, nz = 10000)
+            delta_z, zrec, _ = pyhy.delta_z_rec(res_bkg['z'], res_bkg['xe'], cosmo_hyrec)
+
+            # update the zrec attribute self consistently
+            cosmo_hyrec.update(zrec=zrec)
+            
             # initialise the injection params for HYREC if necessary
             injec_hyrec_params = {}
             
@@ -2985,7 +2972,8 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             
             # Alfven magnetic scale in case of PMF effect
             if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
-                sigma_A = _compute_sigma_A_PMF(cosmo_hyrec)
+                sigma_A = pyhy.sigma_A(res_bkg['z'], res_bkg['xe'], cosmo_hyrec)
+                cosmo_params.update(PMF_SIGMA_A = sigma_A)
 
             # energy injection from PMF
             if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD:
@@ -2997,8 +2985,8 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
                     heating_channel = 1
                 if user_params.PMF_HEATING_AD and not user_params.PMF_HEATING_TURB:
                     heating_channel = 2
-                
-                injec_hyrec_params = {'sB_PMF' : cosmo_params.PMF_SB, 'nB_PMF' : cosmo_params.PMF_NB, 'sigmaA_PMF' : sigma_A, 'heat_channel_PMF' : heating_channel}
+
+                injec_hyrec_params = {'sB_PMF' : 10**cosmo_params.LOG10_PMF_SB, 'nB_PMF' : cosmo_params.PMF_NB, 'sigmaA_PMF' : sigma_A, 'heat_channel_PMF' : heating_channel, 'smooth_z_PMF' : delta_z}
             
             # define the exotic energy injection object for HYREC
             # so far, only exotic injection from primordial magnetic fields included
@@ -3011,8 +2999,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
             _c_call_init_PMF_from_input(res_hyrec['z'], res_hyrec['chiB'])
             _c_call_init_PMF_growth_from_input(res_hyrec['z'], res_hyrec['MB'])
 
-            if user_params.PMF_HEATING_TURB or user_params.PMF_HEATING_AD or user_params.PMF_POWER_SPECTRUM:
-                cosmo_params.update(PMF_SIGMA_A = sigma_A)
+            print("sigma_A =", sigma_A, "| zrec = ", cosmo_hyrec.zrec, flush=True)
             
         return (user_params, cosmo_params, astro_params, flag_options)
     
@@ -3737,7 +3724,7 @@ def run_lightcone(
                 if flag_options.USE_MINI_HALOS:
                     dxheat_dt_MINI[iz] = np.mean(st2.dxheat_dt_box_MINI)
 
-                print(z, ":", st2.dpmf_ad_dt_ave, st2.dpmf_turb_dt_ave, chiB[iz], flush = True)
+                #print(z, ":", st2.dpmf_ad_dt_ave, st2.dpmf_turb_dt_ave, chiB[iz], flush = True)
 
             # Interpolate the lightcone
             if z < max_redshift:

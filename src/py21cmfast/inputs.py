@@ -450,9 +450,9 @@ class CosmoParams(StructWithDefaults):
         "DELTA_NCDM_TF" : 0.0, 
         #######################################
         # Primordial magnetic field parameters
-        "PMF_SB" : 0.1,
-        "PMF_SIGMA_A" : 44.94,
-        "PMF_NB" : -2.5,
+        "LOG10_PMF_SB" : -1,
+        "PMF_SIGMA_A"  : 61.1,
+        "PMF_NB"       : -2.5,
         #######################################
     }
 

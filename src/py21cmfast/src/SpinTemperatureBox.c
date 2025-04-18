@@ -2132,13 +2132,12 @@ LOG_SUPER_DEBUG("Initialised heat");
                             }
 
                             // next primordial magnetic field contribution from ambipolar diffusion and turbulences
-                            rho_B_t = pow(cosmo_params->PMF_SIGMA_A * pow(cosmo_params->PMF_SB/cosmo_params->PMF_SIGMA_A, 2.0/(5.0+cosmo_params->PMF_NB)), 2) / (2.0 * MU_0) / (C*C); // in g / cm^3
+                            rho_B_t = pow(cosmo_params->PMF_SIGMA_A * pow(pow(10.0, cosmo_params->LOG10_PMF_SB)/cosmo_params->PMF_SIGMA_A, 2.0/(5.0+cosmo_params->PMF_NB)), 2) / (2.0 * MU_0); // in erg / cm^3
 
                             dpmf_ad_dt_box[box_ct]   = (user_params->PMF_HEATING_AD)   ? decay_rate_heat_ambipolar_pmf(zp, x_e, T, chiB, rho_b0*pow(1.+zp,3.) * (1.+curr_delNL0*growth_factor_zp))  : 0.0;
                             dpmf_turb_dt_box[box_ct] = (user_params->PMF_HEATING_TURB) ? decay_rate_heat_turbulences_pmf(zp, chiB) : 0.0;
                             
-                            // nb goes as (1+z)^3 but need to add another factor of (1+z)^4 for the 
-                            dpmf_energy_ad_dzp   = rho_B_t * dt_dzp * dpmf_ad_dt_box[box_ct]   * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp); // (nb has a factor (1+z)^3 but then need a factor (1+z)^4 to convert from decay rate to deposited energy
+                            dpmf_energy_ad_dzp   = rho_B_t * dt_dzp * dpmf_ad_dt_box[box_ct]  * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp); // (nb has a factor (1+z)^3 but then need a factor (1+z)^4 to convert from decay rate to deposited energy
                             dpmf_energy_turb_dzp = rho_B_t * dt_dzp * dpmf_turb_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp); // (nb has a factor (1+z)^3 but then need a factor (1+z)^4 to convert from decay rate to deposited energy
 
                             //next, CMB heating rate
@@ -2413,7 +2412,7 @@ LOG_SUPER_DEBUG("Initialised heat");
                     dCMBheat_dzp = 0.;
 
                     // next primordial magnetic field contribution from ambipolar diffusion and turbulences
-                    rho_B_t = pow(cosmo_params->PMF_SIGMA_A * pow(cosmo_params->PMF_SB/cosmo_params->PMF_SIGMA_A, 2.0/(5.0+cosmo_params->PMF_NB)), 2) / (2.0 * MU_0) / (C*C); // in g / cm^3
+                    rho_B_t = pow(cosmo_params->PMF_SIGMA_A * pow(pow(10.0, cosmo_params->LOG10_PMF_SB)/cosmo_params->PMF_SIGMA_A, 2.0/(5.0+cosmo_params->PMF_NB)), 2) / (2.0 * MU_0); // in erg / cm^3
 
                     dpmf_ad_dt_box[box_ct]   = (user_params->PMF_HEATING_AD)   ? decay_rate_heat_ambipolar_pmf(zp, x_e, T, chiB, rho_b0*pow(1.+zp,3.) * (1.+curr_delNL0*growth_factor_zp))  : 0.0;
                     dpmf_turb_dt_box[box_ct] = (user_params->PMF_HEATING_TURB) ? decay_rate_heat_turbulences_pmf(zp, chiB) : 0.0;

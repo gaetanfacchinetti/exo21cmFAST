@@ -469,7 +469,11 @@ int ComputeBrightnessTemp(float redshift, struct UserParams *user_params, struct
     free(x_pos);
     free(x_pos_offset);
     for(i=0;i<user_params->N_THREADS;i++) {
-        free(delta_T_RSD_LOS[i]);
+        if (delta_T_RSD_LOS[i] != NULL)
+        {
+            free(delta_T_RSD_LOS[i]);
+            delta_T_RSD_LOS[i] = NULL;
+        }
     }
     free(delta_T_RSD_LOS);
     fftwf_cleanup_threads();
