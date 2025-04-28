@@ -2137,8 +2137,8 @@ LOG_SUPER_DEBUG("Initialised heat");
                             dpmf_ad_dt_box[box_ct]   = (user_params->PMF_HEATING_AD)   ? decay_rate_heat_ambipolar_pmf(zp, x_e, T, chiB, rho_b0*pow(1.+zp,3.) * (1.+curr_delNL0*growth_factor_zp))  : 0.0;
                             dpmf_turb_dt_box[box_ct] = (user_params->PMF_HEATING_TURB) ? decay_rate_heat_turbulences_pmf(zp, chiB) : 0.0;
                             
-                            dpmf_energy_ad_dzp   = rho_B_t * dt_dzp * dpmf_ad_dt_box[box_ct]  * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp); // (nb has a factor (1+z)^3 but then need a factor (1+z)^4 to convert from decay rate to deposited energy
-                            dpmf_energy_turb_dzp = rho_B_t * dt_dzp * dpmf_turb_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp); // (nb has a factor (1+z)^3 but then need a factor (1+z)^4 to convert from decay rate to deposited energy
+                            dpmf_energy_ad_dzp   = rho_B_t * dt_dzp * dpmf_ad_dt_box[box_ct]  * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp) / (1.0+x_e) ; // (nb has a factor (1+z)^3 but then need a factor (1+z)^4 to convert from decay rate to deposited energy
+                            dpmf_energy_turb_dzp = rho_B_t * dt_dzp * dpmf_turb_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp) / (1.0+x_e); // (nb has a factor (1+z)^3 but then need a factor (1+z)^4 to convert from decay rate to deposited energy
 
                             //next, CMB heating rate
                             dCMBheat_dzp = 0.;
@@ -2417,8 +2417,8 @@ LOG_SUPER_DEBUG("Initialised heat");
                     dpmf_ad_dt_box[box_ct]   = (user_params->PMF_HEATING_AD)   ? decay_rate_heat_ambipolar_pmf(zp, x_e, T, chiB, rho_b0*pow(1.+zp,3.) * (1.+curr_delNL0*growth_factor_zp))  : 0.0;
                     dpmf_turb_dt_box[box_ct] = (user_params->PMF_HEATING_TURB) ? decay_rate_heat_turbulences_pmf(zp, chiB) : 0.0;
                     
-                    dpmf_energy_ad_dzp   = rho_B_t * dt_dzp * dpmf_ad_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp);
-                    dpmf_energy_turb_dzp = rho_B_t * dt_dzp * dpmf_turb_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp);
+                    dpmf_energy_ad_dzp   = rho_B_t * dt_dzp * dpmf_ad_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp) / (1.0+x_e) ;
+                    dpmf_energy_turb_dzp = rho_B_t * dt_dzp * dpmf_turb_dt_box[box_ct] * 2.0 / 3.0 / k_B / N_b0 / (1.+curr_delNL0*growth_factor_zp) * (1.+zp) / (1.0+x_e);
 
 
                     if (flag_options->USE_CMB_HEATING) {
