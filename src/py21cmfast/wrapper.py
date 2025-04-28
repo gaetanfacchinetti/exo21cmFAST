@@ -3334,7 +3334,7 @@ def init_TF_and_IGM_tables(*, user_params = None, cosmo_params = None, astro_par
     _x_e = _thermo['x_e']
     _T_b = _thermo['Tb [K]']
 
-    # initialise the power ionization and temperature tables in the C-code
+    # initialise the ionization and temperature tables in the C-code
     _c_call_init_IGM_from_input(_z, _T_b, _x_e)   
 
     #return _k_array, _mps_array, _Tm_array

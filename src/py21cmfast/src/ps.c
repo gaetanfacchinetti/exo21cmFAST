@@ -895,10 +895,10 @@ double TF_CLASS_LCDM(double k, int flag_dv)
     if (k > kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]) { // k>kmax
         LOG_WARNING("Called TF_CLASS_LCDM with k=%f, larger than kmax! Returning value at kmax = %f.", k, kclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]);
         if(flag_dv == 0){ // output is density
-            return (Tmclass_LCDM[TABLE_CLASS_LENGTH_LCDM]/k/k);
+            return (Tmclass_LCDM[TABLE_CLASS_LENGTH_LCDM-1]/k/k);
         }
         else if(flag_dv == 1){ // output is rel velocity
-            return (Tvclass_vcb_LCDM[TABLE_CLASS_LENGTH_LCDM]/k/k);
+            return (Tvclass_vcb_LCDM[TABLE_CLASS_LENGTH_LCDM-1]/k/k);
         }    //we just set it to the last value, since sometimes it wants large k for R<<cell_size, which does not matter much.
     }
     else { // Do spline
